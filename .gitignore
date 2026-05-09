@@ -1,0 +1,28 @@
+# Secretos
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# AI Workflow
+.ai-workflow/
+graphify-out/manifest.json
+graphify-out/cost.json
+graphify-out/cache/
+
+# Lo común
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
+dist/
+build/
+.next/
+.DS_Store
+*.log
+.coverage
+coverage/
+.pytest_cache/

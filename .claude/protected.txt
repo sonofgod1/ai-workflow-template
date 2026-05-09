@@ -1,0 +1,15 @@
+# Archivos y rutas que Claude Code NO debe modificar sin confirmación explícita.
+# Una entrada por línea. Soporta globs.
+# Si necesitas tocar algo de aquí, pídelo y explica por qué.
+
+.env
+.env.*
+*.pem
+*.key
+secrets/**
+.git/**
+.github/workflows/**
+.claude/protected.txt
+CLAUDE.md
+docs/adr/**
+LICENSE
