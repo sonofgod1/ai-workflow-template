@@ -7,7 +7,7 @@ Este archivo define cómo trabaja Claude Code en este repositorio.
 
 ## Reglas duras (no negociables)
 
-1. **Nunca modifiques archivos fuera del scope que te pedí.** Si necesitas tocar algo fuera, **pregúntame primero** y explica por qué. Lista de archivos protegidos en `.claude/protected.txt`.
+1. **Nunca modifiques archivos fuera del scope que te pedí.** Si necesitas tocar algo fuera, pregúntame primero y explica por qué. Lista de archivos protegidos en `.claude/protected.txt`.
 
 2. **Nunca borres archivos sin confirmación explícita.** "Limpiar el repo" o "reorganizar" no es confirmación.
 
@@ -21,52 +21,105 @@ Este archivo define cómo trabaja Claude Code en este repositorio.
 
 7. **Si no estás seguro, pregunta.** Es mejor una pregunta corta que una hora deshaciendo cambios.
 
+8. **Un mensaje = una intención.** O preguntas o instruyes. No mezcles preguntas con un plan que asume las respuestas. Si necesitas información para armar el plan, pregunta primero y espera respuesta.
+
 ---
 
-## Cómo trabajamos: el flujo
+## Uso del grafo de graphify
 
-Este proyecto tiene **fases**. En cada fase tienes un rol distinto y restricciones distintas. Las fases se invocan con slash commands (ver `.claude/commands/`):
+Si existe `graphify-out/GRAPH_REPORT.md`:
+
+1. **Léelo antes de responder cualquier pregunta sobre el código.** El grafo te dice qué hay en el proyecto sin leer 200 archivos.
+2. **No hagas grep masivo.** Si el grafo existe, úsalo para navegar. Solo lee archivos específicos cuando el grafo te dé la ruta exacta.
+3. **God nodes = componentes críticos.** Si vas a tocar un god node, avisa antes de implementar.
+4. Para preguntas específicas sobre relaciones entre módulos: `graphify query "tu pregunta"` desde bash.
+
+Si el grafo NO existe y el proyecto tiene más de 20 archivos, sugiere al usuario correr `graphify .` antes de continuar.
+
+---
+
+## Cómo trabajamos: el flujo por fases
+
+Cada fase tiene un slash command con restricciones claras. **Fuera de un comando, modo consulta: respondes preguntas, no modificas nada.**
 
 | Fase | Comando | Qué haces |
 |------|---------|-----------|
-| Descubrimiento | `/discovery` | Entiendes el problema, no escribes código |
-| Arquitectura | `/architect` | Propones stack, estructura, contratos. Escribes ADRs |
-| Contratos | `/contracts` | Defines OpenAPI, schemas, tipos compartidos |
-| Implementación | `/implement` | Escribes código según los contratos |
-| Tests | `/test` | Escribes tests, no modificas código de producción |
-| Revisión | `/review` | Revisas código, no escribes nuevo |
-| Seguridad | `/security` | Corres SAST/SCA, propones mitigaciones |
-
-**Fuera de un comando, asumes que estás en modo "consulta": respondes preguntas, no modificas nada.**
+| Descubrimiento | `/discovery` | Entiendes el problema o estado actual. No escribes código. |
+| Arquitectura | `/architect` | Propones stack con 2 opciones, escribes ADRs. |
+| Contratos | `/contracts` | Defines OpenAPI, schemas, tipos compartidos. |
+| Implementación | `/implement` | Escribes código respetando contratos y hallazgos. |
+| Tests | `/test` | Escribes tests. No tocas código de producción. |
+| Revisión | `/review` | Code review estricto. No escribes código nuevo. |
+| Seguridad | `/security` | SAST, audit de deps, detección de secretos. |
 
 ---
 
-## Contexto del proyecto
+## Estructura de documentación del proyecto
 
-Antes de cualquier respuesta sobre el código, **lee `GRAPH_REPORT.md`** si existe (lo genera graphify). Eso te dice qué hay en el proyecto sin leer 200 archivos.
+```
+docs/
+├── discovery/          ← Output de /discovery
+├── adr/               ← Architecture Decision Records
+├── contracts/         ← OpenAPI, schemas, tipos compartidos
+├── reviews/           ← Reviews de código con hallazgos numerados
+│   ├── YYYY-MM-DD-[nombre].md      ← Review completa
+│   └── YYYY-MM-DD-decisiones.md   ← Triaje y estado de cada hallazgo
+├── tech-debt.md       ← Deuda técnica con IDs (TD-001, TD-002...)
+└── ideas-features/    ← Ideas y features futuras (no urgentes)
+```
 
-Si vas a tocar un archivo, lee primero:
-1. El archivo en sí
-2. Los archivos que lo importan (los ves en el grafo)
-3. Los tests que lo cubren
+### Formato de IDs de hallazgos
 
-No hagas grep masivo del repo. Usa el grafo.
+- `B1, B2...` — Bloqueantes (impiden el flujo principal)
+- `I1, I2...` — Importantes (deben arreglarse, no urgentes)
+- `S1, S2...` — Sugerencias (mejoras opcionales)
+- `TD-001...` — Deuda técnica
+- `B1.1` — Sub-hallazgo descubierto al arreglar B1
+
+### Estado de hallazgos en decisiones.md
+
+- `[ ]` o sin ✅ — pendiente
+- `✅ B1 — fixed in abc1234` — completado con hash del commit
+
+---
+
+## Ciclo de trabajo por hallazgo
+
+Este es el ciclo completo. No saltarse pasos:
+
+```
+1. /implement [ID]
+2. Agente muestra plan (backend + frontend separados)
+3. Tú apruebas el plan
+4. Agente implementa
+5. Tú pruebas manualmente todos los casos del plan
+6. Si algo falla → reportas al agente → ajusta o registra nuevo hallazgo
+7. git status → verificar archivos (sin .db, sin tsbuildinfo, sin graphify-out/)
+8. git add explícito (NUNCA git add .)
+9. git commit -m "fix(ID): descripción"
+10. git push
+11. Marcar ID como completado en docs/reviews/decisiones.md con hash
+12. git commit -m "docs: marcar [ID] como completado"
+13. git push
+```
+
+**Commit por intención:** código en un commit, docs en otro. Nunca mezclar.
 
 ---
 
 ## Convenciones de código
 
-- **Nombres**: descriptivos, no abreviados. `user_repository` no `usr_repo`.
-- **Comentarios**: solo el "por qué", nunca el "qué". El código dice qué hace.
-- **Funciones**: < 30 líneas. Si pasas de eso, probablemente hay 2 funciones disfrazadas.
-- **Errores**: nunca silenciados con try/except vacío. O lo manejas o lo propagas con contexto.
-- **Logs**: estructurados (JSON), nunca `print()` en código de producción.
+- **Nombres**: descriptivos, no abreviados.
+- **Comentarios**: solo el "por qué", nunca el "qué".
+- **Funciones**: < 30 líneas. Si pasas de eso, hay 2 funciones disfrazadas.
+- **Errores**: nunca silenciados. O los manejas o los propagas con contexto.
+- **Logs**: estructurados, nunca `print()` en producción.
 
 ---
 
 ## Stack del proyecto
 
-*Esta sección la llena el agente arquitecto en `/architect` o se descubre con `/discovery` en proyectos existentes. No lo edites a mano sin un ADR.*
+*Se llena en `/architect` (proyecto nuevo) o `/discovery` (proyecto existente).*
 
 - Lenguaje principal:
 - Framework:
@@ -79,7 +132,7 @@ No hagas grep masivo del repo. Usa el grafo.
 
 ## Comandos del proyecto
 
-*Esta sección se llena después de `/architect`. Ejemplos típicos:*
+*Se llena después de `/architect`.*
 
 ```bash
 # Instalar
@@ -93,6 +146,8 @@ No hagas grep masivo del repo. Usa el grafo.
 
 ## Cuando algo no está claro
 
-Si una instrucción mía es ambigua, **no adivines**. Dame 2-3 interpretaciones posibles y deja que yo elija. Adivinar mal cuesta más tiempo que preguntar.
+Si una instrucción es ambigua, **no adivines**. Da 2-3 interpretaciones posibles y deja que yo elija.
 
-Si una decisión técnica tiene tradeoffs serios (performance vs simplicidad, monolito vs servicios, ORM vs SQL crudo), **escribe un ADR corto** en `docs/adr/` antes de decidir.
+Si una decisión técnica tiene tradeoffs serios, **escribe un ADR corto** en `docs/adr/` antes de decidir.
+
+Si encuentras algo roto fuera del scope de lo que te pedí, **para y reporta**. No lo arregles sin permiso. No lo menciones de pasada al final del reporte. Para, reporta con formato claro, espera instrucción.
