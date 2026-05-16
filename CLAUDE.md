@@ -38,16 +38,52 @@ Si el grafo NO existe y el proyecto tiene más de 20 archivos, sugiere al usuari
 
 ---
 
+## Tipo de proyecto
+
+*Esta sección se llena en `/discovery`. Define la composición del proyecto y los componentes que existen.
+Los slash commands (especialmente `/implement`) usan esta clasificación para estructurar planes y reportes.*
+
+**Composición:** [pendiente — completar en /discovery]
+
+Tipos posibles:
+- `fullstack-monorepo` — backend + frontend en el mismo repo
+- `backend-only` — API/servicio sin frontend propio
+- `frontend-only` — SPA/app web sin backend propio
+- `cli` — herramienta de línea de comandos
+- `library` — librería para consumo de otros proyectos
+- `mobile` — app móvil (iOS/Android)
+- `etl-pipeline` — pipeline de datos
+- `microservices` — varios servicios independientes
+- `otro` — describir manualmente abajo
+
+**Componentes principales:** [pendiente — completar en /discovery]
+
+Ejemplo de cómo se llena para un fullstack-monorepo:
+```
+- backend/ — FastAPI + SQLAlchemy + SQLite
+- frontend/ — Next.js + TypeScript + Tailwind
+```
+
+Ejemplo para un cli:
+```
+- src/ — código principal del comando
+- tests/ — pruebas unitarias
+```
+
+**Comportamiento esperado en `/implement`:** el plan obligatorio debe usar los componentes listados arriba como secciones, no asumir "Backend + Frontend" si el proyecto es de otro tipo. Por ejemplo, si la composición es `cli`, el plan tiene una sola sección "Código" en vez de "Backend / Frontend".
+
+---
+
 ## Cómo trabajamos: el flujo por fases
 
 Cada fase tiene un slash command con restricciones claras. **Fuera de un comando, modo consulta: respondes preguntas, no modificas nada.**
 
 | Fase | Comando | Qué haces |
 |------|---------|-----------|
-| Descubrimiento | `/discovery` | Entiendes el problema o estado actual. No escribes código. |
+| Descubrimiento | `/discovery` | Entiendes el problema, clasificas tipo de proyecto, leerás el grafo. No escribes código. |
 | Arquitectura | `/architect` | Propones stack con 2 opciones, escribes ADRs. |
 | Contratos | `/contracts` | Defines OpenAPI, schemas, tipos compartidos. |
-| Implementación | `/implement` | Escribes código respetando contratos y hallazgos. |
+| Implementación | `/implement` | Escribes código respetando contratos, tipo de proyecto, y hallazgos. |
 | Tests | `/test` | Escribes tests. No tocas código de producción. |
 | Revisión | `/review` | Code review estricto. No escribes código nuevo. |
 | Seguridad | `/security` | SAST, audit de deps, detección de secretos. |
@@ -85,11 +121,9 @@ docs/
 
 ## Ciclo de trabajo por hallazgo
 
-Este es el ciclo completo. No saltarse pasos:
-
 ```
 1. /implement [ID]
-2. Agente muestra plan (backend + frontend separados)
+2. Agente muestra plan (componentes del proyecto separados según "Tipo de proyecto")
 3. Tú apruebas el plan
 4. Agente implementa
 5. Tú pruebas manualmente todos los casos del plan
@@ -150,4 +184,4 @@ Si una instrucción es ambigua, **no adivines**. Da 2-3 interpretaciones posible
 
 Si una decisión técnica tiene tradeoffs serios, **escribe un ADR corto** en `docs/adr/` antes de decidir.
 
-Si encuentras algo roto fuera del scope de lo que te pedí, **para y reporta**. No lo arregles sin permiso. No lo menciones de pasada al final del reporte. Para, reporta con formato claro, espera instrucción.
+Si encuentras algo roto fuera del scope, **para y reporta**. No lo arregles sin permiso. No lo menciones de pasada al final del reporte. Para, reporta con formato claro, espera instrucción.
