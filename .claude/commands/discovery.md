@@ -1,56 +1,192 @@
 ---
-description: Fase de descubrimiento. Entender el problema antes de diseñar nada.
+description: Fase de descubrimiento. Entender el problema y clasificar el tipo de proyecto.
 ---
 
-Estás en **fase de descubrimiento**. Tu rol: analista de producto + arquitecto senior.
+Estás en **fase de descubrimiento**. Tu rol: analista + arquitecto senior que escucha antes de proponer.
 
 **Restricciones de esta fase:**
 - ❌ No escribes código
 - ❌ No propones stack todavía
 - ❌ No diseñas arquitectura
-- ✅ Haces preguntas, escuchas, documentas
+- ✅ Preguntas, escuchas, clasificas, documentas
 
-**Tu trabajo en esta sesión:**
+---
 
-Si el proyecto está vacío (proyecto nuevo):
-1. Pregunta al usuario:
-   - ¿Qué problema resuelve este proyecto? (en una oración)
-   - ¿Quién lo va a usar? (perfil del usuario, no demografía)
-   - ¿Cómo sé que funcionó? (1-3 métricas concretas)
-   - ¿Qué NO es este proyecto? (cosas que parece pero no es)
-   - ¿Qué restricciones hay? (presupuesto, tiempo, compliance, integraciones obligatorias)
-2. Si hay ambigüedad, pregunta. No asumas.
-3. Documenta las respuestas en `docs/discovery/01-problem.md` con este formato:
-   ```markdown
-   # Descubrimiento: [Nombre del proyecto]
-   
-   ## Problema
-   ## Usuario
-   ## Métricas de éxito
-   ## Fuera de alcance (no-goals)
-   ## Restricciones
-   ## Riesgos identificados
-   ## Preguntas abiertas
-   ```
+## Paso 0 — Preguntar sobre graphify
 
-Si el proyecto YA existe (hay archivos, código):
-1. Verifica si existe `GRAPH_REPORT.md` (graphify). Si no, dile al usuario:
-   > "Este proyecto ya tiene código. Antes de descubrir, recomiendo correr `graphify .` para mapear lo que hay. ¿Lo corro yo o lo corres tú?"
-2. Si el grafo existe, léelo y produce `docs/discovery/01-existing-state.md`:
-   ```markdown
-   # Estado actual del proyecto
-   
-   ## Stack detectado
-   ## Estructura principal (módulos/dominios)
-   ## "God nodes" (componentes centrales)
-   ## Deuda técnica visible
-   ## Áreas opacas (donde no se entiende qué hace)
-   ## Preguntas para el usuario
-   ```
-3. Después pregunta al usuario las mismas preguntas del proyecto nuevo, pero adaptadas: "¿Qué problema querías resolver originalmente? ¿Sigue siendo el mismo?"
+Antes de cualquier análisis, pregunta al usuario:
 
-**Output esperado de esta fase:**
-- 1 o 2 archivos en `docs/discovery/`
-- Una lista clara de preguntas abiertas que necesitan respuesta antes de pasar a `/architect`
+> ¿Quieres instalar graphify para construir un grafo del proyecto? El grafo permite que Claude navegue el código sin hacer búsquedas masivas, reduce el consumo de tokens en sesiones futuras, detecta automáticamente "god nodes" (componentes críticos), y me ayuda a clasificar el tipo de proyecto automáticamente.
+>
+> - **Sí** → te guío para instalarlo ahora antes de continuar
+> - **No** → continuamos sin grafo, yo detecto stack por archivos sueltos
+> - **Ya está instalado** → verifico que `graphify-out/GRAPH_REPORT.md` existe y lo leo
 
-**No avances a la siguiente fase tú solo.** Termina diciendo: *"Descubrimiento listo. Cuando quieras, ejecuta `/architect` para proponer stack y arquitectura."*
+**Si elige Sí y graphify no está instalado:**
+
+```
+Para instalarlo:
+1. uv tool install graphifyy    (o: pipx install graphifyy)
+2. graphify install              (registra el skill en Claude Code)
+3. Crea .graphifyignore antes de correr el análisis:
+
+cat > .graphifyignore <<'EOF'
+.aider.*
+node_modules/
+.venv/
+venv/
+__pycache__/
+dist/
+build/
+.next/
+*.log
+graphify-out/
+EOF
+
+4. graphify .    (construye el grafo — toma 1-5 min la primera vez)
+5. Cuando termine, avísame y continúo con el descubrimiento leyendo el grafo.
+```
+
+**Si elige No:** continúas sin grafo. No lo menciones más.
+
+**Si ya está instalado:** lee `graphify-out/GRAPH_REPORT.md` completo antes de hacer cualquier pregunta.
+
+---
+
+## Paso 1 — Clasificar el tipo de proyecto
+
+Esto es lo primero y más importante después del paso 0. Todo lo demás se construye sobre esta clasificación.
+
+### Si existe el grafo de graphify
+
+Léelo y clasifica automáticamente. El grafo te dice qué hay sin preguntar al usuario. Busca en `GRAPH_REPORT.md`:
+
+- Sección "Backend Python Dependencies" o similar → indica backend en Python
+- Nodos como "Next.js", "React", "Vue", "Angular" → indica frontend
+- Nodos de "CLI", "click", "argparse", "typer" → indica herramienta CLI
+- Estructura de paquete tipo `setup.py`, `pyproject.toml` con `[tool.poetry]` y sin servidor → librería
+- Carpetas `ios/`, `android/`, archivos `pubspec.yaml`, `package.json` con React Native → móvil
+- Carpetas separadas tipo `backend/` + `frontend/` → fullstack-monorepo
+
+### Si NO existe el grafo
+
+Pregunta al usuario directamente:
+
+> ¿Qué tipo de proyecto es este? Algunas opciones:
+> - **fullstack-monorepo** — backend + frontend en el mismo repo
+> - **backend-only** — API/servicio sin frontend propio
+> - **frontend-only** — SPA/app web sin backend propio
+> - **cli** — herramienta de línea de comandos
+> - **library** — librería para consumo de otros proyectos
+> - **mobile** — app móvil (iOS/Android)
+> - **etl-pipeline** — pipeline de datos
+> - **microservices** — varios servicios independientes
+> - **otro** — describir cuál
+
+### Después de clasificar
+
+Actualiza `CLAUDE.md` directamente — la sección "Tipo de proyecto" — con:
+1. La **composición** (uno de los tipos de arriba)
+2. Los **componentes principales** (qué carpetas hay y qué stack/framework tienen en cada una)
+
+Ejemplo para un fullstack-monorepo (como musicos):
+```
+## Tipo de proyecto
+
+**Composición:** fullstack-monorepo
+
+**Componentes principales:**
+- backend/ — FastAPI + SQLAlchemy + SQLite
+- frontend/ — Next.js + TypeScript + Tailwind
+```
+
+Ejemplo para una CLI:
+```
+## Tipo de proyecto
+
+**Composición:** cli
+
+**Componentes principales:**
+- src/ — código principal del comando
+- tests/ — pruebas unitarias
+```
+
+**Confirma con el usuario** la clasificación antes de avanzar. Si dice que está mal, ajusta.
+
+---
+
+## Paso 2 — Detectar si es proyecto nuevo o existente
+
+**Proyecto nuevo (no hay código):** ve directo al Paso 3.
+
+**Proyecto existente (hay archivos, código):** produce `docs/discovery/01-existing-state.md` con:
+
+```markdown
+# Estado actual del proyecto — [fecha]
+
+## Tipo de proyecto
+[copia de CLAUDE.md]
+
+## Stack detectado
+[lenguajes, frameworks, librerías principales]
+
+## Estructura principal (módulos/dominios)
+[lo que el grafo o la inspección de carpetas reveló]
+
+## God nodes (componentes más conectados)
+[del grafo, si existe]
+
+## Deuda técnica visible
+[lo que se note en la primera inspección]
+
+## Áreas opacas
+[partes del código que no se entienden qué hacen]
+
+## Preguntas para el usuario
+[lo que necesita aclararse para entender el proyecto]
+```
+
+---
+
+## Paso 3 — Entender el problema
+
+Haz estas preguntas al usuario. Una a la vez, adaptando según respuestas:
+
+1. ¿Qué problema resuelve este proyecto en una oración?
+2. ¿Quién lo va a usar? (perfil concreto, no demografía)
+3. ¿Cómo sé que funcionó? (1-3 métricas o resultados concretos)
+4. ¿Qué NO es este proyecto? (cosas que parece pero no es)
+5. ¿Qué restricciones hay? (tiempo, presupuesto, compliance, integraciones obligatorias)
+
+Si algo es ambiguo, pregunta de nuevo. No asumas.
+
+---
+
+## Paso 4 — Documentar
+
+Escribe `docs/discovery/01-problem.md` (proyecto nuevo) o agrega al `01-existing-state.md` (proyecto existente):
+
+```markdown
+# Descubrimiento: [nombre del proyecto] — [fecha]
+
+## Problema
+## Usuario
+## Métricas de éxito
+## Fuera de alcance (no-goals)
+## Restricciones
+## Riesgos identificados
+## Preguntas abiertas (sin respuesta todavía)
+```
+
+---
+
+## Al terminar
+
+Di exactamente esto:
+
+> Descubrimiento listo.
+> - Tipo de proyecto clasificado en CLAUDE.md: [composición + componentes]
+> - Output en `docs/discovery/`
+> - Preguntas abiertas que necesitan respuesta: [lista o "ninguna"]
+>
+> Cuando quieras, ejecuta `/architect` para proponer stack y arquitectura.

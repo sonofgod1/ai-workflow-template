@@ -6,23 +6,45 @@
 *.key
 secrets/
 
+# Bases de datos locales (NUNCA versionar)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Graphify — regenerar local, no commitear outputs
+graphify-out/*
+!graphify-out/.gitkeep
+
 # AI Workflow
 .ai-workflow/
-graphify-out/manifest.json
-graphify-out/cost.json
-graphify-out/cache/
 
-# Lo común
+# TypeScript build cache
+*.tsbuildinfo
+**/tsconfig.tsbuildinfo
+
+# Python
 __pycache__/
 *.pyc
 .venv/
 venv/
-node_modules/
+*.egg-info/
 dist/
 build/
+
+# Node
+node_modules/
+**/node_modules/
 .next/
+**/.next/
+dist/
+build/
+
+# Editor y OS
 .DS_Store
+**/.DS_Store
 *.log
-.coverage
-coverage/
-.pytest_cache/
+
+# Aider (si se usó antes)
+.aider.*

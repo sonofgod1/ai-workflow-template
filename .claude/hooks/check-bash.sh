@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bloquea comandos peligrosos sin confirmación explícita.
-# Patrones: rm -rf, git push --force, DROP TABLE, git reset --hard, etc.
+# Funciona correctamente desde cualquier subdirectorio del proyecto.
 
 set -euo pipefail
 
@@ -18,7 +18,6 @@ except Exception:
 
 [ -z "$COMMAND" ] && exit 0
 
-# Lista de patrones peligrosos
 DANGEROUS_PATTERNS=(
     'rm[[:space:]]+-rf?[[:space:]]+/'
     'rm[[:space:]]+-rf?[[:space:]]+\*'

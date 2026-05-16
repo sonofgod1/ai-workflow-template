@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Corre el linter/formatter apropiado al archivo modificado.
-# No falla la ejecución de Claude; solo reporta.
+# Funciona correctamente desde cualquier subdirectorio del proyecto.
 
 set -uo pipefail
 
