@@ -87,6 +87,7 @@ Cada fase tiene un slash command con restricciones claras. **Fuera de un comando
 | Tests | `/test` | Escribes tests. No tocas código de producción. |
 | Revisión | `/review` | Code review estricto. No escribes código nuevo. |
 | Seguridad | `/security` | SAST, audit de deps, detección de secretos. |
+| UX | `/ux` | Audita flujos, consistencia, estados y accesibilidad básica del frontend. |
 
 ---
 

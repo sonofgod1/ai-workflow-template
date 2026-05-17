@@ -46,7 +46,7 @@ claude
 ## El flujo
 
 ```
-/discovery → /architect → /contracts → /implement → /test → /review → /security
+/discovery → /architect → /contracts → /implement → /ux → /test → /review → /security
 ```
 
 Cada fase tiene un comando, un rol, y restricciones claras. Fuera de un comando, Claude está en **modo consulta**: responde preguntas pero no modifica nada.
@@ -60,7 +60,7 @@ Cada fase tiene un comando, un rol, y restricciones claras. Fuera de un comando,
 | Tests | `/test <target>` | Escribe tests | No toca código de producción |
 | Revisión | `/review <target>` | Code review estricto con hallazgos numerados | No escribe código nuevo |
 | Seguridad | `/security` | SAST, audit de deps, detección de secretos | Solo analiza y reporta |
-
+| UX | `/ux` | Audita flujos, consistencia, estados y accesibilidad básica del frontend. |
 ---
 
 ## Sistema de hallazgos
