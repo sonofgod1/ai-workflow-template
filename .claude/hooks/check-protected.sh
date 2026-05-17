@@ -5,7 +5,7 @@
 set -euo pipefail
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-PROTECTED_FILE="$ROOT/.claude/protected.txt"
+PROTECTED_FILE="$CLAUDE_PROJECT_DIR/.claude/protected.txt"
 [ -f "$PROTECTED_FILE" ] || exit 0
 
 INPUT=$(cat)
