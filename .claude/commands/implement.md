@@ -131,6 +131,11 @@ Cuando durante la implementación detectes un bug, funcionalidad faltante, o dec
 - [TD-XXX si encontraste algo que no arreglaste pero deberías anotar en docs/tech-debt.md]
 - "ninguna" si no hay
 
+### Plan de prueba manual
+| # | Acción | Resultado esperado | Cómo verificar |
+|---|--------|-------------------|----------------|
+```
+
 Para pruebas de API directa: usar Swagger en http://localhost:8000/docs (si hay backend)
 Para simular errores: DevTools > Console > [comando específico si aplica]
 Para verificar datos en BD: sqlite3 [ruta] + SELECT concreto
