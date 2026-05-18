@@ -46,7 +46,7 @@ claude
 ## El flujo
 
 ```
-/discovery → /architect → /contracts → /implement → /ux → /test → /review → /security
+/feature → /discovery → /architect → /contracts → /implement → /ux → /test → /review → /security
 ```
 
 Cada fase tiene un comando, un rol, y restricciones claras. Fuera de un comando, Claude está en **modo consulta**: responde preguntas pero no modifica nada.

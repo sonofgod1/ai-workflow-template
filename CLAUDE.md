@@ -88,6 +88,7 @@ Cada fase tiene un slash command con restricciones claras. **Fuera de un comando
 | Revisión | `/review` | Code review estricto. No escribes código nuevo. |
 | Seguridad | `/security` | SAST, audit de deps, detección de secretos. |
 | UX | `/ux` | Audita flujos, consistencia, estados y accesibilidad básica del frontend. |
+| Feature | `/feature` | Evalúa complejidad de trabajo nuevo y define qué fases activar. |
 
 ---
 
