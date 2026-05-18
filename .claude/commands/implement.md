@@ -60,11 +60,6 @@ Si no hay ninguna, escribir "ninguna".]
 [Cualquier cosa que pueda romperse fuera del scope directo.
 Si no hay ninguno, escribir "ninguno".]
 
-### Plan de prueba manual
-| # | Acción | Resultado esperado | Cómo verificar |
-|---|--------|-------------------|----------------|
-| 1 | [acción] | [qué debe pasar] | [UI / Swagger / DevTools / SQL / CLI] |
-Incluir siempre: camino feliz + el caso específico que arregla este fix + edge cases relevantes.
 ```
 
 **Espera respuesta del usuario antes de avanzar.** No implementes en el mismo mensaje del plan.
