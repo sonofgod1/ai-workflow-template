@@ -162,6 +162,33 @@ Si algo es ambiguo, pregunta de nuevo. No asumas.
 
 ---
 
+## Paso 3.5 — Fijar el norte del proyecto
+
+La respuesta a la pregunta 1 del Paso 3 ("¿qué problema resuelve en una oración?") es la base del
+**norte del proyecto**. Una vez que el usuario la responda y la confirmes:
+
+1. Redacta el norte en 1-2 frases concretas — el propósito por el que existe el sistema, no la lista
+   de features.
+2. Actualiza la sección **"Norte del proyecto"** de `CLAUDE.md`, reemplazando el `[pendiente]`.
+3. **Confirma el texto exacto con el usuario antes de escribirlo.** El norte es la referencia contra
+   la que se contrastará cada cambio futuro (ver regla dura 9 y "Anclaje al norte" en CLAUDE.md), así
+   que tiene que reflejar fielmente lo que el usuario quiere construir, no tu interpretación.
+
+Ejemplo de un norte bien redactado:
+```
+**Este sistema existe para:** que un coordinador de eventos asigne músicos a fechas sin choques de
+disponibilidad, reemplazando la hoja de cálculo manual que hoy genera dobles reservas.
+```
+
+Un norte mal redactado (demasiado vago o solo lista features):
+```
+**Este sistema existe para:** gestionar músicos, eventos, asignaciones, disponibilidad y reportes.
+```
+El primero dice *para qué*; el segundo solo dice *qué hace*. El norte debe permitir juzgar si un
+cambio futuro sirve al propósito — una lista de features no permite eso.
+
+---
+
 ## Paso 4 — Documentar
 
 Escribe `docs/discovery/01-problem.md` (proyecto nuevo) o agrega al `01-existing-state.md` (proyecto existente):
@@ -185,6 +212,7 @@ Escribe `docs/discovery/01-problem.md` (proyecto nuevo) o agrega al `01-existing
 Di exactamente esto:
 
 > Descubrimiento listo.
+> - Norte del proyecto fijado en CLAUDE.md: [el norte en una línea]
 > - Tipo de proyecto clasificado en CLAUDE.md: [composición + componentes]
 > - Output en `docs/discovery/`
 > - Preguntas abiertas que necesitan respuesta: [lista o "ninguna"]

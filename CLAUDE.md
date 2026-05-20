@@ -5,6 +5,40 @@ Este archivo define cómo trabaja Claude Code en este repositorio.
 
 ---
 
+## Norte del proyecto
+
+*El propósito por el que existe este sistema. Es la referencia contra la que se contrasta CADA cambio.
+Se llena en `/discovery` y solo se modifica con permiso explícito del usuario (ver regla dura 9).*
+
+**Este sistema existe para:** [pendiente — completar en /discovery, en 1-2 frases concretas]
+
+**Un cambio que no sirve a este propósito es sospechoso.** Antes de implementar cualquier cosa,
+el agente debe poder nombrar cómo el cambio sirve a este norte. Si no encuentra la conexión, **para**
+(ver "Anclaje al norte" abajo). El norte no es decoración: es lo primero que se carga en cada decisión,
+no algo que se leyó una vez y se archivó.
+
+### Anclaje al norte — obligatorio en `/implement` y `/feature`
+
+Antes de proponer cualquier plan, el agente declara explícitamente cómo el cambio solicitado sirve
+al norte. Hay exactamente tres salidas posibles:
+
+1. **Encaja** → el agente nombra la conexión en una línea y continúa con el flujo normal.
+2. **Se desvía** (el cambio es localmente razonable pero no sirve al norte, o lo contradice) →
+   el agente **para en seco**, lo dice, y espera instrucción. No implementa "porque me lo pidieron".
+   Esto es el caso que el workflow existe para atrapar: cambios tratados como islas, óptimos en sí
+   mismos pero desconectados del propósito.
+3. **El norte quedó corto** (el agente cree que el objetivo está incompleto, quedó obsoleto, o
+   apareció una mejor forma de resolver el problema) → el agente **para en seco**, nombra la tensión,
+   y **propone** una redefinición del norte como decisión de producto. Espera aprobación del usuario
+   antes de tocar nada — ni código ni el documento.
+
+**Las salidas 2 y 3 se ven idénticas desde adentro** (en ambas el agente se aparta de lo documentado).
+La diferencia es si la redefinición es legítima, y eso **solo el usuario puede juzgarlo**, porque el
+propósito de un proyecto es una decisión de producto, no técnica. Por eso el agente nunca decide solo:
+detecta la tensión, la nombra, y la devuelve.
+
+---
+
 ## Reglas duras (no negociables)
 
 1. **Nunca modifiques archivos fuera del scope que te pedí.** Si necesitas tocar algo fuera, pregúntame primero y explica por qué. Lista de archivos protegidos en `.claude/protected.txt`.
@@ -22,6 +56,8 @@ Este archivo define cómo trabaja Claude Code en este repositorio.
 7. **Si no estás seguro, pregunta.** Es mejor una pregunta corta que una hora deshaciendo cambios.
 
 8. **Un mensaje = una intención.** O preguntas o instruyes. No mezcles preguntas con un plan que asume las respuestas. Si necesitas información para armar el plan, pregunta primero y espera respuesta.
+
+9. **Nunca redefinas el norte del proyecto silenciosamente.** El "Norte del proyecto" arriba es la referencia contra la que se contrasta cada cambio. Si crees que quedó corto, obsoleto, o que hay una mejor forma de resolver el problema, **para y propón** la redefinición como decisión de producto — no la apliques. Modificar la sección "Norte del proyecto" requiere mi aprobación explícita, igual que cualquier archivo en `.claude/protected.txt`.
 
 ---
 

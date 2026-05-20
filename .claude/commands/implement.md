@@ -11,6 +11,37 @@ Solicitud: **$ARGUMENTS**
 
 ## ANTES DE TOCAR CÓDIGO — obligatorio
 
+### 0. Anclar al norte del proyecto — antes que nada
+
+Lee la sección **"Norte del proyecto"** de `CLAUDE.md`. Antes de leer el resto del contexto o
+proponer un plan, declara explícitamente cómo el cambio solicitado sirve a ese norte. Tres salidas:
+
+1. **Encaja** → nombra la conexión en una línea ("Este cambio sirve al norte porque [...]") y continúa
+   al paso 1.
+2. **Se desvía** → el cambio es localmente razonable pero no sirve al norte o lo contradice. **Para en
+   seco.** Repórtalo así y espera instrucción:
+   ```
+   ⚠️ Tensión con el norte del proyecto
+   - Norte documentado: [cita la frase del norte]
+   - Lo que se pidió: [el cambio]
+   - Por qué no encaja: [la desconexión concreta]
+   - No implemento hasta que me digas cómo proceder.
+   ```
+3. **El norte quedó corto** → crees que el objetivo está incompleto, obsoleto, o que apareció una mejor
+   forma de resolver el problema. **Para en seco.** No edites `CLAUDE.md`. Propón la redefinición como
+   decisión de producto y espera aprobación:
+   ```
+   ⚠️ Creo que el norte del proyecto quedó corto
+   - Norte actual: [cita la frase del norte]
+   - Por qué creo que quedó corto / hay mejor forma: [razón concreta]
+   - Redefinición que propongo: [nuevo texto del norte, 1-2 frases]
+   - Esto es una decisión tuya. No toco código ni el norte hasta que apruebes.
+   ```
+
+**Regla dura 9:** nunca redefinas el norte silenciosamente. Las salidas 2 y 3 se ven iguales desde
+adentro; solo el usuario juzga si la redefinición es legítima. Tu trabajo es detectar la tensión y
+nombrarla, no resolverla.
+
 ### 1. Leer el contexto del proyecto
 
 Lee en este orden, sin saltarte ninguno:
@@ -35,6 +66,10 @@ Formato del plan:
 
 ```
 ## Plan para [ID hallazgo]
+
+### Anclaje al norte
+[Una línea: cómo este cambio sirve al norte del proyecto. Ya lo declaraste en el paso 0;
+aquí lo dejas registrado en el plan para que quede trazado.]
 
 ### [Componente 1 — ej. Backend, src/, auth-service]
 - Archivos a crear: [lista con ruta completa]
@@ -65,7 +100,7 @@ Si no hay ninguno, escribir "ninguno".]
 
 **Espera respuesta del usuario antes de avanzar.** No implementes en el mismo mensaje del plan.
 
-Excepción: si el fix es trivial (< 10 líneas, 1 archivo, sin ambigüedad, sin decisiones de producto), puedes escribir plan + código en el mismo mensaje. Pero siempre muestra el plan primero.
+Excepción: si el fix es trivial (< 10 líneas, 1 archivo, sin ambigüedad, sin decisiones de producto), puedes escribir plan + código en el mismo mensaje. Pero siempre muestra el plan primero. **La excepción no aplica al paso 0:** el anclaje al norte es obligatorio incluso para fixes triviales.
 
 ---
 
@@ -79,6 +114,7 @@ Excepción: si el fix es trivial (< 10 líneas, 1 archivo, sin ambigüedad, sin 
 
 ### Lo que NO puedes hacer
 - ❌ Cambiar contratos ni arquitectura sin parar y avisar
+- ❌ Redefinir el norte del proyecto sin parar y proponer (regla dura 9)
 - ❌ Instalar dependencias sin avisar y justificar
 - ❌ Hacer commits (el usuario siempre commitea)
 - ❌ Arreglar cosas fuera del scope sin avisar
@@ -111,6 +147,14 @@ Cuando durante la implementación detectes un bug, funcionalidad faltante, o dec
    - "Regístralo y continúa" → anotas como hallazgo y sigues
    - "Arréglalo aquí" → lo incluyes en este fix
    - "Para, necesito decidir" → paras hasta recibir instrucción
+
+### Si a media implementación crees que el norte quedó corto — PARA
+
+Si durante el trabajo aparece una forma mejor de resolver el problema que cambia el propósito, o
+te das cuenta de que el norte documentado ya no aplica, **no sigas adelante adaptando el objetivo
+por tu cuenta.** Para con la salida 3 del paso 0 (proponer redefinición y esperar aprobación).
+Encontrar una forma mejor a media implementación es exactamente el momento más tentador para derivar;
+trátalo como decisión de producto, no como decisión técnica.
 
 ---
 
@@ -205,6 +249,13 @@ El usuario va a seguir este ciclo. No lo apresures ni lo saltes:
 ---
 
 ## LECCIONES APRENDIDAS — patrones reales que se repiten
+
+### "Implementé el cambio como si fuera independiente, ignorando el objetivo del proyecto"
+
+El cambio puede ser localmente correcto y aun así no servir al norte. Por eso el paso 0 es obligatorio:
+antes de cualquier plan, declara cómo el cambio sirve al norte. Si no encuentras la conexión, para. Un
+cambio tratado como isla — óptimo en sí mismo pero desconectado del propósito — es el fallo que este
+paso existe para atrapar.
 
 ### "Arreglé un componente pero los demás no reflejan el cambio"
 

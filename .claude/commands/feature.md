@@ -19,11 +19,40 @@ Feature solicitada: **$ARGUMENTS**
 
 Lee en este orden antes de evaluar:
 
-1. `CLAUDE.md` — tipo de proyecto, componentes principales, reglas duras
+1. `CLAUDE.md` — **empezando por la sección "Norte del proyecto"**, luego tipo de proyecto, componentes principales, reglas duras
 2. `graphify-out/GRAPH_REPORT.md` — si existe, identifica qué partes del grafo toca esta feature
 3. `docs/contracts/` — contratos existentes que podrían verse afectados
 4. `docs/adr/` — decisiones arquitectónicas que podrían ser relevantes
 5. `docs/features/` — si la feature ya fue mencionada antes, leer el archivo existente
+
+---
+
+## Paso 0.5 — Anclar al norte
+
+Antes de evaluar complejidad, contrasta la feature contra el norte del proyecto. Tres salidas:
+
+1. **Encaja** → nombra la conexión en una línea y continúa al Paso 1.
+2. **Se desvía** → la feature es interesante pero no sirve al norte o lo contradice. **Para en seco:**
+   ```
+   ⚠️ Tensión con el norte del proyecto
+   - Norte documentado: [cita la frase del norte]
+   - Lo que se pidió: [la feature]
+   - Por qué no encaja: [la desconexión concreta]
+   - Antes de evaluar el camino, necesito que me digas: ¿esta feature realmente sirve al
+     proyecto, o se está saliendo del propósito?
+   ```
+3. **El norte quedó corto** → la feature sugiere que el propósito del proyecto creció o cambió.
+   **Para en seco.** No edites `CLAUDE.md`. Propón la redefinición como decisión de producto:
+   ```
+   ⚠️ Esta feature sugiere que el norte del proyecto quedó corto
+   - Norte actual: [cita la frase del norte]
+   - Por qué esta feature lo excede: [razón concreta]
+   - Redefinición que propongo: [nuevo texto del norte, 1-2 frases]
+   - Esto es una decisión tuya. No avanzo con la evaluación hasta que decidas.
+   ```
+
+**Regla dura 9:** nunca redefinas el norte silenciosamente. Detectar la tensión y nombrarla es tu
+trabajo; decidir si el norte cambia es del usuario.
 
 ---
 
@@ -97,6 +126,8 @@ Presenta la evaluación en este formato antes de continuar:
 ```
 ## Evaluación: [nombre corto de la feature]
 
+**Anclaje al norte:** [una línea — cómo esta feature sirve al norte del proyecto]
+
 **Clasificación:** 🔴 Grande / 🟠 Mediana / 🟡 Chica
 
 **Por qué:** [2-3 líneas explicando los criterios que llevaron a esta clasificación]
@@ -134,6 +165,9 @@ Una vez que el usuario aprueba el camino y resuelve las decisiones de producto, 
 
 ## Descripción
 [qué resuelve para el usuario, en 2-3 líneas]
+
+## Anclaje al norte
+[cómo esta feature sirve al norte del proyecto — la línea que declaraste en el Paso 4]
 
 ## Clasificación
 [🔴 Grande / 🟠 Mediana / 🟡 Chica] — [razón en una línea]
@@ -223,10 +257,11 @@ Si la solicitud es un cambio a comportamiento existente (no una feature nueva), 
 Registra la urgencia, reduce el camino al mínimo viable, pero nunca saltes la evaluación de impacto. Un `/implement` ciego en código que toca contratos o arquitectura cuesta más tiempo del que ahorra.
 
 El mínimo aceptable para cualquier feature, sin importar urgencia:
-1. Esta evaluación (Pasos 1-4)
-2. Archivo de tracking creado (Paso 5) — aunque sea mínimo
-3. `/implement`
-4. Prueba manual del plan
+1. Anclaje al norte (Paso 0.5) — nunca se salta, ni con urgencia
+2. Esta evaluación (Pasos 1-4)
+3. Archivo de tracking creado (Paso 5) — aunque sea mínimo
+4. `/implement`
+5. Prueba manual del plan
 
 ### La feature ya está parcialmente implementada
 
