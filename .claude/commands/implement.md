@@ -19,6 +19,7 @@ Lee en este orden, sin saltarte ninguno:
 2. `graphify-out/GRAPH_REPORT.md` — si existe, leerlo completo antes de cualquier búsqueda. Úsalo para navegar el proyecto. **No hagas grep masivo si el grafo existe.**
 3. El hallazgo específico en `docs/reviews/` — lee la descripción completa, archivos afectados, severidad, y sugerencia
 4. Los contratos relevantes en `docs/contracts/` si el cambio toca APIs o schemas
+5. `docs/features/` — si el hallazgo o feature tiene un archivo de tracking, léelo para entender el contexto más amplio del trabajo
 
 ### 2. Producir el plan — formato obligatorio
 
@@ -165,6 +166,19 @@ Ejemplos concretos según el tipo de cambio:
 - Solo docs: docs: marcar B4 como completado
 - Housekeeping: chore: ignorar archivos tsbuildinfo en gitignore
 ```
+
+---
+
+## ACTUALIZAR TRACKING DE FEATURE — si aplica
+
+Si este hallazgo o trabajo pertenece a una feature con archivo en `docs/features/`:
+
+1. Marcar `/implement` como `[x]` en la sección "Camino acordado"
+2. Agregar cualquier hallazgo nuevo encontrado durante la implementación en la tabla "Hallazgos vinculados" con estado `[ ]`
+3. Si se tomó alguna decisión de producto durante el trabajo, registrarla en "Decisiones de producto" con la fecha
+4. Agregar al Historial: `YYYY-MM-DD — /implement completada ([ID])`
+
+Hacer esto **antes** de sugerir los commits, para que el commit de docs lo incluya.
 
 ---
 

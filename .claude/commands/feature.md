@@ -23,7 +23,7 @@ Lee en este orden antes de evaluar:
 2. `graphify-out/GRAPH_REPORT.md` — si existe, identifica qué partes del grafo toca esta feature
 3. `docs/contracts/` — contratos existentes que podrían verse afectados
 4. `docs/adr/` — decisiones arquitectónicas que podrían ser relevantes
-5. `docs/ideas-features/` — si la feature ya fue mencionada antes, leer el contexto previo
+5. `docs/features/` — si la feature ya fue mencionada antes, leer el archivo existente
 
 ---
 
@@ -71,8 +71,6 @@ Según la evaluación, clasifica la feature en uno de estos tres niveles:
 /discovery mini → /architect → /contracts → /implement → /ux* → /test → /review
 ```
 *`/ux` solo si el proyecto tiene frontend.
-
-**Discovery mini** no es el discovery completo — es solo documentar el contexto específico de esta feature en `docs/discovery/YYYY-MM-DD-[nombre-feature].md`.
 
 ### 🟠 Feature mediana
 **Criterios:** no toca arquitectura pero sí contratos existentes, o afecta más de un componente de forma no trivial.
@@ -126,47 +124,89 @@ Presenta la evaluación en este formato antes de continuar:
 
 ---
 
-## Paso 5 — Registrar la feature
+## Paso 5 — Crear el archivo de tracking
 
-Una vez aprobado el camino, registra la feature en `docs/ideas-features/` si no estaba ya, o actualiza la entrada existente con la decisión tomada.
-
-Si la feature es grande o mediana, crea también `docs/discovery/YYYY-MM-DD-[nombre-feature].md` con:
+Una vez que el usuario aprueba el camino y resuelve las decisiones de producto, crea
+`docs/features/YYYY-MM-DD-[nombre-slug].md` con este contenido:
 
 ```markdown
-# Feature: [nombre] — [fecha]
+# Feature: [nombre legible] — [fecha]
 
 ## Descripción
-[qué resuelve para el usuario]
+[qué resuelve para el usuario, en 2-3 líneas]
 
 ## Clasificación
-[grande / mediana / chica + razón]
+[🔴 Grande / 🟠 Mediana / 🟡 Chica] — [razón en una línea]
 
 ## Componentes afectados
-[lista]
+- [componente] — [qué cambia]
 
 ## Camino acordado
-[secuencia de fases]
+[ ] /discovery mini   ← solo si es grande
+[ ] /architect        ← solo si es grande
+[ ] /contracts        ← si aplica
+[ ] /implement
+[ ] /ux               ← solo si hay frontend
+[ ] /test
+[ ] /review
 
-## Decisiones tomadas
-[preguntas que se resolvieron y cómo]
+## Decisiones de producto
+<!-- Una entrada por cada ❓ resuelta -->
+| Pregunta | Decisión | Fecha |
+|----------|----------|-------|
+| [pregunta] | [respuesta] | YYYY-MM-DD |
 
 ## Decisiones pendientes
-[preguntas que quedaron abiertas]
+<!-- Preguntas que quedaron abiertas para resolver durante el desarrollo -->
+- [ ] [pregunta abierta]
 
 ## Riesgos
-[lista o "ninguno"]
+- [riesgo o "ninguno"]
+
+## Hallazgos vinculados
+<!-- Se llena durante /implement y /review. Formato: ID — descripción corta — estado -->
+| ID | Descripción | Estado |
+|----|-------------|--------|
+
+## Historial
+<!-- Una línea por evento relevante: decisión tomada, fase completada, cambio de scope -->
+- YYYY-MM-DD — Feature evaluada y aprobada. Camino: [fases]
 ```
+
+**Si el archivo ya existe** (la feature venía de `docs/ideas-features/`), muévelo a
+`docs/features/` con el mismo slug y agrega las secciones que falten sin borrar lo que había.
 
 ---
 
 ## Paso 6 — Activar la primera fase
 
-Una vez que el usuario aprueba el camino y resuelve las decisiones de producto, di exactamente:
+Una vez creado el archivo de tracking, di exactamente esto:
 
-> Listo. Arrancamos con [primera fase].
+> Tracking creado en `docs/features/[archivo]`.
+>
+> Arrancamos con [primera fase del camino acordado].
 > Ejecuta `/[comando]` para continuar.
 
 No inicies la fase tú mismo — el usuario ejecuta el comando de la siguiente fase.
+
+---
+
+## Mantenimiento del archivo de tracking durante el desarrollo
+
+El archivo de tracking **se actualiza en cada fase**. No es responsabilidad exclusiva de
+`/feature` — cada comando que complete trabajo debe marcar su fase y agregar los hallazgos
+que genere.
+
+**Al completar una fase:**
+- Marcar `[ ]` → `[x]` en "Camino acordado"
+- Agregar al Historial: `YYYY-MM-DD — /[fase] completada`
+
+**Al registrar un hallazgo nuevo (desde /implement, /review, /ux):**
+- Agregar fila en "Hallazgos vinculados" con ID, descripción y estado inicial `[ ]`
+- Actualizar estado a `✅ fixed in [hash]` cuando se resuelva
+
+**Al tomar una decisión de producto durante el desarrollo:**
+- Agregar fila en "Decisiones de producto" con la fecha en que se tomó
 
 ---
 
@@ -176,7 +216,7 @@ No inicies la fase tú mismo — el usuario ejecuta el comando de la siguiente f
 
 Si la solicitud es un cambio a comportamiento existente (no una feature nueva), evalúa primero si es:
 - **Corrección de comportamiento** → es un hallazgo, no una feature. Sugiere registrarlo en `docs/reviews/` con ID y usar `/implement [ID]`.
-- **Cambio de producto** → sí es una feature. Continúa el flujo normal pero documenta explícitamente qué comportamiento anterior se está reemplazando y por qué.
+- **Cambio de producto** → sí es una feature. Continúa el flujo normal pero documenta explícitamente en el archivo de tracking qué comportamiento anterior se está reemplazando y por qué.
 
 ### "Es urgente, no hay tiempo para fases"
 
@@ -184,9 +224,10 @@ Registra la urgencia, reduce el camino al mínimo viable, pero nunca saltes la e
 
 El mínimo aceptable para cualquier feature, sin importar urgencia:
 1. Esta evaluación (Pasos 1-4)
-2. `/implement`
-3. Prueba manual del plan
+2. Archivo de tracking creado (Paso 5) — aunque sea mínimo
+3. `/implement`
+4. Prueba manual del plan
 
 ### La feature ya está parcialmente implementada
 
-Lee el código existente antes de evaluar. El camino puede ser más corto si los contratos ya existen o la arquitectura ya contempla el caso.
+Lee el código existente antes de evaluar. El camino puede ser más corto si los contratos ya existen o la arquitectura ya contempla el caso. En el archivo de tracking, marca como `[x]` las fases que ya están implícitamente completas y agrega una nota en el Historial explicando por qué.

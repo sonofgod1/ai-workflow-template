@@ -58,7 +58,7 @@ Tipos posibles:
 
 **Componentes principales:** [pendiente — completar en /discovery]
 
-Ejemplo de cómo se llena para un fullstack-monorepo:
+Ejemplo de cómo se llena para un fullstack-monorepo (como musicos):
 ```
 - backend/ — FastAPI + SQLAlchemy + SQLite
 - frontend/ — Next.js + TypeScript + Tailwind
@@ -88,7 +88,7 @@ Cada fase tiene un slash command con restricciones claras. **Fuera de un comando
 | Revisión | `/review` | Code review estricto. No escribes código nuevo. |
 | Seguridad | `/security` | SAST, audit de deps, detección de secretos. |
 | UX | `/ux` | Audita flujos, consistencia, estados y accesibilidad básica del frontend. |
-| Feature | `/feature` | Evalúa complejidad de trabajo nuevo y define qué fases activar. |
+| Feature | `/feature` | Evalúa complejidad de trabajo nuevo, define qué fases activar, y crea el archivo de tracking en `docs/features/`. |
 
 ---
 
@@ -99,12 +99,19 @@ docs/
 ├── discovery/          ← Output de /discovery
 ├── adr/               ← Architecture Decision Records
 ├── contracts/         ← OpenAPI, schemas, tipos compartidos
+├── features/          ← Tracking activo de features: clasificación, camino, decisiones, hallazgos vinculados
+│   └── YYYY-MM-DD-[nombre-slug].md
 ├── reviews/           ← Reviews de código con hallazgos numerados
 │   ├── YYYY-MM-DD-[nombre].md      ← Review completa
 │   └── YYYY-MM-DD-decisiones.md   ← Triaje y estado de cada hallazgo
 ├── tech-debt.md       ← Deuda técnica con IDs (TD-001, TD-002...)
-└── ideas-features/    ← Ideas y features futuras (no urgentes)
+└── ideas-features/    ← Ideas y features futuras no urgentes (pre-evaluación)
 ```
+
+### Diferencia entre `features/` e `ideas-features/`
+
+- `ideas-features/` — captura rápida de ideas que surgieron durante el desarrollo. No tienen camino ni scope definido todavía.
+- `features/` — features aprobadas con camino acordado, decisiones tomadas, y estado de avance. Se crea al ejecutar `/feature` y se actualiza en cada fase.
 
 ### Formato de IDs de hallazgos
 

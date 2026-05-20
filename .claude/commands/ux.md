@@ -23,6 +23,7 @@ Lee en este orden antes de auditar:
 2. `graphify-out/GRAPH_REPORT.md` — si existe, identifica los componentes de UI más conectados (god nodes de frontend)
 3. `docs/contracts/` — OpenAPI y schemas relevantes para entender qué datos llegan a la UI
 4. El hallazgo específico en `docs/reviews/` si la auditoría es sobre un fix reciente
+5. `docs/features/` — si la auditoría cubre una feature activa, leer su archivo de tracking para entender el contexto
 
 ---
 
@@ -104,6 +105,18 @@ Si el argumento es "todo el frontend", recorre los flujos principales en este or
 ### 4. Guardar el reporte en disco
 
 Guarda en `docs/reviews/YYYY-MM-DD-ux-[nombre-flujo].md`. No solo lo muestres en chat.
+
+---
+
+## ACTUALIZAR TRACKING DE FEATURE — si aplica
+
+Si la auditoría cubre una feature con archivo en `docs/features/`:
+
+1. Marcar `/ux` como `[x]` en la sección "Camino acordado"
+2. Agregar cada hallazgo nuevo en la tabla "Hallazgos vinculados" con estado `[ ]`
+3. Agregar al Historial: `YYYY-MM-DD — /ux completada. [N] bloqueantes, [N] importantes, [N] sugerencias`
+
+Hacer esto antes de mostrar el mensaje final.
 
 ---
 

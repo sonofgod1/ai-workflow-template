@@ -66,6 +66,18 @@ Si existe `graphify-out/GRAPH_REPORT.md`, léelo antes de revisar. Los god nodes
 
 ---
 
+## ACTUALIZAR TRACKING DE FEATURE — si aplica
+
+Si el código revisado pertenece a una feature con archivo en `docs/features/`:
+
+1. Marcar `/review` como `[x]` en la sección "Camino acordado"
+2. Agregar cada hallazgo nuevo (B1, I1, S1...) en la tabla "Hallazgos vinculados" con estado `[ ]`
+3. Agregar al Historial: `YYYY-MM-DD — /review completada. [N] bloqueantes, [N] importantes, [N] sugerencias`
+
+Hacer esto antes de mostrar el mensaje final, para que quede registrado en el mismo momento que el reporte.
+
+---
+
 ## Al terminar
 
 Di exactamente esto:
