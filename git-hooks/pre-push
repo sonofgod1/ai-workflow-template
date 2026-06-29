@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# git-hooks/pre-push
+# Corre antes de cada push del usuario.
+# Instalar con: cp git-hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+# O usar /git-setup que lo hace automáticamente.
+
+REMOTE="$1"
+URL="$2"
+
+echo "🚀 pre-push: verificando antes de push a $REMOTE ($URL)..."
+
+EXIT_CODE=0
+
+# ─── Detectar stack ───────────────────────────────────────────────────────────
+
+HAS_NODE=""
+HAS_PYTHON=""
+[ -f "package.json" ] && HAS_NODE="yes"
+[ -f "pyproject.toml" ] && HAS_PYTHON="yes"
+[ -f "setup.py" ] && HAS_PYTHON="yes"
+
+# ─── Correr tests ─────────────────────────────────────────────────────────────
+
+echo "  Ejecutando tests..."
+
+if [ "$HAS_NODE" = "yes" ]; then
+  if grep -q '"test"' package.json 2>/dev/null; then
+    npm test --silent 2>/dev/null
+    TEST_CODE=$?
+    if [ $TEST_CODE -ne 0 ]; then
+      echo "  ❌ Tests fallaron. Ejecuta: npm test"
+      EXIT_CODE=$TEST_CODE
+    else
+      echo "  ✓ Tests JS/TS OK."
+    fi
+  else
+    echo "  ⚠️  Sin script 'test' en package.json. Saltando tests."
+  fi
+fi
+
+if [ "$HAS_PYTHON" = "yes" ]; then
+  if command -v pytest > /dev/null 2>&1; then
+    pytest --tb=short -q 2>/dev/null
+    TEST_CODE=$?
+    if [ $TEST_CODE -ne 0 ]; then
+      echo "  ❌ Tests Python fallaron. Ejecuta: pytest"
+      EXIT_CODE=$TEST_CODE
+    else
+      echo "  ✓ Tests Python OK."
+    fi
+  else
+    echo "  ⚠️  pytest no encontrado. Saltando tests Python."
+  fi
+fi
+
+if [ -z "$HAS_NODE" ] && [ -z "$HAS_PYTHON" ]; then
+  echo "  ⚠️  Stack no detectado automáticamente. Saltando tests."
+fi
+
+# ─── Advertencia si push directo a main ──────────────────────────────────────
+
+CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || true)
+if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+  echo ""
+  echo "  ⚠️  Push directo a main detectado."
+  echo "     Flujo recomendado: feature/* → develop → main"
+  echo "     Si es un release o hotfix intencional, continúa."
+  echo ""
+fi
+
+# ─── Resultado ────────────────────────────────────────────────────────────────
+
+if [ $EXIT_CODE -eq 0 ]; then
+  echo "✅ pre-push: OK."
+else
+  echo ""
+  echo "❌ pre-push falló. Para saltarte el hook excepcionalmente:"
+  echo "   git push --no-verify"
+fi
+
+exit $EXIT_CODE

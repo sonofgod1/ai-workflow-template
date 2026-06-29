@@ -71,6 +71,10 @@ Formato del plan:
 [Una línea: cómo este cambio sirve al norte del proyecto. Ya lo declaraste en el paso 0;
 aquí lo dejas registrado en el plan para que quede trazado.]
 
+### Branch de trabajo
+git checkout develop
+git checkout -b [feature|fix]/[slug-descriptivo]
+
 ### [Componente 1 — ej. Backend, src/, auth-service]
 - Archivos a crear: [lista con ruta completa]
 - Archivos a modificar: [lista con ruta completa + qué cambia en cada uno]
@@ -209,6 +213,12 @@ Ejemplos concretos según el tipo de cambio:
 - Complemento de fix anterior: fix(b4-followup): helper formatApiError para errores 422
 - Solo docs: docs: marcar B4 como completado
 - Housekeeping: chore: ignorar archivos tsbuildinfo en gitignore
+
+### Mergear a develop y empujar
+git checkout develop
+git merge feature/[slug] --no-ff -m "[tipo]([scope]): [descripción]"
+git branch -d feature/[slug]
+git push origin develop
 ```
 
 ---
@@ -235,13 +245,14 @@ El usuario va a seguir este ciclo. No lo apresures ni lo saltes:
 2. Si algo falla → usuario reporta → ajustar aquí o registrar como nuevo hallazgo
 3. git status → verificar archivos (sin .db, sin tsbuildinfo, sin graphify-out/)
 4. git add explícito (nunca git add .)
-5. git commit -m "fix(ID): descripción"   ← código
-6. git push
-7. Si hay hallazgos nuevos → registrarlos en docs/reviews/decisiones.md
-8. git commit -m "docs: registrar [hallazgo]"   ← docs separado del código
-9. Marcar ID como completado en docs/reviews/decisiones.md con hash del commit
-10. git commit -m "docs: marcar [ID] como completado"
-11. git push
+5. git commit -m "fix(ID): descripción"          ← código
+6. Si hay hallazgos nuevos → registrarlos en docs/reviews/decisiones.md
+7. git commit -m "docs: registrar [hallazgo]"    ← docs separado del código
+8. Marcar ID como completado en docs/reviews/decisiones.md con hash del commit
+9. git commit -m "docs: marcar [ID] como completado"
+10. git checkout develop && git merge feature/[slug] --no-ff
+11. git branch -d feature/[slug]
+12. git push origin develop
 ```
 
 **No declares la feature como lista hasta que el usuario confirme que probó y pasó.**

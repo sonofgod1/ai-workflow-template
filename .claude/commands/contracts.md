@@ -1,0 +1,244 @@
+---
+description: Define interfaces, schemas y contratos entre componentes antes de implementar.
+argument-hint: (sin argumentos, o el módulo específico a contratar)
+---
+
+Estás en **fase de contratos**. Tu rol: definir las interfaces y estructuras de datos que `/implement` consumirá. Los contratos son la especificación — el código debe ajustarse a ellos, no al revés.
+
+**Restricciones:**
+- ✅ Define contratos de API, schemas de base de datos, tipos compartidos y variables de entorno
+- ✅ Documenta interfaces entre componentes del proyecto
+- ❌ No implementa — solo especifica
+- ❌ No escribe lógica de negocio
+- ❌ No modifica contratos existentes sin notificar al usuario
+
+---
+
+## Paso 0 — Leer contexto del proyecto
+
+Leer en orden:
+1. `CLAUDE.md` → stack elegido, tipo de proyecto, componentes principales
+2. `docs/adr/` → decisiones arquitectónicas que afectan las interfaces
+3. `docs/discovery/` → qué módulos/dominios existen o se planean
+4. `docs/contracts/` → contratos ya definidos (no duplicar ni contradecir)
+
+---
+
+## Tu flujo
+
+Según el tipo de proyecto (definido en CLAUDE.md), produce los entregables que correspondan. No todos aplican a todos los proyectos — usa criterio.
+
+---
+
+### Entregable 1 — docs/contracts/api.md
+
+Para proyectos con API REST (backend-only, fullstack-monorepo, microservices):
+
+```markdown
+# Contratos de API — [Nombre del proyecto]
+Fecha: YYYY-MM-DD
+
+## Convenciones globales
+
+- Base URL: `http://localhost:[puerto]/api/v1`
+- Autenticación: [Bearer JWT / API Key / ninguna — según ADR]
+- Content-Type: `application/json`
+- Paginación: `?page=1&limit=20` → `{ data: [], meta: { total, page, limit } }`
+- Errores: `{ error: string, detail?: string, code?: string }`
+
+## Endpoints
+
+### [Recurso] — [descripción del módulo]
+
+#### GET /[recurso]
+**Propósito**: [qué devuelve]
+**Auth**: [requerida / no]
+**Query params**: `?campo=valor`
+
+**Response 200**:
+{
+  "data": [{ "id": 1, "campo": "valor" }],
+  "meta": { "total": 10, "page": 1, "limit": 20 }
+}
+
+**Errores**:
+| Código | Cuándo |
+|--------|--------|
+| 400 | Parámetro inválido |
+| 401 | Sin autenticación |
+| 404 | Recurso no encontrado |
+
+#### POST /[recurso]
+**Propósito**: [qué crea]
+**Body**: `{ "campo": "valor" }`
+**Response 201**: `{ "data": { "id": 1, ... } }`
+
+#### PUT /[recurso]/:id
+**Propósito**: [qué actualiza]
+...
+
+#### DELETE /[recurso]/:id
+**Propósito**: [qué elimina]
+**Response**: 204 No Content
+```
+
+---
+
+### Entregable 2 — docs/contracts/schema.md
+
+Para proyectos con base de datos:
+
+```markdown
+# Schema de Base de Datos — [Nombre del proyecto]
+Fecha: YYYY-MM-DD
+
+## Tablas / Colecciones
+
+### [nombre_tabla]
+
+| Campo | Tipo | Nullable | Default | Descripción |
+|-------|------|----------|---------|-------------|
+| id | INTEGER PK | No | AUTOINCREMENT | — |
+| campo | VARCHAR(255) | No | — | [descripción] |
+| created_at | TIMESTAMP | No | NOW() | — |
+| updated_at | TIMESTAMP | No | NOW() | — |
+
+**Índices**: `idx_[tabla]_[campo]` en `[campo]`
+**Restricciones**: FK `[campo]` → `[otra_tabla].[id]` ON DELETE CASCADE
+
+## Diagrama de relaciones
+
+[tabla_a] 1──── * [tabla_b]
+[tabla_b] * ──── 1 [tabla_c]
+
+## Plan de migraciones
+
+| # | Descripción | Reversible |
+|---|-------------|-----------|
+| 001 | Crear tabla [nombre] | Sí — DROP TABLE |
+| 002 | Agregar índice [campo] | Sí — DROP INDEX |
+```
+
+---
+
+### Entregable 3 — docs/contracts/types.ts (si hay TypeScript)
+
+```typescript
+// docs/contracts/types.ts
+// Tipos compartidos — contrato entre componentes
+// Este archivo especifica, no implementa
+
+export interface [Entidad] {
+  id: number;
+  campo: string;
+  createdAt: string; // ISO 8601
+}
+
+export interface [EntidadCreateDTO] {
+  campo: string;
+}
+
+export interface ApiResponse<T> {
+  data: T;
+  meta?: {
+    total: number;
+    page: number;
+    limit: number;
+  };
+}
+
+export interface ApiError {
+  error: string;
+  detail?: string;
+  code?: string;
+}
+
+// Enums usados en más de un componente
+export type [EstadoEnum] = 'activo' | 'inactivo' | 'pendiente';
+```
+
+---
+
+### Entregable 4 — docs/contracts/events.md (si hay mensajería o eventos)
+
+Para proyectos con colas, WebSockets o arquitectura event-driven:
+
+```markdown
+# Contratos de Eventos — [Nombre del proyecto]
+Fecha: YYYY-MM-DD
+
+## [nombre.del.evento]
+
+**Canal / Topic**: `[nombre-del-canal]`
+**Dirección**: [producer] → [consumer]
+**Cuándo se emite**: [descripción]
+
+**Payload**:
+{
+  "eventType": "nombre.del.evento",
+  "timestamp": "ISO 8601",
+  "data": { ... }
+}
+
+**Consumer esperado**: [qué servicio lo procesa y qué hace]
+**Idempotencia**: [sí, usando campo X como clave / no garantizada]
+**Retry policy**: [max 3 reintentos, backoff exponencial / sin retry]
+```
+
+---
+
+### Entregable 5 — docs/contracts/env.md
+
+Para cualquier tipo de proyecto:
+
+```markdown
+# Variables de Entorno — [Nombre del proyecto]
+Fecha: YYYY-MM-DD
+
+## Requeridas en producción
+
+| Variable | Ejemplo (sin valor real) | Descripción | Componente |
+|----------|--------------------------|-------------|-----------|
+| DATABASE_URL | postgresql://user:pass@host/db | Conexión a base de datos | Backend |
+| SECRET_KEY | string-aleatorio-largo | JWT signing key / app secret | Backend |
+| [SERVICIO]_API_KEY | sk-... | API key de [servicio externo] | Backend |
+
+## Solo en desarrollo
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| DEBUG | false | Modo debug con logs verbose |
+| PORT | 8000 | Puerto del servidor |
+
+## Regla de oro
+
+Las variables anteriores son solo de servidor. El frontend NO puede acceder a secretos directamente.
+El servidor debe validar que todas las variables requeridas están presentes al iniciar — y fallar
+con mensaje claro si falta alguna, no en silencio en runtime.
+```
+
+---
+
+## Al terminar
+
+Producir resumen de contratos definidos:
+
+```
+CONTRATOS DEFINIDOS
+─────────────────────────────────────────────────────────────
+✅ docs/contracts/api.md       — [N] endpoints documentados
+✅ docs/contracts/schema.md    — [N] tablas / colecciones
+✅ docs/contracts/types.ts     — [N] interfaces TypeScript
+✅ docs/contracts/env.md       — [N] variables de entorno requeridas
+[✅ / ⏭️] docs/contracts/events.md — [N] eventos / no aplica al proyecto
+─────────────────────────────────────────────────────────────
+```
+
+## Sugerencia Git al terminar
+
+```bash
+git add docs/contracts/
+git commit -m "docs: contratos de API, schema, tipos y env vars"
+```
+
+Ejecuta `/implement` para comenzar la implementación.

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# git-hooks/commit-msg
+# Valida que el mensaje de commit sigue el formato convencional.
+# Instalar con: cp git-hooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg
+# O usar /git-setup que lo hace automáticamente.
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# ─── Ignorar commits de merge y rebase ───────────────────────────────────────
+
+if echo "$COMMIT_MSG" | grep -qE "^Merge |^Rebase |^fixup! |^squash! "; then
+  exit 0
+fi
+
+# ─── Patrón de commits convencionales ────────────────────────────────────────
+# tipo(scope): descripción
+# tipo: descripción          (scope es opcional)
+# tipo!: descripción         (breaking change)
+# tipo(scope)!: descripción  (breaking change con scope)
+
+PATTERN="^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\([a-zA-Z0-9_.,/-]+\))?(!)?: .{1,100}$"
+
+if echo "$COMMIT_MSG" | grep -qE "$PATTERN"; then
+  exit 0
+fi
+
+# ─── Mensaje de error ────────────────────────────────────────────────────────
+
+echo ""
+echo "❌ Mensaje de commit inválido."
+echo ""
+echo "Tu mensaje: \"$COMMIT_MSG\""
+echo ""
+echo "Formato requerido: tipo(scope): descripción"
+echo ""
+echo "Tipos válidos:"
+echo "  feat      → nueva funcionalidad"
+echo "  fix       → corrección de bug"
+echo "  docs      → solo documentación"
+echo "  style     → formato, sin cambio de lógica"
+echo "  refactor  → refactor sin feat ni fix"
+echo "  test      → agregar o corregir tests"
+echo "  chore     → build, dependencias, configuración"
+echo "  perf      → mejora de performance"
+echo "  ci        → cambios en CI/CD"
+echo "  build     → sistema de build"
+echo "  revert    → revertir commit anterior"
+echo ""
+echo "Ejemplos correctos:"
+echo "  feat(usuarios): agregar endpoint de registro con validación"
+echo "  fix(B3): corregir error de autenticación en refresh token"
+echo "  docs: contratos de API actualizados"
+echo "  chore: workflow inicializado"
+echo "  refactor(auth): extraer lógica de JWT a módulo propio"
+echo "  feat!: cambiar formato de respuesta de la API (breaking change)"
+echo ""
+echo "El scope es opcional pero recomendado. Máx. 100 caracteres en la descripción."
+echo ""
+echo "Para saltarte la validación excepcionalmente:"
+echo "  git commit --no-verify -m \"tu mensaje\""
+echo ""
+
+exit 1
