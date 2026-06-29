@@ -59,6 +59,10 @@ detecta la tensión, la nombra, y la devuelve.
 
 9. **Nunca redefinas el norte del proyecto silenciosamente.** El "Norte del proyecto" arriba es la referencia contra la que se contrasta cada cambio. Si crees que quedó corto, obsoleto, o que hay una mejor forma de resolver el problema, **para y propón** la redefinición como decisión de producto — no la apliques. Modificar la sección "Norte del proyecto" requiere mi aprobación explícita, igual que cualquier archivo en `.claude/protected.txt`.
 
+10. **`main` siempre es deployable.** Nunca se trabaja directamente en `main`. Todo cambio llega desde `develop` (release) o `hotfix/*` (emergencias). Si el proyecto aún no tiene branches configuradas, ejecuta `/git-setup` antes de empezar.
+
+11. **Commits convencionales obligatorios.** Formato: `tipo(scope): descripción`. El hook `commit-msg` lo valida automáticamente. Tipos válidos: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`.
+
 ---
 
 ## Uso del grafo de graphify
@@ -116,15 +120,111 @@ Cada fase tiene un slash command con restricciones claras. **Fuera de un comando
 
 | Fase | Comando | Qué haces |
 |------|---------|-----------|
+| Inicialización Git | `/git-setup` | Crea branches (main/develop), instala hooks de Git, tag inicial. Solo una vez al inicio. |
 | Descubrimiento | `/discovery` | Entiendes el problema, clasificas tipo de proyecto, leerás el grafo. No escribes código. |
 | Arquitectura | `/architect` | Propones stack con 2 opciones, escribes ADRs. |
-| Contratos | `/contracts` | Defines OpenAPI, schemas, tipos compartidos. |
+| Contratos | `/contracts` | Defines API, schemas de DB, tipos compartidos, env vars requeridas. |
 | Implementación | `/implement` | Escribes código respetando contratos, tipo de proyecto, y hallazgos. |
 | Tests | `/test` | Escribes tests. No tocas código de producción. |
 | Revisión | `/review` | Code review estricto. No escribes código nuevo. |
-| Seguridad | `/security` | SAST, audit de deps, detección de secretos. |
+| Seguridad | `/security` | Audita auth, inyecciones, deps, secretos. No escribe código. |
 | UX | `/ux` | Audita flujos, consistencia, estados y accesibilidad básica del frontend. |
 | Feature | `/feature` | Evalúa complejidad de trabajo nuevo, define qué fases activar, y crea el archivo de tracking en `docs/features/`. |
+| Pre-producción | `/deploy` | Checklist de deploy: tests, migraciones, env vars, monitoreo, Git. No modifica código. |
+| Cambio post-deploy | `/change` | Gestiona cambios sobre la app en producción. Clasifica, identifica contratos afectados y re-corre solo las fases mínimas. |
+
+---
+
+## Estrategia de Git
+
+### Modelo de branches
+
+```
+main              ← solo código listo para producción. Tag semver en cada release.
+  └── develop     ← integración continua. Aquí se mergean las features terminadas.
+        ├── feature/[slug]  ← una branch por feature o cambio significativo
+        ├── fix/[slug]      ← corrección de bug no urgente
+        └── hotfix/[slug]   ← arreglo urgente, se crea desde main directamente
+```
+
+### Reglas de branches
+
+- **`main`**: nunca se trabaja aquí. Solo recibe merges desde `develop` (releases) o `hotfix/*` (emergencias).
+- **`develop`**: branch de integración. Siempre debe estar en estado funcional (tests pasan).
+- **`feature/[slug]`**: se crea desde `develop`, se mergea a `develop` con `--no-ff`.
+- **`fix/[slug]`**: igual que `feature/`, para bugs no urgentes.
+- **`hotfix/[slug]`**: se crea desde `main`, se mergea a `main` Y a `develop`.
+
+### Commits convencionales
+
+```
+feat(scope): descripción       ← nueva funcionalidad
+fix(ID): descripción           ← corrección de bug
+docs: descripción              ← solo documentación
+refactor(scope): descripción   ← refactor sin nueva feat ni fix
+test: descripción              ← tests
+chore: descripción             ← build, deps, configuración
+perf(scope): descripción       ← mejora de performance
+ci: descripción                ← cambios en CI/CD
+```
+
+Ejemplos reales:
+```bash
+feat(usuarios): agregar endpoint de registro con validación de email
+fix(B3): corregir error de autenticación en refresh token expirado
+docs: contratos de API actualizados tras cambio de schema
+chore: workflow inicializado
+refactor(auth): extraer lógica de JWT a módulo propio
+```
+
+### Tags (semver)
+
+```
+v0.0.1      ← workflow inicializado (/git-setup)
+v1.0.0      ← primer deploy a producción (/deploy)
+v1.1.0      ← nueva funcionalidad significativa
+v1.1.1      ← bugfix o ajuste menor
+```
+
+### Ciclo feature → producción
+
+```bash
+# 1. Crear feature branch desde develop
+git checkout develop
+git checkout -b feature/[slug]
+
+# 2. Trabajar... commits convencionales...
+
+# 3. Mergear a develop
+git checkout develop
+git merge feature/[slug] --no-ff -m "feat([scope]): descripción"
+git branch -d feature/[slug]
+git push origin develop
+
+# 4. Cuando develop está listo para producción
+git checkout main
+git merge develop --no-ff -m "release: descripción del conjunto de cambios"
+git tag -a v[X.Y.Z] -m "release: descripción"
+git push origin main --follow-tags
+
+# 5. Sincronizar develop con main post-release
+git checkout develop
+git merge main
+git push origin develop
+```
+
+### Ciclo hotfix
+
+```bash
+git checkout main
+git checkout -b hotfix/[slug]
+# ... implementar ...
+git checkout main
+git merge hotfix/[slug] --no-ff -m "fix: descripción"
+git tag -a v[X.Y.Z] -m "fix: descripción"
+git push origin main --follow-tags
+git checkout develop && git merge main && git push origin develop
+```
 
 ---
 
@@ -134,12 +234,14 @@ Cada fase tiene un slash command con restricciones claras. **Fuera de un comando
 docs/
 ├── discovery/          ← Output de /discovery
 ├── adr/               ← Architecture Decision Records
-├── contracts/         ← OpenAPI, schemas, tipos compartidos
+├── contracts/         ← API, schemas de DB, tipos compartidos, env vars (ver /contracts)
 ├── features/          ← Tracking activo de features: clasificación, camino, decisiones, hallazgos vinculados
 │   └── YYYY-MM-DD-[nombre-slug].md
 ├── reviews/           ← Reviews de código con hallazgos numerados
 │   ├── YYYY-MM-DD-[nombre].md      ← Review completa
 │   └── YYYY-MM-DD-decisiones.md   ← Triaje y estado de cada hallazgo
+├── changes/           ← Cambios post-deploy (ver /change), uno por modificación
+│   └── YYYY-MM-DD-[slug].md
 ├── tech-debt.md       ← Deuda técnica con IDs (TD-001, TD-002...)
 └── ideas-features/    ← Ideas y features futuras no urgentes (pre-evaluación)
 ```
@@ -167,6 +269,9 @@ docs/
 ## Ciclo de trabajo por hallazgo
 
 ```
+0. Estar en la branch correcta (feature/[slug] o fix/[slug] desde develop)
+   git checkout develop && git checkout -b feature/[slug]
+
 1. /implement [ID]
 2. Agente muestra plan (componentes del proyecto separados según "Tipo de proyecto")
 3. Tú apruebas el plan
@@ -175,14 +280,24 @@ docs/
 6. Si algo falla → reportas al agente → ajusta o registra nuevo hallazgo
 7. git status → verificar archivos (sin .db, sin tsbuildinfo, sin graphify-out/)
 8. git add explícito (NUNCA git add .)
-9. git commit -m "fix(ID): descripción"
-10. git push
-11. Marcar ID como completado en docs/reviews/decisiones.md con hash
-12. git commit -m "docs: marcar [ID] como completado"
-13. git push
+9. git commit -m "fix(ID): descripción"          ← código
+10. Marcar ID como completado en docs/reviews/decisiones.md con hash del commit
+11. git commit -m "docs: marcar [ID] como completado"  ← docs separado del código
+12. git checkout develop && git merge feature/[slug] --no-ff
+13. git branch -d feature/[slug]
+14. git push origin develop
 ```
 
 **Commit por intención:** código en un commit, docs en otro. Nunca mezclar.
+
+**Para llevar develop a producción** (cuando develop acumula trabajo estable):
+```bash
+git checkout main
+git merge develop --no-ff -m "release: [descripción]"
+git tag -a vX.Y.Z -m "release: [descripción]"
+git push origin main --follow-tags
+git checkout develop && git merge main && git push origin develop
+```
 
 ---
 
