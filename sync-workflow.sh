@@ -95,7 +95,8 @@ for item in data.get('tree', []):
         print(item['path'])
 ")
 
-FILES=$(echo "$ALL_FILES" | grep -E "^($SYNC_PATTERN)" | grep -v "^$")
+FILES=$(echo "$ALL_FILES" | grep -E "^($SYNC_PATTERN)" || true)
+FILES=$(echo "$FILES" | grep -v "^$" || true)
 
 if [ -z "$FILES" ]; then
   warn "No se encontraron archivos para sincronizar. Verifica WORKFLOW_REPO y SYNC_PATHS."
