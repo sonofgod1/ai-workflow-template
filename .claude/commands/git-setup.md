@@ -39,7 +39,7 @@ git commit -m "chore: workflow inicializado"
 
 **Si ya existe repo pero sin commits:**
 ```bash
-git add .
+git add CLAUDE.md .claude/ .gitignore README.md 2>/dev/null || git add CLAUDE.md .claude/
 git commit -m "chore: workflow inicializado"
 ```
 

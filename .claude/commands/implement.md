@@ -196,15 +196,20 @@ Para verificar datos en BD: sqlite3 [ruta] + SELECT concreto
 [Una línea. Ej: "Probar manualmente los N casos del plan, luego /test para automatizar"]
 
 ### Mensajes de commit sugeridos
-Cuando el usuario confirme que todo pasó, usar estos mensajes exactos:
+Cuando el usuario confirme que todo pasó, dar los comandos completos y listos para copiar —
+**siempre con su `git add` explícito arriba de cada commit, listando los archivos reales tocados
+en esta sesión (nunca `git add .`, nunca un placeholder sin resolver)**:
 
 # Commit del código
+git add [ruta/archivo1] [ruta/archivo2] ...
 git commit -m "[tipo]([ID]): [descripción corta de qué se arregló]"
 
 # Si hay hallazgos nuevos para registrar
+git add [ruta/archivo(s) de docs/reviews afectados]
 git commit -m "docs: registrar [ID nuevo] ([descripción de una línea])"
 
 # Para marcar este fix como completado en decisiones.md
+git add [ruta/decisiones.md u otros docs de tracking tocados]
 git commit -m "docs: marcar [ID] como completado"
 
 Ejemplos concretos según el tipo de cambio:
@@ -247,12 +252,14 @@ El usuario va a seguir este ciclo. No lo apresures ni lo saltes:
 4. git add explícito (nunca git add .)
 5. git commit -m "fix(ID): descripción"          ← código
 6. Si hay hallazgos nuevos → registrarlos en docs/reviews/decisiones.md
-7. git commit -m "docs: registrar [hallazgo]"    ← docs separado del código
-8. Marcar ID como completado en docs/reviews/decisiones.md con hash del commit
-9. git commit -m "docs: marcar [ID] como completado"
-10. git checkout develop && git merge feature/[slug] --no-ff
-11. git branch -d feature/[slug]
-12. git push origin develop
+7. git add explícito de los docs recién tocados
+8. git commit -m "docs: registrar [hallazgo]"    ← docs separado del código
+9. Marcar ID como completado en docs/reviews/decisiones.md con hash del commit
+10. git add explícito de decisiones.md (u otros docs de tracking tocados)
+11. git commit -m "docs: marcar [ID] como completado"
+12. git checkout develop && git merge feature/[slug] --no-ff
+13. git branch -d feature/[slug]
+14. git push origin develop
 ```
 
 **No declares la feature como lista hasta que el usuario confirme que probó y pasó.**

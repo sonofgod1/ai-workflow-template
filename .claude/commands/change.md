@@ -195,6 +195,7 @@ git push origin develop
 git checkout develop
 git checkout -b feature/[slug]
 # ... implementar ...
+git add [archivos específicos]
 git commit -m "feat([scope]): [descripción]"
 git checkout develop
 git merge feature/[slug] --no-ff -m "feat([scope]): [descripción]"
@@ -205,6 +206,7 @@ git push origin develop
 git checkout main
 git checkout -b hotfix/[slug]
 # ... implementar ...
+git add [archivos específicos]
 git commit -m "fix([scope o ID]): [descripción]"
 git checkout main
 git merge hotfix/[slug] --no-ff -m "fix: [descripción]"
