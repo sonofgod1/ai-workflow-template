@@ -64,11 +64,11 @@ echo "  ✓ Sin archivos prohibidos."
 
 # ─── 2. Detectar stack ────────────────────────────────────────────────────────
 
-HAS_NODE=$([ -f "package.json" ] && echo "yes")
-HAS_PYTHON=$(( [ -f "pyproject.toml" ] || [ -f "setup.py" ] ) && echo "yes")
-HAS_BIOME=$([ -f "node_modules/.bin/biome" ] && echo "yes")
-HAS_ESLINT=$([ -f "node_modules/.bin/eslint" ] && echo "yes")
-HAS_RUFF=$(command -v ruff 2>/dev/null && echo "yes")
+HAS_NODE=$([ -f "package.json" ] && echo "yes" || true)
+HAS_PYTHON=$(( [ -f "pyproject.toml" ] || [ -f "setup.py" ] ) && echo "yes" || true)
+HAS_BIOME=$([ -f "node_modules/.bin/biome" ] && echo "yes" || true)
+HAS_ESLINT=$([ -f "node_modules/.bin/eslint" ] && echo "yes" || true)
+HAS_RUFF=$(command -v ruff 2>/dev/null && echo "yes" || true)
 
 # ─── 3. Lint de JS/TS ─────────────────────────────────────────────────────────
 
