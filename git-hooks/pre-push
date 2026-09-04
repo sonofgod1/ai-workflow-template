@@ -24,11 +24,13 @@ HAS_PYTHON=""
 echo "  Ejecutando tests..."
 
 if [ "$HAS_NODE" = "yes" ]; then
-  if grep -q '"test"' package.json 2>/dev/null; then
-    npm test --silent 2>/dev/null
+  if grep -q '"test":' package.json 2>/dev/null; then
+    # Sin --silent y sin 2>/dev/null: si los tests fallan hay que poder ver cuál.
+    # Además `npm test --silent` le pasaba la bandera a npm, no al runner.
+    npm test
     TEST_CODE=$?
     if [ $TEST_CODE -ne 0 ]; then
-      echo "  ❌ Tests fallaron. Ejecuta: npm test"
+      echo "  ❌ Tests fallaron (ver salida arriba). Ejecuta: npm test"
       EXIT_CODE=$TEST_CODE
     else
       echo "  ✓ Tests JS/TS OK."
@@ -40,10 +42,14 @@ fi
 
 if [ "$HAS_PYTHON" = "yes" ]; then
   if command -v pytest > /dev/null 2>&1; then
-    pytest --tb=short -q 2>/dev/null
+    pytest --tb=short
     TEST_CODE=$?
-    if [ $TEST_CODE -ne 0 ]; then
-      echo "  ❌ Tests Python fallaron. Ejecuta: pytest"
+    if [ $TEST_CODE -eq 5 ]; then
+      # pytest devuelve 5 cuando no recolectó ningún test. Bloquear el push por
+      # eso dejaba trabado cualquier proyecto que todavía no tiene suite.
+      echo "  ⚠️  pytest no encontró tests. Saltando."
+    elif [ $TEST_CODE -ne 0 ]; then
+      echo "  ❌ Tests Python fallaron (ver salida arriba). Ejecuta: pytest"
       EXIT_CODE=$TEST_CODE
     else
       echo "  ✓ Tests Python OK."

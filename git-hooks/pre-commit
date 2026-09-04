@@ -3,8 +3,11 @@
 # Corre antes de cada commit del usuario.
 # Instalar con: cp git-hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 # O usar /git-setup que lo hace automáticamente.
-
-set -e
+#
+# Deliberadamente SIN `set -e`: el script acumula los fallos en EXIT_CODE para
+# poder reportar cada uno con su causa. Con set -e, un lint fallido abortaba el
+# script en el pipeline y el usuario veía el commit rechazado sin una sola línea
+# de explicación. Por la misma razón no se silencia el stderr de los linters.
 
 echo "🔍 pre-commit: verificando cambios..."
 
@@ -44,17 +47,20 @@ FORBIDDEN_PATTERNS=(
   "\.pyc$"
 )
 
-for file in $STAGED_FILES; do
+# read -r en vez de `for file in $STAGED_FILES`: los nombres con espacios se
+# partían en varios "archivos" inexistentes.
+while IFS= read -r file; do
+  [ -z "$file" ] && continue
   for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
-    if echo "$file" | grep -qE "$pattern"; then
+    if printf '%s\n' "$file" | grep -qE "$pattern"; then
       echo "  ❌ Archivo prohibido en commit: $file"
       echo "     Patrón: $pattern"
       echo "     Agrega este archivo a .gitignore y quítalo del staging:"
-      echo "     git rm --cached $file"
+      echo "     git rm --cached \"$file\""
       EXIT_CODE=1
     fi
   done
-done
+done <<< "$STAGED_FILES"
 
 if [ $EXIT_CODE -ne 0 ]; then
   exit $EXIT_CODE
@@ -62,53 +68,65 @@ fi
 
 echo "  ✓ Sin archivos prohibidos."
 
-# ─── 2. Detectar stack ────────────────────────────────────────────────────────
+# ─── 2. Detectar herramientas disponibles ─────────────────────────────────────
 
-HAS_NODE=$([ -f "package.json" ] && echo "yes" || true)
-HAS_PYTHON=$(( [ -f "pyproject.toml" ] || [ -f "setup.py" ] ) && echo "yes" || true)
-HAS_BIOME=$([ -f "node_modules/.bin/biome" ] && echo "yes" || true)
-HAS_ESLINT=$([ -f "node_modules/.bin/eslint" ] && echo "yes" || true)
-HAS_RUFF=$(command -v ruff 2>/dev/null && echo "yes" || true)
+HAS_NODE=no
+[ -f "package.json" ] && HAS_NODE=yes
+
+# `command -v ruff` imprime la ruta del binario, así que la forma anterior
+# (HAS_RUFF=$(command -v ruff && echo yes)) guardaba "/usr/bin/ruff\nyes" y la
+# comparación con "yes" nunca coincidía: el lint de Python jamás corría.
+HAS_RUFF=no
+command -v ruff > /dev/null 2>&1 && HAS_RUFF=yes
+
+JS_LINTER=""
+JS_LINTER_NAME=""
+if [ -x "node_modules/.bin/biome" ]; then
+  JS_LINTER="node_modules/.bin/biome"
+  JS_LINTER_NAME="biome"
+elif [ -x "node_modules/.bin/eslint" ]; then
+  JS_LINTER="node_modules/.bin/eslint"
+  JS_LINTER_NAME="eslint"
+fi
 
 # ─── 3. Lint de JS/TS ─────────────────────────────────────────────────────────
 
-JS_FILES=$(echo "$STAGED_FILES" | grep -E "\.(js|jsx|ts|tsx|mjs)$" || true)
+JS_FILES=$(printf '%s\n' "$STAGED_FILES" | grep -E "\.(js|jsx|ts|tsx|mjs|cjs)$")
 
 if [ -n "$JS_FILES" ] && [ "$HAS_NODE" = "yes" ]; then
-  echo "  Lint JS/TS..."
+  if [ -n "$JS_LINTER" ]; then
+    echo "  Lint JS/TS ($JS_LINTER_NAME)..."
 
-  if [ "$HAS_BIOME" = "yes" ]; then
-    echo "$JS_FILES" | xargs node_modules/.bin/biome check --no-errors-on-unmatched 2>/dev/null
+    # tr + xargs -0: los nombres con espacios rompían el xargs anterior.
+    if [ "$JS_LINTER_NAME" = "biome" ]; then
+      printf '%s\n' "$JS_FILES" | tr '\n' '\0' | xargs -0 "$JS_LINTER" check --no-errors-on-unmatched
+    else
+      printf '%s\n' "$JS_FILES" | tr '\n' '\0' | xargs -0 "$JS_LINTER" --max-warnings=0
+    fi
     LINT_CODE=$?
-  elif [ "$HAS_ESLINT" = "yes" ]; then
-    echo "$JS_FILES" | xargs node_modules/.bin/eslint --max-warnings=0 2>/dev/null
-    LINT_CODE=$?
-  else
-    echo "  ⚠️  Sin linter JS/TS instalado (biome o eslint). Saltando lint."
-    LINT_CODE=0
-  fi
 
-  if [ $LINT_CODE -ne 0 ]; then
-    echo "  ❌ Lint falló. Corrige los errores antes de commitear."
-    echo "     Ejecuta: npm run lint"
-    EXIT_CODE=$LINT_CODE
+    if [ $LINT_CODE -ne 0 ]; then
+      echo "  ❌ Lint falló (ver salida arriba). Corrige los errores antes de commitear."
+      EXIT_CODE=$LINT_CODE
+    else
+      echo "  ✓ Lint JS/TS OK."
+    fi
   else
-    echo "  ✓ Lint JS/TS OK."
+    echo "  ⚠️  Sin linter JS/TS instalado (biome o eslint en node_modules). Saltando lint."
   fi
 fi
 
 # ─── 4. TypeScript type-check ─────────────────────────────────────────────────
 
-TS_FILES=$(echo "$STAGED_FILES" | grep -E "\.(ts|tsx)$" || true)
+TS_FILES=$(printf '%s\n' "$STAGED_FILES" | grep -E "\.(ts|tsx)$")
 
 if [ -n "$TS_FILES" ] && [ "$HAS_NODE" = "yes" ] && [ -f "tsconfig.json" ]; then
-  if [ -f "node_modules/.bin/tsc" ]; then
-    echo "  Type-check TypeScript..."
-    node_modules/.bin/tsc --noEmit --skipLibCheck 2>/dev/null
+  if [ -x "node_modules/.bin/tsc" ]; then
+    echo "  Type-check TypeScript (proyecto completo)..."
+    node_modules/.bin/tsc --noEmit --skipLibCheck
     TSC_CODE=$?
     if [ $TSC_CODE -ne 0 ]; then
-      echo "  ❌ TypeScript: errores de tipo encontrados."
-      echo "     Ejecuta: npm run typecheck"
+      echo "  ❌ TypeScript: errores de tipo (ver salida arriba)."
       EXIT_CODE=$TSC_CODE
     else
       echo "  ✓ TypeScript OK."
@@ -120,17 +138,21 @@ fi
 
 # ─── 5. Lint Python ───────────────────────────────────────────────────────────
 
-PY_FILES=$(echo "$STAGED_FILES" | grep -E "\.py$" || true)
+PY_FILES=$(printf '%s\n' "$STAGED_FILES" | grep -E "\.py$")
 
-if [ -n "$PY_FILES" ] && [ "$HAS_RUFF" = "yes" ]; then
-  echo "  Lint Python (ruff)..."
-  echo "$PY_FILES" | xargs ruff check 2>/dev/null
-  RUFF_CODE=$?
-  if [ $RUFF_CODE -ne 0 ]; then
-    echo "  ❌ ruff falló. Ejecuta: ruff check --fix"
-    EXIT_CODE=$RUFF_CODE
+if [ -n "$PY_FILES" ]; then
+  if [ "$HAS_RUFF" = "yes" ]; then
+    echo "  Lint Python (ruff)..."
+    printf '%s\n' "$PY_FILES" | tr '\n' '\0' | xargs -0 ruff check
+    RUFF_CODE=$?
+    if [ $RUFF_CODE -ne 0 ]; then
+      echo "  ❌ ruff falló (ver salida arriba). Ejecuta: ruff check --fix"
+      EXIT_CODE=$RUFF_CODE
+    else
+      echo "  ✓ Python OK."
+    fi
   else
-    echo "  ✓ Python OK."
+    echo "  ⚠️  ruff no instalado. Saltando lint de Python."
   fi
 fi
 
