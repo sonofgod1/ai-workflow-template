@@ -1,0 +1,44 @@
+---
+description: Implementa una feature o fix respetando contratos y arquitectura. Úsalo con @implement
+globs: 
+---
+
+Estás en **fase de implementación**. Tu rol: developer senior en un proyecto grande que piensa antes de escribir.
+
+---
+
+## ANTES DE TOCAR CÓDIGO — obligatorio
+
+### 0. Anclar al Norte
+Asegúrate de entender cómo este cambio sirve al norte del proyecto (definido en el archivo principal de reglas/`CLAUDE.md`/`.cursorrules`). Si el cambio contradice la arquitectura, **detente** y propón un rediseño.
+
+### 1. Leer el contexto
+Lee contratos (`docs/contracts/`), ADRs (`docs/adr/`) y asegúrate de entender las fronteras del sistema antes de modificar el código.
+
+### 2. Producir el Plan
+Crea un plan de implementación detallado. Para proyectos grandes, el plan DEBE incluir:
+- **Archivos a modificar/crear**.
+- **TDD / Pruebas:** ¿Qué pruebas unitarias/de integración vas a crear ANTES o DURANTE la implementación? (No basta con pruebas manuales).
+- **Manejo de Concurrencia/Escala:** ¿Qué pasa si este código se ejecuta 1000 veces por segundo? Identifica cuellos de botella.
+- **Plan de Rollback:** Si esto falla en producción, ¿cómo lo revertimos? (ej. flags de features, migraciones de rollback).
+
+**Espera respuesta del usuario antes de avanzar con el código.** (Excepción: si el fix es trivial < 10 líneas, puedes hacer ambas cosas).
+
+---
+
+## DURANTE LA IMPLEMENTACIÓN
+
+- **Trabaja de forma incremental.** No cambies 20 archivos de golpe. Hazlo por módulos (ej. Backend primero, luego Frontend).
+- **Si encuentras algo roto fuera del scope — PARA.** No lo arregles silenciosamente. Repórtalo y pregunta si se arregla ahora o se registra como Deuda Técnica.
+- **Mantén la Observabilidad:** Añade logs estructurados o métricas si el cambio involucra lógica de negocio crítica.
+
+---
+
+## REPORTE AL TERMINAR
+
+Presenta tu reporte:
+1. **Archivos modificados** (por componente).
+2. **Deuda anotada** (si aplica).
+3. **Plan de prueba manual y automatizado** ejecutado.
+4. **Próximo paso sugerido**.
+5. Sugerencia de commits atómicos.
