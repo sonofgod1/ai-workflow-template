@@ -212,38 +212,52 @@ eres tú.
 **Si trabaja solo** — se exige PR y CI en verde, pero cero aprobaciones:
 
 ```bash
+# `gh api -f` manda todo como string y este endpoint exige booleanos, enteros y
+# null de verdad: con -f devuelve 422 ("true" is not a boolean). Va como JSON.
 REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
 
 for BRANCH in main develop; do
   gh api -X PUT "repos/$REPO/branches/$BRANCH/protection" \
-    -H "Accept: application/vnd.github+json" \
-    -f "required_status_checks[strict]=true" \
-    -f "required_status_checks[contexts][]=archivos-prohibidos" \
-    -f "required_status_checks[contexts][]=secretos" \
-    -f "required_status_checks[contexts][]=commits-convencionales" \
-    -f "required_pull_request_reviews[required_approving_review_count]=0" \
-    -f "required_pull_request_reviews[require_code_owner_reviews]=false" \
-    -f "enforce_admins=false" \
-    -f "restrictions=null"
+    -H "Accept: application/vnd.github+json" --input - <<JSON
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["archivos-prohibidos", "secretos", "commits-convencionales"]
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 0,
+    "require_code_owner_reviews": false
+  },
+  "restrictions": null
+}
+JSON
 done
 ```
 
 **Si trabaja en equipo** — además, review de code owners:
 
 ```bash
+# `gh api -f` manda todo como string y este endpoint exige booleanos, enteros y
+# null de verdad: con -f devuelve 422 ("true" is not a boolean). Va como JSON.
 REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
 
 for BRANCH in main develop; do
   gh api -X PUT "repos/$REPO/branches/$BRANCH/protection" \
-    -H "Accept: application/vnd.github+json" \
-    -f "required_status_checks[strict]=true" \
-    -f "required_status_checks[contexts][]=archivos-prohibidos" \
-    -f "required_status_checks[contexts][]=secretos" \
-    -f "required_status_checks[contexts][]=commits-convencionales" \
-    -f "required_pull_request_reviews[require_code_owner_reviews]=true" \
-    -f "required_pull_request_reviews[required_approving_review_count]=1" \
-    -f "enforce_admins=false" \
-    -f "restrictions=null"
+    -H "Accept: application/vnd.github+json" --input - <<JSON
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["archivos-prohibidos", "secretos", "commits-convencionales"]
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": {
+    "required_approving_review_count": 1,
+    "require_code_owner_reviews": true
+  },
+  "restrictions": null
+}
+JSON
 done
 ```
 
