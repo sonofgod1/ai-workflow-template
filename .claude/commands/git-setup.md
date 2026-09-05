@@ -249,9 +249,24 @@ done
 En los dos casos el PR sigue siendo obligatorio y el CI sigue teniendo que estar verde:
 eso es lo que de verdad no se puede saltar. La diferencia es solo quién aprueba.
 
-Si el repo es privado y la cuenta es Free, la API de branch protection no está disponible. En ese
-caso indicar la ruta manual: **Settings → Branches → Add rule**, y marcar "Require a pull request
-before merging", "Require review from Code Owners" y "Require status checks to pass".
+**Si devuelve 403 con "Upgrade to GitHub Pro or make this repository public":** la cuenta es
+Free y el repo privado. Ahí **no hay branch protection de ninguna forma** — ni por API, ni con
+rulesets, ni por la interfaz: Settings → Branches no ofrece la opción. Verificado contra las dos
+APIs. No mandes al usuario a buscarla.
+
+Las salidas reales son tres, en este orden:
+
+1. **Hacer el repo público** — es gratis y la protección funciona completa:
+   `gh repo edit OWNER/REPO --visibility public --accept-visibility-change-consequences`
+   (reversible en cualquier momento).
+2. **GitHub Pro** si tiene que seguir privado.
+3. **Seguir sin branch protection.** Dilo con claridad, no lo disimules: el CI **sí corre** en
+   repos privados con cuenta Free, así que las verificaciones siguen ejecutándose en cada PR y
+   se ven en rojo o verde. Lo que se pierde es que sean *obligatorias* — nada impide mergear con
+   el CI en rojo, ni saltarse el PR empujando directo a `main`.
+
+En el caso 3, avísale explícitamente de que la capa que no se puede saltar queda desactivada, y
+que los hooks locales vuelven a ser la única barrera — con `--no-verify` esquivándolos.
 
 **c) Explicar qué quedó protegido:**
 
