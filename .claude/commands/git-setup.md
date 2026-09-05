@@ -9,6 +9,7 @@ Estás en **fase de inicialización Git**. Tu rol: configurar la infraestructura
 - ✅ Configura estructura de branches
 - ✅ Instala hooks de Git en .git/hooks/
 - ✅ Crea tag inicial
+- ✅ Configura CI, CODEOWNERS y branch protection
 - ✅ Explica la estrategia al usuario
 - ❌ No toca código de aplicación
 - ❌ No modifica CLAUDE.md ni archivos de docs
@@ -150,7 +151,74 @@ git tag -a v0.0.1 -m "chore: workflow inicializado"
 
 ---
 
-### Paso 6 — Mostrar resumen final
+### Paso 6 — Protección del lado del servidor
+
+Los hooks de Git corren en la máquina del desarrollador y `--no-verify` los anula. Esta es la capa
+que no se puede saltar, y es la única que protege igual sin importar con qué editor se trabaje.
+
+**a) Completar CODEOWNERS.**
+
+`.github/CODEOWNERS` viene con `@TU-USUARIO` como marcador. GitHub ignora el archivo entero si no se
+reemplaza. Preguntar al usuario su usuario u organización de GitHub y sustituirlo:
+
+```bash
+gh api user --jq .login          # tu usuario, si no lo recuerdas
+sed -i '' 's/@TU-USUARIO/@tu-usuario-real/g' .github/CODEOWNERS   # macOS
+sed -i    's/@TU-USUARIO/@tu-usuario-real/g' .github/CODEOWNERS   # Linux
+```
+
+**b) Activar branch protection en `main` y `develop`.**
+
+Requiere que el repo ya exista en GitHub y que `gh` esté autenticado. Mostrar estos comandos al
+usuario para que los ejecute — no los ejecutes tú sin confirmación, porque cambian la configuración
+del repositorio remoto:
+
+```bash
+REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+
+for BRANCH in main develop; do
+  gh api -X PUT "repos/$REPO/branches/$BRANCH/protection" \
+    -H "Accept: application/vnd.github+json" \
+    -f "required_status_checks[strict]=true" \
+    -f "required_status_checks[contexts][]=archivos-prohibidos" \
+    -f "required_status_checks[contexts][]=secretos" \
+    -f "required_pull_request_reviews[require_code_owner_reviews]=true" \
+    -f "required_pull_request_reviews[required_approving_review_count]=1" \
+    -f "enforce_admins=false" \
+    -f "restrictions=null"
+done
+```
+
+Si el repo es privado y la cuenta es Free, la API de branch protection no está disponible. En ese
+caso indicar la ruta manual: **Settings → Branches → Add rule**, y marcar "Require a pull request
+before merging", "Require review from Code Owners" y "Require status checks to pass".
+
+**c) Explicar qué quedó protegido:**
+
+```
+PROTECCIÓN DEL SERVIDOR
+─────────────────────────────────────────────────────────────
+CI (.github/workflows/ci.yml)   Corre en cada PR a main y develop:
+                                • archivos prohibidos versionados
+                                • formato convencional de TODOS los commits
+                                • secretos (gitleaks)
+                                • lint, type-check y tests según el stack
+
+CODEOWNERS                      Cambios a docs/adr/, docs/contracts/, la
+                                gobernanza y el propio CI exigen tu aprobación.
+
+Branch protection               main y develop solo reciben cambios por PR,
+                                con CI en verde y review aprobada.
+─────────────────────────────────────────────────────────────
+
+Por qué importa: los hooks locales se saltan con --no-verify y solo existen en
+la máquina donde se instalaron. Esto corre en el servidor y aplica a cualquier
+editor y a cualquier persona del equipo.
+```
+
+---
+
+### Paso 7 — Mostrar resumen final
 
 ```
 RESUMEN — Git configurado
@@ -170,6 +238,11 @@ HOOKS DE CLAUDE CODE
   ✓ check-bash.sh        (bloquea comandos destructivos)
   ✓ lint-on-save.sh      (lint automático al guardar)
   ✓ session-summary.sh   (resumen al terminar sesión)
+
+PROTECCIÓN DEL SERVIDOR
+  ✓ CI en cada PR      (archivos, commits, secretos, lint, tests)
+  ✓ CODEOWNERS         (ADRs, contratos y gobernanza requieren tu review)
+  ✓ Branch protection  (main y develop solo por PR con CI en verde)
 
 TAG
   ✓ v0.0.1

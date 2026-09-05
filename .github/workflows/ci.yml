@@ -1,0 +1,174 @@
+name: CI
+
+# La barrera que no se puede saltar. Los git hooks locales dan feedback rápido,
+# pero `--no-verify` los anula; esto corre en el servidor y es lo que debe estar
+# en verde para poder mergear. Configura branch protection en main y develop
+# para exigirlo (ver /git-setup, paso 6).
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Qué hay en este repo ────────────────────────────────────────────────────
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      node: ${{ steps.check.outputs.node }}
+      python: ${{ steps.check.outputs.python }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: check
+        run: |
+          [ -f package.json ] && echo "node=yes" >> "$GITHUB_OUTPUT" || echo "node=no" >> "$GITHUB_OUTPUT"
+          if [ -f pyproject.toml ] || [ -f setup.py ]; then
+            echo "python=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "python=no" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── Archivos que nunca deben entrar al repo ─────────────────────────────────
+  # Misma lista que git-hooks/pre-commit, pero aquí no hay --no-verify.
+  archivos-prohibidos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Verificar archivos prohibidos
+        run: |
+          PATTERNS='\.env$|\.env\.local$|\.env\.production$|\.env\.staging$|node_modules/|\.tsbuildinfo$|\.db$|\.sqlite3?$|\.DS_Store$|\.pem$|\.key$|\.p12$|__pycache__/|\.pyc$'
+          FOUND=$(git ls-files | grep -E "$PATTERNS" || true)
+          if [ -n "$FOUND" ]; then
+            echo "::error::Archivos prohibidos versionados en el repo:"
+            echo "$FOUND" | sed 's/^/  /'
+            echo ""
+            echo "Quítalos del índice y agrégalos a .gitignore:"
+            echo "$FOUND" | sed 's|^|  git rm --cached |'
+            exit 1
+          fi
+          echo "✓ Sin archivos prohibidos."
+
+  # ── Formato de commits ──────────────────────────────────────────────────────
+  # Mismo patrón que git-hooks/commit-msg. Cierra el bypass de --no-verify.
+  commits-convencionales:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Validar el asunto de cada commit del PR
+        run: |
+          PATTERN='^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\([a-zA-Z0-9_.,/-]+\))?(!)?: .{1,100}$'
+          BASE="${{ github.event.pull_request.base.sha }}"
+
+          FAILED=0
+          while IFS= read -r sha; do
+            [ -z "$sha" ] && continue
+            SUBJECT=$(git log -1 --format=%s "$sha")
+            case "$SUBJECT" in
+              Merge\ *|Rebase\ *|fixup!\ *|squash!\ *|Revert\ \"*) continue ;;
+            esac
+            if ! printf '%s\n' "$SUBJECT" | grep -qE "$PATTERN"; then
+              echo "::error::Commit ${sha:0:7} — asunto inválido: $SUBJECT"
+              FAILED=1
+            fi
+          done < <(git rev-list "$BASE..HEAD")
+
+          if [ $FAILED -ne 0 ]; then
+            echo ""
+            echo "Formato requerido: tipo(scope): descripción"
+            echo "Tipos: feat fix docs style refactor test chore perf ci build revert"
+            exit 1
+          fi
+          echo "✓ Todos los commits siguen el formato convencional."
+
+  # ── Secretos ────────────────────────────────────────────────────────────────
+  secretos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
+            detect --source /repo --redact --verbose --no-banner
+
+  # ── JS / TS ─────────────────────────────────────────────────────────────────
+  javascript:
+    needs: detect
+    if: needs.detect.outputs.node == 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: |
+          if [ -x node_modules/.bin/biome ]; then
+            node_modules/.bin/biome check .
+          elif [ -x node_modules/.bin/eslint ]; then
+            node_modules/.bin/eslint . --max-warnings=0
+          else
+            echo "⚠️  Sin linter instalado (biome o eslint). Saltando."
+          fi
+
+      - name: Type-check
+        run: |
+          if [ -f tsconfig.json ] && [ -x node_modules/.bin/tsc ]; then
+            node_modules/.bin/tsc --noEmit --skipLibCheck
+          else
+            echo "⚠️  Sin TypeScript. Saltando."
+          fi
+
+      - name: Tests
+        run: |
+          if grep -q '"test":' package.json; then
+            npm test
+          else
+            echo "⚠️  Sin script 'test' en package.json. Saltando."
+          fi
+
+  # ── Python ──────────────────────────────────────────────────────────────────
+  python:
+    needs: detect
+    if: needs.detect.outputs.python == 'yes'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+          if [ -f pyproject.toml ]; then pip install -e . || true; fi
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Tests
+        run: |
+          CODE=0
+          pytest --tb=short || CODE=$?
+          # pytest devuelve 5 cuando no recolectó ningún test.
+          if [ "$CODE" -eq 5 ]; then
+            echo "⚠️  Sin tests todavía."
+            exit 0
+          fi
+          exit "$CODE"
