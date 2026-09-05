@@ -11,6 +11,13 @@
 set -euo pipefail
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+
+# Resolver symlinks: si el proyecto se alcanza por dos rutas (p.ej. ~/projects
+# como symlink a /Volumes/Datos/projects) y CLAUDE_PROJECT_DIR llega por una
+# mientras el file_path llega por la otra, el prefijo no se recorta, ningún
+# patrón coincide, y el hook deja pasar la escritura sin decir nada.
+ROOT=$(cd "$ROOT" 2>/dev/null && pwd -P || echo "$ROOT")
+
 PROTECTED_FILE="$ROOT/.claude/protected.txt"
 [ -f "$PROTECTED_FILE" ] || exit 0
 
@@ -25,11 +32,13 @@ fi
 INPUT=$(cat)
 
 FILE_PATH=$(printf '%s' "$INPUT" | python3 -c "
-import json, sys
+import json, os, sys
 try:
     data = json.load(sys.stdin)
     tool_input = data.get('tool_input', {}) or {}
-    print(tool_input.get('file_path', ''))
+    path = tool_input.get('file_path', '')
+    # realpath resuelve symlinks aunque el archivo todavía no exista.
+    print(os.path.realpath(path) if path else '')
 except Exception:
     print('')
 " 2>/dev/null || echo "")
