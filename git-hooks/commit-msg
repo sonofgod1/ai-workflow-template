@@ -5,11 +5,20 @@
 # O usar /git-setup que lo hace automáticamente.
 
 COMMIT_MSG_FILE="$1"
-COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Solo se valida el asunto: la primera línea que no sea comentario ni esté vacía.
+# Validar el mensaje completo dejaba pasar cualquier asunto inválido con tal de
+# que alguna línea del cuerpo cumpliera el patrón.
+SUBJECT=$(grep -v '^#' "$COMMIT_MSG_FILE" | sed '/^[[:space:]]*$/d' | head -n 1)
+
+# Mensaje vacío: que lo rechace git, no este hook.
+if [ -z "$SUBJECT" ]; then
+  exit 0
+fi
 
 # ─── Ignorar commits de merge y rebase ───────────────────────────────────────
 
-if echo "$COMMIT_MSG" | grep -qE "^Merge |^Rebase |^fixup! |^squash! "; then
+if printf '%s\n' "$SUBJECT" | grep -qE "^(Merge |Rebase |fixup! |squash! |Revert \")"; then
   exit 0
 fi
 
@@ -21,7 +30,7 @@ fi
 
 PATTERN="^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\([a-zA-Z0-9_.,/-]+\))?(!)?: .{1,100}$"
 
-if echo "$COMMIT_MSG" | grep -qE "$PATTERN"; then
+if printf '%s\n' "$SUBJECT" | grep -qE "$PATTERN"; then
   exit 0
 fi
 
@@ -30,7 +39,7 @@ fi
 echo ""
 echo "❌ Mensaje de commit inválido."
 echo ""
-echo "Tu mensaje: \"$COMMIT_MSG\""
+echo "Tu asunto: \"$SUBJECT\""
 echo ""
 echo "Formato requerido: tipo(scope): descripción"
 echo ""
