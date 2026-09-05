@@ -42,7 +42,7 @@ fi
 echo "🤖 Editor seleccionado: $EDITOR"
 
 # Archivos y carpetas a sincronizar según el editor
-SYNC_PATHS=("git-hooks")
+SYNC_PATHS=("git-hooks" ".github")
 
 if [[ "$EDITOR" == "claude" || "$EDITOR" == "all" ]]; then
     SYNC_PATHS+=(".claude/commands" ".claude/hooks" ".claude/settings.json" ".claude/protected.txt")
@@ -89,6 +89,13 @@ if [ -f ".cursorrules" ]; then
   echo "   Este archivo contiene reglas generales. sync-workflow.sh NUNCA lo sobreescribe."
 fi
 
+if [ -f ".cursor/rules/00-gobernanza.mdc" ]; then
+  echo ""
+  echo "📋 .cursor/rules/00-gobernanza.mdc encontrado en este proyecto."
+  echo "   Es el equivalente de CLAUDE.md para Cursor: lleva el norte del proyecto."
+  echo "   sync-workflow.sh NUNCA lo sobreescribe."
+fi
+
 # ─── Obtener árbol de archivos del repo ───────────────────────────────────────
 
 echo ""
@@ -129,6 +136,19 @@ fi
 
 SYNC_PATTERN=$(IFS='|'; echo "${SYNC_PATHS[*]}")
 
+# Archivos que pertenecen al proyecto, no al template: llevan el norte, el stack
+# y la configuración específica. Si ya existen localmente no se tocan, igual que
+# CLAUDE.md. Si no existen (instalación nueva) sí se traen, con sus [pendiente].
+NEVER_OVERWRITE=(".cursor/rules/00-gobernanza.mdc" ".github/CODEOWNERS")
+
+is_never_overwrite() {
+  local candidate="$1" entry
+  for entry in "${NEVER_OVERWRITE[@]}"; do
+    [ "$entry" = "$candidate" ] && return 0
+  done
+  return 1
+}
+
 if $HAS_JQ; then
     ALL_FILES=$(echo "$TREE_BODY" | jq -r '.tree[] | select(.type=="blob") | .path')
 else
@@ -157,6 +177,7 @@ echo ""
 
 UPDATED=0
 SKIPPED=0
+PRESERVED=0
 ERRORS=0
 
 while IFS= read -r FILE_PATH; do
@@ -164,6 +185,12 @@ while IFS= read -r FILE_PATH; do
 
   LOCAL_PATH="./$FILE_PATH"
   RAW_URL="$RAW_BASE/$FILE_PATH"
+
+  if is_never_overwrite "$FILE_PATH" && [ -f "$LOCAL_PATH" ]; then
+    log "↩︎  $FILE_PATH — preservado (configuración de este proyecto)"
+    ((PRESERVED++)) || true
+    continue
+  fi
 
   if $DRY_RUN; then
     echo "  [dry-run] $FILE_PATH"
@@ -203,6 +230,7 @@ if $DRY_RUN; then
 else
   echo "✅ Sync completado"
   echo "   Actualizados: $UPDATED"
+  [ $PRESERVED -gt 0 ] && echo "   Preservados:  $PRESERVED"
   [ $ERRORS -gt 0 ] && echo "   Errores:       $ERRORS"
   echo ""
   
