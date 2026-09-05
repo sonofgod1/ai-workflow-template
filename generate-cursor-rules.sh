@@ -86,7 +86,9 @@ GOB_OVERRIDES = [
      "1. **Nunca modifiques archivos fuera del scope que te pedí.** Si necesitas tocar algo fuera, "
      "pregúntame primero y explica por qué. Archivos protegidos, que nunca tocas sin permiso explícito:\n"
      "   `.env`, `.env.*`, `*.pem`, `*.key`, `secrets/**`, `.git/**`, `.github/workflows/**`,\n"
-     "   esta misma regla (" + GOB_SHORT + "), `docs/adr/**`, `docs/contracts/**`, `LICENSE`."),
+     "   esta misma regla (" + GOB_SHORT + "), `LICENSE`.\n"
+     "   En `docs/adr/**` y `docs/contracts/**` puedes **crear** archivos nuevos, pero no modificar\n"
+     "   los que ya existen: un ADR no se edita, se reemplaza por otro."),
     ('Modificar la sección "Norte del proyecto" requiere mi aprobación explícita, igual que cualquier archivo en `.claude/protected.txt`.',
      'Modificar la sección "Norte del proyecto" requiere mi aprobación explícita, igual que cualquier archivo protegido de la regla 1.'),
     ("Cada fase tiene un slash command con restricciones claras. **Fuera de un comando, modo consulta: respondes preguntas, no modificas nada.**",

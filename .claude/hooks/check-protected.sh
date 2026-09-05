@@ -139,9 +139,24 @@ claude_md_policy() {
 
 # ─── Comparar contra los patrones protegidos ──────────────────────────────────
 
+CREATE_ONLY=""
+
 while IFS= read -r pattern; do
     [[ "$pattern" =~ ^#.*$ || -z "$pattern" ]] && continue
+
+    # Prefijo '+': la ruta admite archivos nuevos, no modificar los existentes.
+    allow_create=false
+    if [[ "$pattern" == +* ]]; then
+        allow_create=true
+        pattern="${pattern#+}"
+    fi
+
     if [[ "$REL_PATH" == $pattern || "$FILE_PATH" == $pattern ]]; then
+        if $allow_create; then
+            # Sigue recorriendo: un patrón sin '+' más abajo debe poder bloquear igual.
+            CREATE_ONLY="$pattern"
+            continue
+        fi
         if [ "$REL_PATH" = "CLAUDE.md" ]; then
             claude_md_policy && exit 0
             exit 2
@@ -151,5 +166,15 @@ while IFS= read -r pattern; do
         exit 2
     fi
 done < "$PROTECTED_FILE"
+
+if [ -n "$CREATE_ONLY" ]; then
+    if [ -e "$FILE_PATH" ]; then
+        echo "🛑 BLOQUEADO: '$REL_PATH' ya existe y '$CREATE_ONLY' es de solo-creación." >&2
+        echo "Crear archivos nuevos ahí está permitido; modificar uno existente no." >&2
+        echo "Un ADR no se edita: se escribe otro que lo reemplace. Un contrato solo cambia si el usuario lo aprueba." >&2
+        exit 2
+    fi
+    exit 0
+fi
 
 exit 0

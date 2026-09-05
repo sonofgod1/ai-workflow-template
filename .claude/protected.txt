@@ -1,5 +1,10 @@
 # Archivos y rutas que Claude Code NO debe modificar sin confirmación explícita.
 # Una entrada por línea. Soporta globs.
+#
+# Prefijo '+' = solo-creación: el agente puede crear archivos nuevos ahí, pero no
+# modificar los que ya existen. Es lo que necesitan /architect y /contracts, que
+# tienen que poder escribir un ADR o un contrato nuevo, mientras que cambiar uno
+# ya escrito es una decisión tuya (un ADR no se edita: se reemplaza por otro).
 
 .env
 .env.*
@@ -10,6 +15,6 @@ secrets/**
 .github/workflows/**
 .claude/protected.txt
 CLAUDE.md
-docs/adr/**
-docs/contracts/**
++docs/adr/**
++docs/contracts/**
 LICENSE

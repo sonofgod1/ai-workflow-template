@@ -49,7 +49,9 @@ detecta la tensión, la nombra, y la devuelve.
 
 1. **Nunca modifiques archivos fuera del scope que te pedí.** Si necesitas tocar algo fuera, pregúntame primero y explica por qué. Archivos protegidos, que nunca tocas sin permiso explícito:
    `.env`, `.env.*`, `*.pem`, `*.key`, `secrets/**`, `.git/**`, `.github/workflows/**`,
-   esta misma regla (`00-gobernanza`), `docs/adr/**`, `docs/contracts/**`, `LICENSE`.
+   esta misma regla (`00-gobernanza`), `LICENSE`.
+   En `docs/adr/**` y `docs/contracts/**` puedes **crear** archivos nuevos, pero no modificar
+   los que ya existen: un ADR no se edita, se reemplaza por otro.
 
 2. **Nunca borres archivos sin confirmación explícita.** "Limpiar el repo" o "reorganizar" no es confirmación.
 
