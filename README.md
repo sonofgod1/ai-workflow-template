@@ -44,7 +44,7 @@ cd mi-proyecto-existente
 #   Cursor      → .cursor/
 #   los dos     → todo lo anterior
 
-graphify install && graphify .   # mapea lo que ya hay
+graphify install                  # registra el skill
 claude                            # o abre la carpeta en Cursor
 /git-setup                        # configura branches y hooks
 /discovery                        # entender qué tienes
@@ -468,16 +468,28 @@ El detalle completo está en `CLAUDE.md`. En resumen, Claude nunca puede:
 [graphify](https://github.com/tu-usuario/graphifyy) construye un grafo del repositorio que Claude usa para navegar sin hacer búsquedas masivas. Reduce consumo de tokens, detecta god nodes (componentes críticos), y permite clasificar el tipo de proyecto automáticamente en `/discovery`.
 
 ```bash
-# Instalar
+# Instalar el CLI y registrar el skill en tu editor
 uv tool install graphifyy
 graphify install
-
-# Construir el grafo (desde la raíz del proyecto)
-graphify .
-
-# El reporte queda en:
-graphify-out/GRAPH_REPORT.md
 ```
+
+El grafo lo construye el **skill**, no el CLI. Desde el asistente, en la raíz del proyecto:
+
+```
+/graphify .        # Claude Code
+@graphify .        # Cursor
+```
+
+`graphify .` desde bash **no existe** — el CLI solo tiene `install`, `update`, `query`,
+`extract`, `hook` y demás. Una vez construido:
+
+```bash
+graphify query "¿qué depende del módulo de auth?"   # consultar el grafo
+graphify update .                                    # refrescar sin LLM tras editar código
+graphify hook install                                # mantenerlo al día en cada commit
+```
+
+El reporte queda en `graphify-out/GRAPH_REPORT.md`.
 
 El directorio `graphify-out/` está en `.gitignore` (excepto el `.gitkeep`). Cada desarrollador regenera el grafo localmente.
 

@@ -29,7 +29,7 @@ Antes de cualquier análisis, pregunta al usuario:
 ```
 Para instalarlo:
 1. uv tool install graphifyy    (o: pipx install graphifyy)
-2. graphify install              (registra el skill en Claude Code)
+2. graphify install              (registra el skill en tu editor)
 3. Crea .graphifyignore antes de correr el análisis:
 
 cat > .graphifyignore <<'EOF'
@@ -45,7 +45,9 @@ build/
 graphify-out/
 EOF
 
-4. graphify .    (construye el grafo — toma 1-5 min la primera vez)
+4. /graphify .   (el grafo lo construye el SKILL desde el asistente, no el CLI.
+                  `graphify .` desde bash NO existe: el CLI solo tiene install,
+                  update, query, extract, hook... Toma 1-5 min la primera vez.)
 5. Cuando termine, avísame y continúo con el descubrimiento leyendo el grafo.
 ```
 

@@ -74,7 +74,8 @@ Si existe `graphify-out/GRAPH_REPORT.md`:
 3. **God nodes = componentes críticos.** Si vas a tocar un god node, avisa antes de implementar.
 4. Para preguntas específicas sobre relaciones entre módulos: `graphify query "tu pregunta"` desde bash.
 
-Si el grafo NO existe y el proyecto tiene más de 20 archivos, sugiere al usuario correr `graphify .` antes de continuar.
+Si el grafo NO existe y el proyecto tiene más de 20 archivos, sugiere al usuario construirlo con
+`/graphify .` — el grafo lo genera el **skill** desde el asistente. `graphify .` desde bash no existe.
 
 ---
 
