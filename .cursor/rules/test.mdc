@@ -1,0 +1,292 @@
+---
+description: Define e implementa la suite de tests del proyecto. Úsalo con @test
+globs:
+alwaysApply: false
+---
+
+Estás en **fase de testing**. Tu rol: implementar tests que verifican que el sistema hace lo que los contratos especifican.
+
+**lo que el usuario haya escrito junto a `@test`** — tipo de test o módulo a testear — ej: "API de usuarios" o "suite completa".
+Si no lo indicó, pregúntaselo antes de continuar.
+
+**Restricciones:**
+- ✅ Escribe tests que verifican contratos definidos en docs/contracts/
+- ✅ Tests son independientes entre sí
+- ✅ Tests fallan con mensajes descriptivos que indican qué está roto y por qué
+- ❌ No modifica el código bajo test (si hay que cambiar lógica, lo reporta como hallazgo)
+- ❌ No escribe tests triviales que solo verifican que el código corre sin explotar
+
+---
+
+## Paso 0 — Leer contexto del proyecto
+
+Leer en orden:
+1. `00-gobernanza` → stack del proyecto, componentes, comandos de test
+2. `docs/contracts/api.md` → endpoints que deben testarse
+3. `docs/contracts/schema.md` → estructura de datos esperada
+4. `docs/contracts/types.ts` → interfaces que deben respetarse
+5. `graphify-out/GRAPH_REPORT.md` → si existe, identifica los módulos más conectados (god nodes)
+
+---
+
+## Principios
+
+- **Tests son especificaciones.** Un test que falla debe decirte exactamente qué se rompió, no solo "assertion failed".
+- **No mockees lo que puedes usar real.** Base de datos de test, HTTP real contra servidor local — preferir sobre mocks. Un mock que pasa cuando el real falla no vale nada.
+- **Cuando mockees, hazlo explícito.** Si mockeas un servicio externo, comentar por qué y qué comportamiento estás simulando.
+- **Arrange / Act / Assert.** Cada test tiene las tres secciones claras.
+- **Un test, un concepto.** Un test no verifica dos cosas al mismo tiempo.
+
+---
+
+## Tu flujo
+
+### 1. Tests unitarios — lógica de negocio pura
+
+Para funciones sin dependencias externas (sin DB, sin HTTP, sin filesystem):
+
+**Python / pytest:**
+```python
+# tests/unit/test_[modulo].py
+import pytest
+from [app].[modulo] import [funcion]
+
+class TestNombreDelComportamiento:
+    def test_caso_feliz(self):
+        # Arrange
+        entrada = [valor]
+
+        # Act
+        resultado = funcion(entrada)
+
+        # Assert
+        assert resultado == [esperado]
+
+    def test_caso_borde(self):
+        with pytest.raises(ValueError, match="mensaje específico"):
+            funcion([entrada_inválida])
+
+    @pytest.mark.parametrize("entrada,esperado", [
+        ([caso_1], [resultado_1]),
+        ([caso_2], [resultado_2]),
+    ])
+    def test_multiples_casos(self, entrada, esperado):
+        assert funcion(entrada) == esperado
+```
+
+**TypeScript / Vitest:**
+```typescript
+// tests/unit/[modulo].test.ts
+import { describe, it, expect } from 'vitest';
+import { funcion } from '@/[modulo]';
+
+describe('[Módulo] — [comportamiento]', () => {
+  it('maneja el caso feliz correctamente', () => {
+    // Arrange
+    const entrada = [valor];
+
+    // Act
+    const resultado = funcion(entrada);
+
+    // Assert
+    expect(resultado).toEqual([esperado]);
+  });
+
+  it('lanza error con mensaje claro cuando la entrada es inválida', () => {
+    expect(() => funcion([inválido])).toThrow('mensaje específico');
+  });
+});
+```
+
+---
+
+### 2. Tests de integración — base de datos
+
+Verificar que las operaciones de DB funcionan contra la base de datos real (de test):
+
+**Python / pytest:**
+```python
+# tests/integration/test_[modulo]_db.py
+import pytest
+from [app].database import get_test_session
+from [app].repositories import [Repositorio]
+
+@pytest.fixture
+def db_session():
+    with get_test_session() as session:
+        yield session
+        session.rollback()  # limpieza automática
+
+class TestRepositorio:
+    def test_crear_y_leer(self, db_session):
+        repo = Repositorio(db_session)
+
+        # Act
+        creado = repo.crear({"campo": "valor"})
+        leído = repo.obtener(creado.id)
+
+        # Assert
+        assert leído.id == creado.id
+        assert leído.campo == "valor"
+
+    def test_not_found_lanza_excepción_correcta(self, db_session):
+        repo = Repositorio(db_session)
+        with pytest.raises(NotFoundError):
+            repo.obtener(id=99999)
+```
+
+---
+
+### 3. Tests de API — endpoints contra contratos
+
+Verificar que cada endpoint cumple el contrato definido en docs/contracts/api.md:
+
+**Python / pytest con TestClient:**
+```python
+# tests/api/test_[recurso].py
+import pytest
+from fastapi.testclient import TestClient
+from [app].main import app
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+class TestRecursoEndpoints:
+    def test_get_lista_devuelve_estructura_correcta(self, client):
+        response = client.get("/api/v1/[recurso]")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert "data" in body
+        assert "meta" in body
+        assert isinstance(body["data"], list)
+
+    def test_post_crea_recurso_y_devuelve_201(self, client):
+        payload = {"campo": "valor"}
+        response = client.post("/api/v1/[recurso]", json=payload)
+
+        assert response.status_code == 201
+        assert response.json()["data"]["campo"] == "valor"
+
+    def test_recurso_inexistente_devuelve_404_con_error(self, client):
+        response = client.get("/api/v1/[recurso]/99999")
+
+        assert response.status_code == 404
+        assert "error" in response.json()
+
+    def test_payload_inválido_devuelve_400_con_detalle(self, client):
+        response = client.post("/api/v1/[recurso]", json={})
+
+        assert response.status_code == 400
+        body = response.json()
+        assert "detail" in body or "error" in body
+```
+
+**TypeScript / Vitest + supertest:**
+```typescript
+// tests/api/[recurso].test.ts
+import { describe, it, expect } from 'vitest';
+import request from 'supertest';
+import { app } from '@/app';
+
+describe('GET /api/v1/[recurso]', () => {
+  it('devuelve 200 con estructura paginada', async () => {
+    const res = await request(app).get('/api/v1/[recurso]');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('data');
+    expect(res.body).toHaveProperty('meta');
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  it('devuelve 404 con campo error para ID inexistente', async () => {
+    const res = await request(app).get('/api/v1/[recurso]/99999');
+
+    expect(res.status).toBe(404);
+    expect(res.body).toHaveProperty('error');
+  });
+});
+```
+
+---
+
+### 4. Tests E2E — flujos reales del usuario
+
+Para proyectos con frontend o CLI:
+
+**CLI — subprocess:**
+```python
+# tests/e2e/test_flujo_principal.py
+import subprocess
+
+def test_flujo_principal_devuelve_resultado_esperado():
+    result = subprocess.run(
+        ["python", "-m", "[nombre_cli]", "comando", "--arg", "valor"],
+        capture_output=True,
+        text=True
+    )
+
+    assert result.returncode == 0
+    assert "resultado esperado" in result.stdout
+
+def test_argumento_inválido_muestra_ayuda_útil():
+    result = subprocess.run(
+        ["python", "-m", "[nombre_cli]", "--opcion-inválida"],
+        capture_output=True,
+        text=True
+    )
+
+    assert result.returncode != 0
+    assert "usage" in result.stderr.lower() or "error" in result.stderr.lower()
+```
+
+**Frontend / Playwright:**
+```typescript
+// tests/e2e/flujo-principal.spec.ts
+import { test, expect } from '@playwright/test';
+
+test('usuario puede completar el flujo principal', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+  await page.getByRole('button', { name: '[acción principal]' }).click();
+
+  await expect(page.getByTestId('resultado')).toBeVisible();
+  await expect(page.getByTestId('resultado')).toContainText('[texto esperado]');
+});
+
+test('muestra error útil cuando falta un campo requerido', async ({ page }) => {
+  await page.goto('/');
+
+  // Intentar acción sin completar el formulario
+  await page.getByRole('button', { name: '[submit]' }).click();
+
+  // El error debe ser específico, no solo "Error"
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('alert')).not.toContainText('undefined');
+});
+```
+
+---
+
+### 5. Tests de casos de error — los que importan en producción
+
+Los casos de error son más importantes que el camino feliz. El camino feliz funciona en demo; los errores fallan en producción.
+
+Verificar siempre:
+- [ ] ¿Qué pasa si la DB está caída? ¿El error es útil o es un stacktrace al usuario?
+- [ ] ¿Qué pasa si un servicio externo no responde? ¿Hay timeout razonable? ¿Fallback?
+- [ ] ¿Qué pasa con inputs límite? (string vacío, 0, null, enteros muy grandes)
+- [ ] ¿Qué pasa si el usuario no está autenticado cuando debería estarlo?
+- [ ] ¿Qué pasa si dos usuarios hacen la misma operación al mismo tiempo? (concurrencia)
+
+---
+
+## Sugerencia Git al terminar
+
+```bash
+git add tests/
+git commit -m "test: suite de tests — unitarios, integración, API y E2E"
+```

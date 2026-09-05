@@ -1,10 +1,12 @@
 # AI Workflow Template
 
-Plantilla para desarrollar aplicaciones con Claude Code de forma disciplinada: cada fase del SDLC tiene su slash command, sus restricciones, y hooks que impiden que la IA se salga del scope.
+Plantilla para desarrollar aplicaciones con **Claude Code o Cursor** de forma disciplinada: cada fase del SDLC tiene su comando, sus restricciones, y hooks que impiden que la IA se salga del scope.
+
+El mismo flujo funciona en los dos editores. Lo que cambia es cuánto se puede hacer cumplir con código — ver [Claude Code y Cursor](#claude-code-y-cursor).
 
 Incluye estrategia de Git profesional (branches, hooks de calidad, commits convencionales), gestión de cambios post-deploy, y contratos entre componentes que `/implement` no puede ignorar.
 
-**Esto es un punto de partida, no un framework cerrado.** Modifica los archivos en `.claude/` para adaptarlo a tu forma de trabajar.
+**Esto es un punto de partida, no un framework cerrado.** Modifica los archivos en `.claude/` o `.cursor/` para adaptarlo a tu forma de trabajar.
 
 ---
 
@@ -20,24 +22,30 @@ cd mi-proyecto
 # 2. Instala graphify (mapea el repo en un grafo para Claude)
 uv tool install graphifyy && graphify install
 
-# 3. Abre Claude Code en este folder
-claude
+# 3. Abre tu editor en este folder
+claude          # Claude Code
+# o simplemente abre la carpeta en Cursor
 
 # 4. Configura Git primero
-/git-setup
+/git-setup      # en Cursor: @git-setup
 
 # 5. Empieza el flujo
-/discovery
+/discovery      # en Cursor: @discovery
 ```
+
+La plantilla trae los dos juegos de reglas (`.claude/` y `.cursor/`). Si solo usas uno, puedes borrar el otro — o dejarlos, no estorban.
 
 ### Para un proyecto existente
 
 ```bash
 cd mi-proyecto-existente
-# Copia .claude/, git-hooks/, CLAUDE.md y README.md desde la plantilla
+# Copia git-hooks/ y, según tu editor:
+#   Claude Code → .claude/ + CLAUDE.md
+#   Cursor      → .cursor/
+#   los dos     → todo lo anterior
 
 graphify install && graphify .   # mapea lo que ya hay
-claude
+claude                            # o abre la carpeta en Cursor
 /git-setup                        # configura branches y hooks
 /discovery                        # entender qué tienes
 ```
@@ -70,7 +78,9 @@ claude
 
 Para trabajo nuevo o cambios significativos, `/feature` evalúa la complejidad y define qué fases del flujo activar.
 
-Cada fase tiene un comando, un rol, y restricciones claras. Fuera de un comando, Claude está en **modo consulta**: responde preguntas pero no modifica nada.
+Cada fase tiene un comando, un rol, y restricciones claras. Fuera de un comando, el agente está en **modo consulta**: responde preguntas pero no modifica nada.
+
+En Cursor los mismos comandos se invocan con `@`: `@discovery`, `@implement`, `@review`.
 
 | Fase | Comando | Restricciones clave |
 |------|---------|---------------------|
@@ -212,9 +222,82 @@ Cada cambio queda registrado en `docs/changes/YYYY-MM-DD-[slug].md`.
 
 ---
 
+## Claude Code y Cursor
+
+Los 12 comandos son **idénticos palabra por palabra** en los dos editores. Lo que cambia es cómo se
+invocan y cuánto se puede hacer cumplir con código.
+
+| | Claude Code | Cursor |
+|---|---|---|
+| Invocar una fase | `/implement` | `@implement` |
+| Dónde viven las fases | `.claude/commands/*.md` | `.cursor/rules/*.mdc` |
+| Norte y reglas duras | `CLAUDE.md` (se carga solo) | `.cursor/rules/00-gobernanza.mdc` (`alwaysApply: true`) |
+| Formato convencional de commits | ✅ `commit-msg` | ✅ el mismo hook |
+| Bloqueo de `.env`, `*.db`, etc. al commitear | ✅ `pre-commit` | ✅ |
+| Lint y type-check antes del commit | ✅ `pre-commit` | ✅ |
+| Tests antes del push | ✅ `pre-push` | ✅ |
+| **Bloqueo de archivos protegidos** | ✅ `check-protected.sh` | ❌ no existe |
+| **Bloqueo de comandos destructivos** | ✅ `check-bash.sh` | ❌ no existe |
+| Lint al guardar | ✅ `lint-on-save.sh` | ❌ (usa el del editor) |
+| Aviso al trabajar en `main` | ✅ `check-branch.sh` | ❌ |
+| Resumen al terminar la sesión | ✅ `session-summary.sh` | ❌ |
+
+### Qué significa en la práctica
+
+**Los git hooks son de Git, no del editor.** `commit-msg`, `pre-commit` y `pre-push` corren igual en
+los dos: la validación de commits, el bloqueo de archivos prohibidos, el lint y los tests son
+exactamente la misma barrera. Esa mitad de la gobernanza es idéntica.
+
+**Lo que Cursor no tiene es un equivalente de `PreToolUse`**: no hay manera de que un script
+intercepte una escritura o un comando *antes* de que ocurra. Por eso la protección de archivos y el
+bloqueo de `rm -rf` pasan de "no puedes" a "no debes". La regla `00-gobernanza` se lo dice al agente
+de forma explícita en cada request, y lista los archivos protegidos en línea para que no dependa de
+leer un archivo aparte — pero es persuasión, no un portón.
+
+**En Cursor, mira el `git status` antes de commitear con más atención de la que harías en Claude Code.**
+
+Dicho eso, la barrera que de verdad cuenta es la misma para los dos: el CI y la branch protection
+corren en el servidor. Ver [Capas de protección](#capas-de-protección).
+
+### La regla `00-gobernanza`
+
+Es el equivalente de `CLAUDE.md`: norte del proyecto, las 11 reglas duras, tipo de proyecto, tabla de
+fases, estrategia de Git y convenciones. Se aplica siempre.
+
+Es **tuya, no de la plantilla**: `@discovery` le escribe el norte y el tipo de proyecto, `@architect`
+el stack. Igual que `CLAUDE.md`, `sync-workflow.sh` nunca la sobrescribe si ya existe.
+
+### Las reglas de Cursor se generan, no se editan
+
+`.claude/commands/*.md` y `CLAUDE.md` son la **única fuente de verdad**. Las reglas de Cursor son un
+derivado que produce `generate-cursor-rules.sh`:
+
+```bash
+bash generate-cursor-rules.sh            # regenera .cursor/rules/
+bash generate-cursor-rules.sh --check    # falla si están desactualizadas (útil en CI)
+bash generate-cursor-rules.sh --force    # regenera también 00-gobernanza.mdc
+```
+
+El script traduce lo que no existe en Cursor: los slash commands pasan a `@comando`, `$ARGUMENTS`
+se convierte en una instrucción que usa el `argument-hint` de la fuente, y `CLAUDE.md` pasa a
+`00-gobernanza`. Al terminar **verifica el resultado**: si queda una referencia a `.claude/`, a un
+slash command o a `$ARGUMENTS`, falla y te dice el archivo y la línea en vez de publicar una regla
+rota.
+
+`00-gobernanza.mdc` se preserva si ya tiene un norte definido — regenerarlo desde el `CLAUDE.md` de
+la plantilla lo borraría. Usa `--force` solo si sabes lo que haces.
+
+**Si editas una regla `.mdc` a mano, el siguiente `generate` la pisa.** Edita la fuente en
+`.claude/commands/` y regenera. Así es como `implement.mdc` terminó una vez con el 13% de su
+contenido: se editó por separado y nadie notó la deriva.
+
+---
+
 ## Hooks
 
-### Claude Code hooks (`.claude/hooks/`) — automáticos, sin configuración manual
+### Claude Code hooks (`.claude/hooks/`) — solo Claude Code
+
+Son los que Cursor no puede replicar. Automáticos, sin configuración manual.
 
 | Hook | Cuándo corre | Qué hace |
 |------|-------------|----------|
@@ -224,7 +307,9 @@ Cada cambio queda registrado en `docs/changes/YYYY-MM-DD-[slug].md`.
 | `lint-on-save.sh` | Después de editar un archivo | Corre `ruff` en `.py` y `biome`/`prettier` en `.ts/.tsx/.js/.jsx` |
 | `session-summary.sh` | Al terminar la sesión | Muestra resumen de archivos modificados y recuerda que los commits son del usuario |
 
-### Git hooks (`git-hooks/`) — instalados por `/git-setup`
+### Git hooks (`git-hooks/`) — los dos editores
+
+Instalados por `/git-setup` (o `@git-setup`). Son hooks de Git, así que funcionan igual sin importar con qué edites.
 
 | Hook | Qué hace |
 |------|----------|
@@ -246,6 +331,9 @@ Los archivos que Claude nunca puede tocar sin autorización explícita se listan
 ```
 mi-proyecto/
 ├── CLAUDE.md                          ← Reglas, norte del proyecto, estrategia de Git
+├── .github/
+│   ├── workflows/ci.yml               ← La barrera del servidor (no se salta)
+│   └── CODEOWNERS                     ← Quién aprueba qué (rellenar @TU-USUARIO)
 ├── .claude/
 │   ├── settings.json                  ← Hooks de Claude Code (PreToolUse / PostToolUse / Stop)
 │   ├── protected.txt                  ← Archivos que Claude no puede modificar
@@ -268,6 +356,12 @@ mi-proyecto/
 │       ├── check-bash.sh
 │       ├── lint-on-save.sh
 │       └── session-summary.sh
+├── .cursor/
+│   └── rules/                         ← Las mismas fases para Cursor
+│       ├── 00-gobernanza.mdc         ← equivalente de CLAUDE.md (alwaysApply)
+│       ├── discovery.mdc             ← @discovery
+│       ├── implement.mdc             ← @implement
+│       └── ...                        ← una por fase, igual que en .claude/commands/
 ├── git-hooks/                         ← Hooks de Git (versionados, instalados por /git-setup)
 │   ├── pre-commit
 │   ├── commit-msg
@@ -288,6 +382,58 @@ mi-proyecto/
 ├── graphify-out/                      ← Grafo del repo (no versionar, excepto .gitkeep)
 └── src/                               ← Tu código (lo crea /architect)
 ```
+
+---
+
+## Capas de protección
+
+La regla de fondo: **lo que de verdad protege no vive en el editor.** Un equipo con cinco personas
+usando cinco editores distintos no puede depender de que cada una tenga el hook instalado.
+
+| Capa | Dónde corre | ¿Se puede saltar? | Qué cubre |
+|---|---|---|---|
+| Reglas y comandos | editor | sí, trivialmente | la intención del agente |
+| Hooks de Claude Code | local, solo Claude Code | sí | archivos protegidos, comandos destructivos |
+| Git hooks | local, cualquier editor | sí: `--no-verify` | commits, archivos prohibidos, lint, tests |
+| **CI** | servidor | **no** | lo mismo, más secretos, sobre el PR completo |
+| **CODEOWNERS** | servidor | **no** | quién puede cambiar qué |
+| **Branch protection** | servidor | **no** (salvo admin) | qué llega a `main` |
+
+Las tres primeras dan feedback rápido; las tres últimas son las que garantizan algo. Por eso la
+diferencia entre Claude Code y Cursor importa menos de lo que parece: la capa que manda es la misma
+para los dos.
+
+### CI (`.github/workflows/ci.yml`)
+
+Corre en cada PR a `main` y `develop`, y en cada push a esas ramas:
+
+| Job | Qué hace |
+|---|---|
+| `archivos-prohibidos` | Busca `.env`, `*.db`, `*.pem`, `node_modules/` y demás versionados en el repo |
+| `commits-convencionales` | Valida el asunto de **todos** los commits del PR, con el mismo patrón que `commit-msg` |
+| `secretos` | gitleaks sobre el historial completo |
+| `javascript` | `npm ci`, lint (biome o eslint), `tsc --noEmit`, tests — solo si hay `package.json` |
+| `python` | ruff y pytest — solo si hay `pyproject.toml` o `setup.py` |
+
+Los jobs de stack se activan solos según lo que encuentren en el repo, así que el workflow sirve
+igual para un CLI en Python que para un monorepo fullstack.
+
+`commits-convencionales` es el que cierra el agujero: `git commit --no-verify` esquiva el hook local,
+pero el PR no se puede mergear con un commit mal formado.
+
+### CODEOWNERS (`.github/CODEOWNERS`)
+
+El equivalente de `.claude/protected.txt`, pero del lado del servidor. Los ADRs, los contratos, la
+gobernanza y el propio CI requieren tu aprobación para cambiar — venga el cambio de un agente, de un
+compañero o de ti mismo desde otra rama.
+
+**Hay que reemplazar `@TU-USUARIO` por tu usuario real de GitHub.** Sin eso GitHub ignora el archivo
+entero. `/git-setup` lo pide y da el comando.
+
+### Branch protection
+
+`/git-setup` imprime los comandos de `gh api` para exigir PR, CI en verde y review de code owners en
+`main` y `develop`. Es lo que hace que "`main` siempre es deployable" pase de intención a garantía.
 
 ---
 
@@ -340,7 +486,7 @@ El directorio `graphify-out/` está en `.gitignore` (excepto el `.gitkeep`). Cad
 ## Lo que esta plantilla NO incluye (a propósito)
 
 - **Rama `staging`:** se puede agregar si el equipo lo necesita, pero agrega complejidad. La mayoría de proyectos funcionan bien con main/develop.
-- **CI/CD prefabricado:** depende del stack y la infraestructura. Se define en `/architect` y se puede automatizar con los mismos git hooks.
+- **Deploy automatizado:** el CI verifica, pero no despliega. Dónde y cómo se despliega depende de la infraestructura; se define en `/architect`.
 - **Multi-agente real (LangGraph/CrewAI):** complejo, caro en tokens, difícil de debuggear. Agregar cuando el proyecto lo justifique.
 - **Docker compose default:** se agrega cuando la arquitectura lo justifique.
 
@@ -354,19 +500,31 @@ Cuando el template evoluciona (nuevos comandos, mejoras a hooks, nuevas reglas),
 # Ver qué cambiaría sin escribir nada
 bash sync-workflow.sh --dry-run
 
-# Actualizar el workflow
+# Actualizar el workflow (por defecto: Claude Code)
 bash sync-workflow.sh
+
+# Elegir editor explícitamente
+bash sync-workflow.sh --editor cursor
+bash sync-workflow.sh --editor all
 ```
 
+**`--editor`** acepta `claude` (por defecto), `cursor` o `all`. Los `git-hooks/` se sincronizan
+siempre, con cualquier valor, porque no dependen del editor.
+
 **Qué sincroniza:**
-- `.claude/commands/` — todos los slash commands
-- `.claude/hooks/` — hooks de Claude Code
-- `.claude/settings.json` — configuración de hooks
-- `.claude/protected.txt` — lista de archivos protegidos
-- `git-hooks/` — pre-commit, commit-msg, pre-push
+
+| `--editor` | Rutas |
+|---|---|
+| *(siempre)* | `git-hooks/` — pre-commit, commit-msg, pre-push<br>`.github/` — CI y CODEOWNERS |
+| `claude` | `.claude/commands/`, `.claude/hooks/`, `.claude/settings.json`, `.claude/protected.txt` |
+| `cursor` | `.cursor/rules/` |
+| `all` | todo lo anterior |
 
 **Qué nunca toca:**
 - `CLAUDE.md` — tiene el norte del proyecto, stack y configuración específica
+- `.cursor/rules/00-gobernanza.mdc` — lo mismo, para Cursor. Si ya existe se preserva y el script
+  lo reporta; solo se descarga en una instalación nueva, con sus `[pendiente]` sin llenar
+- `.github/CODEOWNERS` — lleva tu usuario real de GitHub; se preserva igual que el anterior
 - `README.md`, `docs/`, ni ningún código del proyecto
 
 Si los git-hooks cambiaron, el script avisa. Reinstálalos con `/git-setup`.
@@ -383,7 +541,7 @@ bash sync-workflow.sh
 
 | Dolor recurrente | Solución |
 |-----------------|----------|
-| Claude toca archivos que no debería | Agregar entradas a `.claude/protected.txt` |
+| Claude toca archivos que no debería | Agregar entradas a `.claude/protected.txt` (en Cursor: a la lista de la regla 1 de `00-gobernanza`) |
 | Claude pierde contexto entre sesiones | MCP server con graphify + memory |
 | Quieres tests corriendo en CI también | Copiar la lógica de `git-hooks/pre-push` a un GitHub Actions workflow |
 | Necesitas rama `staging` | Agregar `staging` entre `develop` y `main`, ajustar `/git-setup` |

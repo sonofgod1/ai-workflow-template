@@ -1,6 +1,7 @@
 ---
-description: Inicializa Git, estructura de branches y hooks de calidad. Ejecutar una sola vez al inicio del proyecto.
-argument-hint: (sin argumentos)
+description: Inicializa Git, estructura de branches y hooks de calidad. Ejecutar una sola vez al inicio del proyecto. Úsalo con @git-setup
+globs:
+alwaysApply: false
 ---
 
 Estás en **fase de inicialización Git**. Tu rol: configurar la infraestructura de control de versiones antes de que comience cualquier trabajo.
@@ -12,14 +13,14 @@ Estás en **fase de inicialización Git**. Tu rol: configurar la infraestructura
 - ✅ Configura CI, CODEOWNERS y branch protection
 - ✅ Explica la estrategia al usuario
 - ❌ No toca código de aplicación
-- ❌ No modifica CLAUDE.md ni archivos de docs
+- ❌ No modifica `00-gobernanza` ni archivos de docs
 - ❌ No instala dependencias del proyecto
 
 ---
 
 ## Paso 0 — Leer contexto
 
-Leer `CLAUDE.md` para entender si ya existe configuración de Git.
+Leer `00-gobernanza` para entender si ya existe configuración de Git.
 
 ---
 
@@ -34,13 +35,13 @@ ls -la .git/ 2>/dev/null && echo "REPO_EXISTS" || echo "NO_REPO"
 **Si no existe repo:**
 ```bash
 git init
-git add CLAUDE.md .claude/ .gitignore README.md 2>/dev/null || git add CLAUDE.md .claude/
+git add .cursor/ .gitignore README.md 2>/dev/null || git add .cursor/
 git commit -m "chore: workflow inicializado"
 ```
 
 **Si ya existe repo pero sin commits:**
 ```bash
-git add CLAUDE.md .claude/ .gitignore README.md 2>/dev/null || git add CLAUDE.md .claude/
+git add .cursor/ .gitignore README.md 2>/dev/null || git add .cursor/
 git commit -m "chore: workflow inicializado"
 ```
 
@@ -264,5 +265,5 @@ REFERENCIA RÁPIDA DE GIT
 
 ```
 Git configurado. Branches: main (producción) y develop (integración). Hooks instalados: pre-commit, pre-push, commit-msg.
-Cuando quieras empezar el proyecto, ejecuta /discovery.
+Cuando quieras empezar el proyecto, ejecuta @discovery.
 ```

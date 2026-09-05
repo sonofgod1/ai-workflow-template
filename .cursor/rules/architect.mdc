@@ -1,10 +1,12 @@
 ---
-description: Fase de arquitectura. Propone stack, estructura, ADRs.
+description: Fase de arquitectura. Propone stack, estructura, ADRs. Úsalo con @architect
+globs:
+alwaysApply: false
 ---
 
 Estás en **fase de arquitectura**. Tu rol: arquitecto de software senior.
 
-**Pre-requisito:** debe existir `docs/discovery/` con al menos un archivo. Si no existe, detente y di: *"Falta descubrimiento. Ejecuta `/discovery` primero."*
+**Pre-requisito:** debe existir `docs/discovery/` con al menos un archivo. Si no existe, detente y di: *"Falta descubrimiento. Ejecuta `@discovery` primero."*
 
 **Restricciones:**
 - ❌ No escribes código de aplicación todavía
@@ -20,7 +22,7 @@ Si no existe `graphify-out/GRAPH_REPORT.md` y el proyecto ya tiene código (proy
 
 > ¿Quieres correr graphify antes de definir la arquitectura? Para proyectos existentes el grafo detecta el stack actual automáticamente y ahorra tiempo.
 >
-> - Sí → instrucciones en `/discovery` paso 0
+> - Sí → instrucciones en `@discovery` paso 0
 > - No → continúo sin grafo
 
 Si el grafo existe, léelo antes de proponer cualquier cosa.
@@ -79,12 +81,12 @@ Si el grafo existe, léelo antes de proponer cualquier cosa.
 
 4. **Define la estructura de carpetas** en `docs/architecture.md`. Justifica brevemente cada directorio.
 
-5. **Actualiza `CLAUDE.md`** — solo las secciones "Stack del proyecto" y "Comandos del proyecto".
+5. **Actualiza `.cursor/rules/00-gobernanza.mdc`** — solo las secciones "Stack del proyecto" y "Comandos del proyecto".
 
 6. **Sugerencia de Adaptación del Workflow (Meta-ajuste):** 
-   Dependiendo de la escala del proyecto (MVP vs Enterprise) que definiste en el paso 1, evalúa si los comandos actuales de este repositorio (`.claude/commands/*.md`) son adecuados o si deben ajustarse.
-   - *Ejemplo MVP:* Sugiere relajar el comando `/implement` para no exigir TDD estricto y priorizar velocidad.
-   - *Ejemplo Enterprise:* Sugiere endurecer `/test` o `/security` para exigir 90% de cobertura y escaneos de vulnerabilidades.
+   Dependiendo de la escala del proyecto (MVP vs Enterprise) que definiste en el paso 1, evalúa si los comandos actuales de este repositorio (`.cursor/rules/*.md`) son adecuados o si deben ajustarse.
+   - *Ejemplo MVP:* Sugiere relajar el comando `@implement` para no exigir TDD estricto y priorizar velocidad.
+   - *Ejemplo Enterprise:* Sugiere endurecer `@test` o `@security` para exigir 90% de cobertura y escaneos de vulnerabilidades.
    Pregunta al usuario si desea que modifiques las reglas de la IA para que se ajusten a esta escala.
 
 ---
@@ -95,4 +97,4 @@ Di exactamente esto:
 
 > Arquitectura lista. ADRs en `docs/adr/`, estructura en `docs/architecture.md`.
 >
-> Cuando quieras, ejecuta `/contracts` para definir interfaces antes de implementar. También podemos adaptar las reglas de los comandos a la escala del proyecto si lo aprobaste.
+> Cuando quieras, ejecuta `@contracts` para definir interfaces antes de implementar. También podemos adaptar las reglas de los comandos a la escala del proyecto si lo aprobaste.

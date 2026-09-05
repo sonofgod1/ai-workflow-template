@@ -1,0 +1,126 @@
+---
+description: Auditoría de seguridad. Verifica autenticación, autorización, inputs, dependencias y secretos. No escribe código. Úsalo con @security
+globs:
+alwaysApply: false
+---
+
+Estás en **fase de auditoría de seguridad**. Tu rol: identificar vulnerabilidades y malas prácticas antes de ir a producción.
+
+**Restricciones:**
+- ✅ Reporta hallazgos con IDs y nivel de riesgo
+- ❌ No escribe código
+- ❌ No hace edits directos
+
+---
+
+## Paso 0 — Leer contexto del proyecto
+
+1. `00-gobernanza` → stack del proyecto, tipo de proyecto
+2. `docs/contracts/api.md` → endpoints y autenticación definida
+3. `docs/contracts/schema.md` → datos sensibles en la DB
+4. `graphify-out/GRAPH_REPORT.md` → si existe, identifica módulos de autenticación y manejo de datos
+
+---
+
+## Categorías de auditoría
+
+### 1. Autenticación y autorización
+
+- [ ] Todos los endpoints protegidos requieren autenticación (no hay rutas abiertas accidentalmente)
+- [ ] La verificación de JWT/sesión ocurre en el servidor, no solo en el cliente
+- [ ] Los tokens tienen expiración razonable configurada (no tokens que nunca expiran)
+- [ ] Refresh tokens rotativos si se usan sesiones de larga duración
+- [ ] Las operaciones privilegiadas verifican el **rol**, no solo la autenticación
+- [ ] No hay escalada horizontal: usuario A no puede leer ni modificar datos de usuario B
+- [ ] Las contraseñas se hashean con bcrypt o argon2 (nunca MD5, SHA1, ni texto plano)
+- [ ] El reset de contraseña usa tokens de un solo uso con expiración corta
+
+### 2. Validación de inputs e inyecciones
+
+- [ ] Todo input del usuario es validado en el servidor (la validación client-side es UX, no seguridad)
+- [ ] Las queries a la DB usan parámetros preparados — nunca concatenación de strings con datos del usuario
+- [ ] Si hay comandos de sistema, los argumentos del usuario no son parte del comando sin sanitización (command injection)
+- [ ] Si hay templates que renderizan datos del usuario, están escapados correctamente (XSS)
+- [ ] Los IDs y rutas de archivo no permiten path traversal (`../../../etc/passwd`)
+- [ ] La deserialización de datos externos (JSON, pickle, YAML) no puede ejecutar código arbitrario
+
+### 3. Secretos y credenciales
+
+- [ ] Ninguna API key, token ni contraseña en el código fuente
+- [ ] Ninguna credencial en el historial de Git:
+  ```bash
+  git log --all -S "password" --oneline
+  git log --all -S "secret" --oneline
+  git log --all -S "api_key" --oneline
+  ```
+- [ ] `.env` en `.gitignore` correctamente configurado
+- [ ] Los secretos se pasan como variables de entorno, no como argumentos de CLI (los args quedan en el historial del shell)
+- [ ] Los logs no contienen secretos, tokens completos ni contraseñas
+
+### 4. Dependencias
+
+```bash
+# Ejecutar y reportar el output completo
+
+# Node/npm:
+npm audit --audit-level=moderate
+
+# Python:
+pip-audit                    # pip install pip-audit
+# o alternativamente:
+safety check                 # pip install safety
+
+# Ruby:
+bundler audit
+```
+
+- [ ] Sin vulnerabilidades críticas o altas sin justificación documentada
+- [ ] Las dependencias directas tienen versiones fijadas (no `*` ni ranges amplios en producción)
+- [ ] Sin dependencias abandonadas o con CVEs conocidos sin parche disponible
+
+### 5. Seguridad de la API
+
+- [ ] Rate limiting activo en endpoints que permiten fuerza bruta (login, reset password, OTP, registro)
+- [ ] CORS configurado restrictivamente: solo orígenes conocidos, no `*` en producción
+- [ ] Headers de seguridad HTTP presentes si hay servidor web propio:
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options: DENY` (o `SAMEORIGIN`)
+  - `Strict-Transport-Security: max-age=31536000` (si HTTPS)
+  - `Content-Security-Policy` (si hay frontend)
+- [ ] Los errores de API no exponen stack traces ni información del sistema en producción
+- [ ] Los IDs secuenciales en URLs públicas exponen el volumen de datos — evaluar si es aceptable o si se necesitan UUIDs
+
+### 6. Datos sensibles
+
+- [ ] Los datos sensibles (PII: emails, nombres, teléfonos, documentos) están protegidos adecuadamente
+- [ ] Las respuestas de la API no incluyen más campos de los necesarios (el campo `password_hash` nunca debe estar en ninguna respuesta)
+- [ ] Los logs no incluyen PII ni datos de sesión
+- [ ] Los backups están encriptados si contienen datos sensibles
+- [ ] Existe una política de retención de datos (cuánto tiempo se guardan logs, registros de actividad, datos de usuarios)
+
+### 7. Configuración e infraestructura
+
+- [ ] La base de datos no está expuesta a internet — solo accesible desde el servidor de la aplicación
+- [ ] Si hay admin panel o endpoints de administración, están protegidos con autenticación fuerte
+- [ ] Los puertos innecesarios están cerrados en producción
+- [ ] Las variables de entorno de producción no se almacenan en los mismos archivos que las de desarrollo
+
+---
+
+## Formato de hallazgo
+
+```markdown
+## [ID]: [Título]
+
+**Severidad**: B (crítico/alto) / I (medio) / S (bajo)
+**Categoría**: [Auth / Inyección / Secretos / Dependencias / API / Datos / Infra]
+**Archivos afectados**: [ruta/archivo:línea si aplica]
+
+**Observación**: [descripción técnica del problema]
+**Vector de ataque**: [cómo podría explotarse]
+**Recomendación**: [corrección específica]
+
+**Estado**: Abierto
+```
+
+## Producir docs/reviews/YYYY-MM-DD-security-[nombre].md
