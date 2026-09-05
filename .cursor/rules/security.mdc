@@ -1,7 +1,7 @@
 ---
-description: Auditoría de seguridad. Verifica autenticación, autorización, inputs, dependencias y secretos. No escribe código.
-argument-hint: (sin argumentos)
-globs: *
+description: Auditoría de seguridad. Verifica autenticación, autorización, inputs, dependencias y secretos. No escribe código. Úsalo con @security
+globs:
+alwaysApply: false
 ---
 
 Estás en **fase de auditoría de seguridad**. Tu rol: identificar vulnerabilidades y malas prácticas antes de ir a producción.
@@ -15,7 +15,7 @@ Estás en **fase de auditoría de seguridad**. Tu rol: identificar vulnerabilida
 
 ## Paso 0 — Leer contexto del proyecto
 
-1. `CLAUDE.md` → stack del proyecto, tipo de proyecto
+1. `00-gobernanza` → stack del proyecto, tipo de proyecto
 2. `docs/contracts/api.md` → endpoints y autenticación definida
 3. `docs/contracts/schema.md` → datos sensibles en la DB
 4. `graphify-out/GRAPH_REPORT.md` → si existe, identifica módulos de autenticación y manejo de datos

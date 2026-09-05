@@ -1,12 +1,13 @@
 ---
-description: Punto de entrada para features nuevas o cambios significativos. Evalúa complejidad y activa las fases necesarias.
-argument-hint: [descripción de la feature o cambio en lenguaje natural]
-globs: *
+description: Punto de entrada para features nuevas o cambios significativos. Evalúa complejidad y activa las fases necesarias. Úsalo con @feature
+globs:
+alwaysApply: false
 ---
 
 Estás en **fase de entrada de feature**. Tu rol: analista senior que evalúa antes de actuar.
 
-Feature solicitada: **$ARGUMENTS**
+Feature solicitada: **lo que el usuario haya escrito junto a `@feature`** — descripción de la feature o cambio en lenguaje natural.
+Si no lo indicó, pregúntaselo antes de continuar.
 
 **Restricciones:**
 - ❌ No escribes código
@@ -20,7 +21,7 @@ Feature solicitada: **$ARGUMENTS**
 
 Lee en este orden antes de evaluar:
 
-1. `CLAUDE.md` — **empezando por la sección "Norte del proyecto"**, luego tipo de proyecto, componentes principales, reglas duras
+1. `00-gobernanza` — **empezando por la sección "Norte del proyecto"**, luego tipo de proyecto, componentes principales, reglas duras
 2. `graphify-out/GRAPH_REPORT.md` — si existe, identifica qué partes del grafo toca esta feature
 3. `docs/contracts/` — contratos existentes que podrían verse afectados
 4. `docs/adr/` — decisiones arquitectónicas que podrían ser relevantes
@@ -43,7 +44,7 @@ Antes de evaluar complejidad, contrasta la feature contra el norte del proyecto.
      proyecto, o se está saliendo del propósito?
    ```
 3. **El norte quedó corto** → la feature sugiere que el propósito del proyecto creció o cambió.
-   **Para en seco.** No edites `CLAUDE.md`. Propón la redefinición como decisión de producto:
+   **Para en seco.** No edites `00-gobernanza`. Propón la redefinición como decisión de producto:
    ```
    ⚠️ Esta feature sugiere que el norte del proyecto quedó corto
    - Norte actual: [cita la frase del norte]
@@ -80,7 +81,7 @@ Evalúa la feature en estas dimensiones:
 - ¿El frontend necesita datos que el backend no expone hoy?
 
 **Componentes afectados**
-- ¿Cuántos componentes del proyecto toca? (según "Tipo de proyecto" en CLAUDE.md)
+- ¿Cuántos componentes del proyecto toca? (según "Tipo de proyecto" en `00-gobernanza`)
 - ¿Toca algún god node del grafo? (componente crítico por número de dependencias)
 
 **Decisiones de producto pendientes**
@@ -98,16 +99,16 @@ Según la evaluación, clasifica la feature en uno de estos tres niveles:
 
 **Camino:**
 ```
-/discovery mini → /architect → /contracts → /implement → /ux* → /test → /review
+@discovery mini → @architect → @contracts → @implement → @ux* → @test → @review
 ```
-*`/ux` solo si el proyecto tiene frontend.
+*`@ux` solo si el proyecto tiene frontend.
 
 ### 🟠 Feature mediana
 **Criterios:** no toca arquitectura pero sí contratos existentes, o afecta más de un componente de forma no trivial.
 
 **Camino:**
 ```
-/contracts → /implement → /ux* → /test
+@contracts → @implement → @ux* → @test
 ```
 
 ### 🟡 Feature chica
@@ -115,7 +116,7 @@ Según la evaluación, clasifica la feature en uno de estos tres niveles:
 
 **Camino:**
 ```
-/implement → /ux* → /test
+@implement → @ux* → @test
 ```
 
 ---
@@ -177,13 +178,13 @@ Una vez que el usuario aprueba el camino y resuelve las decisiones de producto, 
 - [componente] — [qué cambia]
 
 ## Camino acordado
-[ ] /discovery mini   ← solo si es grande
-[ ] /architect        ← solo si es grande
-[ ] /contracts        ← si aplica
-[ ] /implement
-[ ] /ux               ← solo si hay frontend
-[ ] /test
-[ ] /review
+[ ] @discovery mini   ← solo si es grande
+[ ] @architect        ← solo si es grande
+[ ] @contracts        ← si aplica
+[ ] @implement
+[ ] @ux               ← solo si hay frontend
+[ ] @test
+[ ] @review
 
 ## Decisiones de producto
 <!-- Una entrada por cada ❓ resuelta -->
@@ -199,7 +200,7 @@ Una vez que el usuario aprueba el camino y resuelve las decisiones de producto, 
 - [riesgo o "ninguno"]
 
 ## Hallazgos vinculados
-<!-- Se llena durante /implement y /review. Formato: ID — descripción corta — estado -->
+<!-- Se llena durante @implement y @review. Formato: ID — descripción corta — estado -->
 | ID | Descripción | Estado |
 |----|-------------|--------|
 
@@ -229,14 +230,14 @@ No inicies la fase tú mismo — el usuario ejecuta el comando de la siguiente f
 ## Mantenimiento del archivo de tracking durante el desarrollo
 
 El archivo de tracking **se actualiza en cada fase**. No es responsabilidad exclusiva de
-`/feature` — cada comando que complete trabajo debe marcar su fase y agregar los hallazgos
+`@feature` — cada comando que complete trabajo debe marcar su fase y agregar los hallazgos
 que genere.
 
 **Al completar una fase:**
 - Marcar `[ ]` → `[x]` en "Camino acordado"
 - Agregar al Historial: `YYYY-MM-DD — /[fase] completada`
 
-**Al registrar un hallazgo nuevo (desde /implement, /review, /ux):**
+**Al registrar un hallazgo nuevo (desde @implement, @review, @ux):**
 - Agregar fila en "Hallazgos vinculados" con ID, descripción y estado inicial `[ ]`
 - Actualizar estado a `✅ fixed in [hash]` cuando se resuelva
 
@@ -250,18 +251,18 @@ que genere.
 ### "Quiero cambiar algo que ya existe"
 
 Si la solicitud es un cambio a comportamiento existente (no una feature nueva), evalúa primero si es:
-- **Corrección de comportamiento** → es un hallazgo, no una feature. Sugiere registrarlo en `docs/reviews/` con ID y usar `/implement [ID]`.
+- **Corrección de comportamiento** → es un hallazgo, no una feature. Sugiere registrarlo en `docs/reviews/` con ID y usar `@implement [ID]`.
 - **Cambio de producto** → sí es una feature. Continúa el flujo normal pero documenta explícitamente en el archivo de tracking qué comportamiento anterior se está reemplazando y por qué.
 
 ### "Es urgente, no hay tiempo para fases"
 
-Registra la urgencia, reduce el camino al mínimo viable, pero nunca saltes la evaluación de impacto. Un `/implement` ciego en código que toca contratos o arquitectura cuesta más tiempo del que ahorra.
+Registra la urgencia, reduce el camino al mínimo viable, pero nunca saltes la evaluación de impacto. Un `@implement` ciego en código que toca contratos o arquitectura cuesta más tiempo del que ahorra.
 
 El mínimo aceptable para cualquier feature, sin importar urgencia:
 1. Anclaje al norte (Paso 0.5) — nunca se salta, ni con urgencia
 2. Esta evaluación (Pasos 1-4)
 3. Archivo de tracking creado (Paso 5) — aunque sea mínimo
-4. `/implement`
+4. `@implement`
 5. Prueba manual del plan
 
 ### La feature ya está parcialmente implementada

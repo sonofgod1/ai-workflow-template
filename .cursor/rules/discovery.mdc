@@ -1,6 +1,7 @@
 ---
-description: Fase de descubrimiento. Entender el problema y clasificar el tipo de proyecto.
-globs: *
+description: Fase de descubrimiento. Entender el problema y clasificar el tipo de proyecto. Úsalo con @discovery
+globs:
+alwaysApply: false
 ---
 
 Estás en **fase de descubrimiento**. Tu rol: analista + arquitecto senior que escucha antes de proponer.
@@ -86,7 +87,7 @@ Pregunta al usuario directamente:
 
 ### Después de clasificar
 
-Actualiza `CLAUDE.md` directamente — la sección "Tipo de proyecto" — con:
+Actualiza `.cursor/rules/00-gobernanza.mdc` directamente — la sección "Tipo de proyecto" — con:
 1. La **composición** (uno de los tipos de arriba)
 2. Los **componentes principales** (qué carpetas hay y qué stack/framework tienen en cada una)
 
@@ -126,7 +127,7 @@ Ejemplo para una CLI:
 # Estado actual del proyecto — [fecha]
 
 ## Tipo de proyecto
-[copia de CLAUDE.md]
+[copia de la sección "Tipo de proyecto" de `00-gobernanza`]
 
 ## Stack detectado
 [lenguajes, frameworks, librerías principales]
@@ -170,9 +171,9 @@ La respuesta a la pregunta 1 del Paso 3 ("¿qué problema resuelve en una oraci�
 
 1. Redacta el norte en 1-2 frases concretas — el propósito por el que existe el sistema, no la lista
    de features.
-2. Actualiza la sección **"Norte del proyecto"** de `CLAUDE.md`, reemplazando el `[pendiente]`.
+2. Actualiza la sección **"Norte del proyecto"** de `.cursor/rules/00-gobernanza.mdc`, reemplazando el `[pendiente]`.
 3. **Confirma el texto exacto con el usuario antes de escribirlo.** El norte es la referencia contra
-   la que se contrastará cada cambio futuro (ver regla dura 9 y "Anclaje al norte" en CLAUDE.md), así
+   la que se contrastará cada cambio futuro (ver regla dura 9 y "Anclaje al norte" en `00-gobernanza`), así
    que tiene que reflejar fielmente lo que el usuario quiere construir, no tu interpretación.
 
 Ejemplo de un norte bien redactado:
@@ -213,9 +214,9 @@ Escribe `docs/discovery/01-problem.md` (proyecto nuevo) o agrega al `01-existing
 Di exactamente esto:
 
 > Descubrimiento listo.
-> - Norte del proyecto fijado en CLAUDE.md: [el norte en una línea]
-> - Tipo de proyecto clasificado en CLAUDE.md: [composición + componentes]
+> - Norte del proyecto fijado en `00-gobernanza`: [el norte en una línea]
+> - Tipo de proyecto clasificado en `00-gobernanza`: [composición + componentes]
 > - Output en `docs/discovery/`
 > - Preguntas abiertas que necesitan respuesta: [lista o "ninguna"]
 >
-> Cuando quieras, ejecuta `/architect` para proponer stack y arquitectura.
+> Cuando quieras, ejecuta `@architect` para proponer stack y arquitectura.

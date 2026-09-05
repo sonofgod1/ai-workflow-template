@@ -1,12 +1,13 @@
 ---
-description: Gestiona un cambio post-deploy — lo clasifica, identifica contratos afectados, determina qué fases re-correr (mínimas) y lo implementa.
-argument-hint: [descripción del cambio solicitado]
-globs: *
+description: Gestiona un cambio post-deploy — lo clasifica, identifica contratos afectados, determina qué fases re-correr (mínimas) y lo implementa. Úsalo con @change
+globs:
+alwaysApply: false
 ---
 
 Estás en **fase de cambio post-deploy**. Tu rol: recibir una solicitud de cambio sobre una aplicación ya en producción, clasificarla, evaluar su impacto real, y ejecutar la implementación con el **mínimo proceso proporcional al tamaño del cambio**.
 
-**$ARGUMENTS**
+**lo que el usuario haya escrito junto a `@change`** — descripción del cambio solicitado.
+Si no lo indicó, pregúntaselo antes de continuar.
 
 **Restricciones:**
 - ✅ Clasifica el cambio antes de tocar nada
@@ -24,7 +25,7 @@ Estás en **fase de cambio post-deploy**. Tu rol: recibir una solicitud de cambi
 
 Solo lo necesario para clasificar:
 
-1. `CLAUDE.md` → norte del proyecto, stack, tipo de proyecto
+1. `00-gobernanza` → norte del proyecto, stack, tipo de proyecto
 2. `docs/contracts/api.md` → si el cambio toca endpoints o respuestas
 3. `docs/contracts/schema.md` → si el cambio toca la base de datos
 4. `docs/contracts/env.md` → si el cambio toca variables de entorno
@@ -81,13 +82,13 @@ Matriz de referencia:
 
 | Si el cambio... | Re-correr | No re-correr |
 |-----------------|-----------|--------------|
-| Es config/env var puntual | `/deploy` (verificar que la var está en prod) | Todo lo demás |
-| Agrega endpoint nuevo | `/contracts` (api.md) → `/implement` → `/test` del endpoint | `/architect` si no cambia estructura |
-| Modifica respuesta de endpoint existente | Actualizar `api.md` → `/implement` → `/test` (regression) | Nada más |
-| Agrega columna sin romper nada (backward compatible) | Actualizar `schema.md` + migración → `/test` (integración) | `/contracts` de API si no cambia |
-| Cambia estructura de tabla (breaking change) | `/contracts` → `/implement` → `/test` → `/review` | — |
-| Es un bug acotado | `/implement` → `/test` (regression del bug) | Cualquier auditoría completa |
-| Es arquitectural | `/architect` (nuevo ADR) → flujo completo desde contratos | — |
+| Es config/env var puntual | `@deploy` (verificar que la var está en prod) | Todo lo demás |
+| Agrega endpoint nuevo | `@contracts` (api.md) → `@implement` → `@test` del endpoint | `@architect` si no cambia estructura |
+| Modifica respuesta de endpoint existente | Actualizar `api.md` → `@implement` → `@test` (regression) | Nada más |
+| Agrega columna sin romper nada (backward compatible) | Actualizar `schema.md` + migración → `@test` (integración) | `@contracts` de API si no cambia |
+| Cambia estructura de tabla (breaking change) | `@contracts` → `@implement` → `@test` → `@review` | — |
+| Es un bug acotado | `@implement` → `@test` (regression del bug) | Cualquier auditoría completa |
+| Es arquitectural | `@architect` (nuevo ADR) → flujo completo desde contratos | — |
 
 Declarar explícitamente:
 
@@ -117,7 +118,7 @@ Si hay duda sobre urgencia, preguntar: *"¿Esto está afectando usuarios en prod
 
 **Si el cambio es pequeño y sin ambigüedad** (config, bug puntual): implementar directamente.
 
-**Si el cambio requiere pasar por una fase previa** (ej. endpoint nuevo → /contracts primero): indicar al usuario el comando exacto y esperar que lo ejecute. No ejecutar la fase dentro de /change.
+**Si el cambio requiere pasar por una fase previa** (ej. endpoint nuevo → @contracts primero): indicar al usuario el comando exacto y esperar que lo ejecute. No ejecutar la fase dentro de @change.
 
 **Si el cambio toca deuda documentada** en `docs/tech-debt.md`: marcarla como resuelta con el hash del commit, en vez de tratarlo como cambio nuevo desde cero.
 

@@ -1,12 +1,13 @@
 ---
-description: Define e implementa la suite de tests del proyecto.
-argument-hint: [tipo de test o módulo a testear — ej: "API de usuarios" o "suite completa"]
-globs: *
+description: Define e implementa la suite de tests del proyecto. Úsalo con @test
+globs:
+alwaysApply: false
 ---
 
 Estás en **fase de testing**. Tu rol: implementar tests que verifican que el sistema hace lo que los contratos especifican.
 
-**$ARGUMENTS**
+**lo que el usuario haya escrito junto a `@test`** — tipo de test o módulo a testear — ej: "API de usuarios" o "suite completa".
+Si no lo indicó, pregúntaselo antes de continuar.
 
 **Restricciones:**
 - ✅ Escribe tests que verifican contratos definidos en docs/contracts/
@@ -20,7 +21,7 @@ Estás en **fase de testing**. Tu rol: implementar tests que verifican que el si
 ## Paso 0 — Leer contexto del proyecto
 
 Leer en orden:
-1. `CLAUDE.md` → stack del proyecto, componentes, comandos de test
+1. `00-gobernanza` → stack del proyecto, componentes, comandos de test
 2. `docs/contracts/api.md` → endpoints que deben testarse
 3. `docs/contracts/schema.md` → estructura de datos esperada
 4. `docs/contracts/types.ts` → interfaces que deben respetarse

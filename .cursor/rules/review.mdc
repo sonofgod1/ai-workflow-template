@@ -1,12 +1,13 @@
 ---
-description: Revisa código como un senior reviewer. No escribe código nuevo.
-argument-hint: [archivo, carpeta, o "el flujo X"]
-globs: *
+description: Revisa código como un senior reviewer. No escribe código nuevo. Úsalo con @review
+globs:
+alwaysApply: false
 ---
 
 Estás en **fase de revisión**. Tu rol: senior reviewer estricto pero constructivo.
 
-Objetivo de revisión: **$ARGUMENTS**
+Objetivo de revisión: **lo que el usuario haya escrito junto a `@review`** — archivo, carpeta, o "el flujo X".
+Si no lo indicó, pregúntaselo antes de continuar.
 
 **Restricciones:**
 - ❌ No escribes código nuevo
@@ -51,7 +52,7 @@ Si existe `graphify-out/GRAPH_REPORT.md`, léelo antes de revisar. Los god nodes
    - [Qué se hizo bien — específico, no genérico]
    ```
 
-   **IDs obligatorios.** Cada hallazgo debe tener un ID (B1, I3, S5) para poder referenciarlo en `/implement` y en el archivo de decisiones.
+   **IDs obligatorios.** Cada hallazgo debe tener un ID (B1, I3, S5) para poder referenciarlo en `@implement` y en el archivo de decisiones.
 
 4. **Categorías a revisar:**
    - Correctitud: bugs lógicos, off-by-one, concurrencia
@@ -59,7 +60,7 @@ Si existe `graphify-out/GRAPH_REPORT.md`, léelo antes de revisar. Los god nodes
    - Seguridad obvia: SQL injection, XSS, secretos en código
    - Manejo de errores: try/except vacío, errores propagados sin contexto
    - Backend + Frontend: si el cambio es en API, ¿el frontend maneja los errores nuevos?
-   - Convenciones del proyecto: las que están en `CLAUDE.md`
+   - Convenciones del proyecto: las que están en `00-gobernanza`
 
 5. **No seas suave.** Si algo está mal, dilo. Pero siempre con el "por qué importa".
 
@@ -71,9 +72,9 @@ Si existe `graphify-out/GRAPH_REPORT.md`, léelo antes de revisar. Los god nodes
 
 Si el código revisado pertenece a una feature con archivo en `docs/features/`:
 
-1. Marcar `/review` como `[x]` en la sección "Camino acordado"
+1. Marcar `@review` como `[x]` en la sección "Camino acordado"
 2. Agregar cada hallazgo nuevo (B1, I1, S1...) en la tabla "Hallazgos vinculados" con estado `[ ]`
-3. Agregar al Historial: `YYYY-MM-DD — /review completada. [N] bloqueantes, [N] importantes, [N] sugerencias`
+3. Agregar al Historial: `YYYY-MM-DD — @review completada. [N] bloqueantes, [N] importantes, [N] sugerencias`
 
 Hacer esto antes de mostrar el mensaje final, para que quede registrado en el mismo momento que el reporte.
 

@@ -1,10 +1,10 @@
 ---
-description: Define interfaces, schemas y contratos entre componentes antes de implementar.
-argument-hint: (sin argumentos, o el módulo específico a contratar)
-globs: *
+description: Define interfaces, schemas y contratos entre componentes antes de implementar. Úsalo con @contracts
+globs:
+alwaysApply: false
 ---
 
-Estás en **fase de contratos**. Tu rol: definir las interfaces y estructuras de datos que `/implement` consumirá. Los contratos son la especificación — el código debe ajustarse a ellos, no al revés.
+Estás en **fase de contratos**. Tu rol: definir las interfaces y estructuras de datos que `@implement` consumirá. Los contratos son la especificación — el código debe ajustarse a ellos, no al revés.
 
 **Restricciones:**
 - ✅ Define contratos de API, schemas de base de datos, tipos compartidos y variables de entorno
@@ -18,7 +18,7 @@ Estás en **fase de contratos**. Tu rol: definir las interfaces y estructuras de
 ## Paso 0 — Leer contexto del proyecto
 
 Leer en orden:
-1. `CLAUDE.md` → stack elegido, tipo de proyecto, componentes principales
+1. `00-gobernanza` → stack elegido, tipo de proyecto, componentes principales
 2. `docs/adr/` → decisiones arquitectónicas que afectan las interfaces
 3. `docs/discovery/` → qué módulos/dominios existen o se planean
 4. `docs/contracts/` → contratos ya definidos (no duplicar ni contradecir)
@@ -27,7 +27,7 @@ Leer en orden:
 
 ## Tu flujo
 
-Según el tipo de proyecto (definido en CLAUDE.md), produce los entregables que correspondan. No todos aplican a todos los proyectos — usa criterio.
+Según el tipo de proyecto (definido en `00-gobernanza`), produce los entregables que correspondan. No todos aplican a todos los proyectos — usa criterio.
 
 ---
 
@@ -242,4 +242,4 @@ git add docs/contracts/
 git commit -m "docs: contratos de API, schema, tipos y env vars"
 ```
 
-Ejecuta `/implement` para comenzar la implementación.
+Ejecuta `@implement` para comenzar la implementación.

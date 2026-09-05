@@ -1,7 +1,7 @@
 ---
-description: Checklist de pre-producción. Verifica que todo está listo antes de desplegar. No modifica código.
-argument-hint: (sin argumentos)
-globs: *
+description: Checklist de pre-producción. Verifica que todo está listo antes de desplegar. No modifica código. Úsalo con @deploy
+globs:
+alwaysApply: false
 ---
 
 Estás en **fase de deploy**. Tu rol: verificar sistemáticamente que la aplicación está lista para ir a producción. No escribes código ni ejecutas el deploy — verificas, documentas, y sugieres los comandos exactos para que el usuario los ejecute.
@@ -16,7 +16,7 @@ Estás en **fase de deploy**. Tu rol: verificar sistemáticamente que la aplicac
 
 ## Paso 0 — Leer contexto del proyecto
 
-1. `CLAUDE.md` → stack, tipo de proyecto, comandos
+1. `00-gobernanza` → stack, tipo de proyecto, comandos
 2. `docs/reviews/` → hallazgos abiertos con severidad B (Blocker)
 3. `docs/contracts/schema.md` → si hay migraciones documentadas
 4. `docs/contracts/env.md` → variables de entorno requeridas en producción
@@ -27,7 +27,7 @@ Estás en **fase de deploy**. Tu rol: verificar sistemáticamente que la aplicac
 
 [Lista de IDs de Blockers abiertos con descripción]
 
-Resuelve estos hallazgos antes de continuar con /deploy.
+Resuelve estos hallazgos antes de continuar con @deploy.
 ```
 
 ---
@@ -52,7 +52,7 @@ Ir ítem por ítem. Documentar el resultado de cada verificación.
   ```bash
   npm run lint / ruff check . / golangci-lint run
   ```
-- [ ] Todos los hallazgos Blocker del último `/review` y `/security` están resueltos o aceptados conscientemente con justificación documentada
+- [ ] Todos los hallazgos Blocker del último `@review` y `@security` están resueltos o aceptados conscientemente con justificación documentada
 
 ---
 
@@ -193,7 +193,7 @@ Deploy checklist completado en docs/deploy-checklist-YYYY-MM-DD.md.
 
 [Si todo está en verde:]
 El deploy puede proceder. Recuerda verificar los logs en los primeros 10 minutos post-deploy.
-Ante cualquier anomalía post-deploy, ejecuta /change para gestionarlo.
+Ante cualquier anomalía post-deploy, ejecuta @change para gestionarlo.
 
 [Si hay bloqueantes:]
 Resuelve los ítems marcados como ❌ antes de proceder.
