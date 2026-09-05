@@ -56,8 +56,10 @@ OVERRIDES = {
     "git-setup.md": [
         # Comandos de shell reales: aquí CLAUDE.md no es una referencia, es un
         # argumento de `git add`, y en Cursor el equivalente es .cursor/.
-        ("git add CLAUDE.md .claude/ .gitignore README.md 2>/dev/null || git add CLAUDE.md .claude/",
-         "git add .cursor/ .gitignore README.md 2>/dev/null || git add .cursor/"),
+        ("""for p in CLAUDE.md .claude .github git-hooks docs .gitignore .graphifyignore \\
+         sync-workflow.sh generate-cursor-rules.sh graphify-out/.gitkeep; do""",
+         """for p in .cursor .github git-hooks docs .gitignore .graphifyignore \\
+         sync-workflow.sh graphify-out/.gitkeep; do"""),
     ],
     "discovery.md": [
         ("[copia de CLAUDE.md]",

@@ -9,9 +9,11 @@ Estás en **fase de inicialización Git**. Tu rol: configurar la infraestructura
 **Restricciones:**
 - ✅ Configura estructura de branches
 - ✅ Instala hooks de Git en .git/hooks/
-- ✅ Crea tag inicial
+- ✅ Prepara el commit inicial dejando los archivos en staging
 - ✅ Configura CI, CODEOWNERS y branch protection
 - ✅ Explica la estrategia al usuario
+- ❌ **No hace commits, pushes ni tags.** Regla dura 3: el historial es del usuario.
+  Preparas todo y le entregas los comandos listos para copiar.
 - ❌ No toca código de aplicación
 - ❌ No modifica `00-gobernanza` ni archivos de docs
 - ❌ No instala dependencias del proyecto
@@ -29,27 +31,37 @@ Leer `00-gobernanza` para entender si ya existe configuración de Git.
 ### Paso 1 — Verificar estado del repositorio
 
 ```bash
-ls -la .git/ 2>/dev/null && echo "REPO_EXISTS" || echo "NO_REPO"
+git rev-parse --git-dir  > /dev/null 2>&1 && echo "REPO_EXISTS" || echo "NO_REPO"
+git rev-parse HEAD       > /dev/null 2>&1 && echo "TIENE_COMMITS" || echo "SIN_COMMITS"
 ```
 
-**Si no existe repo:**
+**Si no existe repo:** `git init` (crear el repo no es tocar el historial).
+
+**Si no hay commits todavía:** deja los archivos del workflow en staging. Uno por uno y
+solo los que existan — nunca `git add .`, y no todos los proyectos instalan lo mismo:
+
 ```bash
-git init
-git add .cursor/ .gitignore README.md 2>/dev/null || git add .cursor/
-git commit -m "chore: workflow inicializado"
+for p in .cursor .github git-hooks docs .gitignore .graphifyignore \
+         sync-workflow.sh graphify-out/.gitkeep; do
+  [ -e "$p" ] && git add "$p"
+done
+git status --short
 ```
 
-**Si ya existe repo pero sin commits:**
-```bash
-git add .cursor/ .gitignore README.md 2>/dev/null || git add .cursor/
-git commit -m "chore: workflow inicializado"
-```
+Revisa el `git status` antes de seguir: si aparece algo que no debería versionarse
+(`.env`, `*.db`, `node_modules/`), quítalo del staging y añádelo a `.gitignore`.
 
-**Si ya existe repo con commits:** continuar al paso 2.
+**No commitees.** El commit va en el bloque del paso 5, para que lo ejecute el usuario.
+
+**Si ya hay commits:** no hay nada que preparar. Continúa al paso 2.
 
 ---
 
 ### Paso 2 — Crear estructura de branches
+
+Crear branches no toca el historial, así que esto sí lo haces tú **siempre que ya
+exista al menos un commit**. Si el repo está vacío, no se puede: salta al paso 3 y
+deja los comandos de branches en el bloque del paso 5.
 
 ```bash
 # Asegurarse de estar en main (o master)
@@ -144,11 +156,29 @@ git push -u origin develop
 
 ---
 
-### Paso 5 — Tag inicial
+### Paso 5 — Entregar los comandos de historial
+
+Aquí no ejecutas nada. Reúnes en **un solo bloque copiable** todo lo que toca el
+historial, en orden, y se lo das al usuario.
+
+Si el repo no tenía commits (todo quedó en staging en el paso 1):
+
+```bash
+git commit -m "chore: workflow inicializado"
+git checkout -b develop
+git checkout main
+git tag -a v0.0.1 -m "chore: workflow inicializado"
+```
+
+Si el repo ya tenía commits y ya creaste las branches en el paso 2, solo falta el tag:
 
 ```bash
 git tag -a v0.0.1 -m "chore: workflow inicializado"
 ```
+
+Di explícitamente: *"Estos comandos los ejecutas tú — regla dura 3. Cuando termines,
+avísame y verifico que quedó todo bien."* Y cuando el usuario confirme, verifica con
+`git log --oneline`, `git branch` y `git tag`.
 
 ---
 
@@ -221,12 +251,17 @@ editor y a cualquier persona del equipo.
 
 ### Paso 7 — Mostrar resumen final
 
+Marca con `✓` solo lo que de verdad hiciste. Lo que dejaste en manos del usuario va
+con `⧗` y se repite abajo. No declares hecho lo que todavía depende de que él ejecute
+el bloque del paso 5.
+
 ```
 RESUMEN — Git configurado
 ─────────────────────────────────────────────────────────────
 BRANCHES
-  ✓ main      (producción — siempre deployable)
-  ✓ develop   (integración continua)
+  [✓ si ya existían commits y las creaste / ⧗ si van en el bloque del paso 5]
+  main      (producción — siempre deployable)
+  develop   (integración continua)
 
 HOOKS DE GIT
   ✓ pre-commit    (lint + archivos prohibidos)
@@ -242,11 +277,14 @@ HOOKS DE CLAUDE CODE
 
 PROTECCIÓN DEL SERVIDOR
   ✓ CI en cada PR      (archivos, commits, secretos, lint, tests)
-  ✓ CODEOWNERS         (ADRs, contratos y gobernanza requieren tu review)
-  ✓ Branch protection  (main y develop solo por PR con CI en verde)
+  [✓/⧗] CODEOWNERS     (⧗ si sigue con @TU-USUARIO sin reemplazar)
+  [✓/⧗] Branch protection  (⧗ si no hay remote todavía)
 
 TAG
-  ✓ v0.0.1
+  ⧗ v0.0.1             (lo pones tú, ver bloque de abajo)
+
+PENDIENTE — LO EJECUTAS TÚ (regla dura 3)
+  [pega aquí el bloque del paso 5]
 
 REFERENCIA RÁPIDA DE GIT
   Nueva feature:     git checkout develop && git checkout -b feature/[slug]
@@ -264,6 +302,7 @@ REFERENCIA RÁPIDA DE GIT
 ## Al terminar
 
 ```
-Git configurado. Branches: main (producción) y develop (integración). Hooks instalados: pre-commit, pre-push, commit-msg.
-Cuando quieras empezar el proyecto, ejecuta @discovery.
+Git preparado. Hooks instalados: pre-commit, pre-push, commit-msg.
+Los comandos de arriba los ejecutas tú — yo no toco el historial.
+Cuando termines, avísame y verifico. Después, @discovery para empezar el proyecto.
 ```
