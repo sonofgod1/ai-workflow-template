@@ -48,10 +48,13 @@ fi
 echo "🤖 Editor seleccionado: $EDITOR"
 
 # Archivos y carpetas a sincronizar según el editor
-SYNC_PATHS=("git-hooks" ".github")
+# sync-workflow.sh y generate-cursor-rules.sh entran aquí: sin ellos, este
+# script nunca podía repartir sus propias mejoras a proyectos ya instalados.
+SYNC_PATHS=("git-hooks" ".github" "sync-workflow.sh")
 
 if [[ "$EDITOR" == "claude" || "$EDITOR" == "all" ]]; then
     SYNC_PATHS+=(".claude/commands" ".claude/hooks" ".claude/settings.json" ".claude/protected.txt")
+    SYNC_PATHS+=("generate-cursor-rules.sh")
 fi
 
 if [[ "$EDITOR" == "cursor" || "$EDITOR" == "all" ]]; then
@@ -206,12 +209,27 @@ PRESERVED=0
 MODIFIED=0
 ERRORS=0
 MODIFIED_LIST=""
+SELF_UPDATE=false
 
 while IFS= read -r FILE_PATH; do
   [ -z "$FILE_PATH" ] && continue
 
   LOCAL_PATH="./$FILE_PATH"
   RAW_URL="$RAW_BASE/$FILE_PATH"
+
+  # Bash lee el script por trozos mientras lo ejecuta, así que sobrescribirse a
+  # sí mismo en marcha puede hacerle ejecutar basura. Se deja al lado.
+  if [ "$FILE_PATH" = "sync-workflow.sh" ] && [ -f "$LOCAL_PATH" ]; then
+    DL=$(curl -s -o "$LOCAL_PATH.new" -w "%{http_code}" "${API_HEADERS[@]}" "$RAW_URL")
+    if [ "$DL" = "200" ] && ! cmp -s "$LOCAL_PATH.new" "$LOCAL_PATH"; then
+      chmod +x "$LOCAL_PATH.new"
+      SELF_UPDATE=true
+      warn "sync-workflow.sh tiene una versión nueva — descargada como sync-workflow.sh.new"
+    else
+      rm -f "$LOCAL_PATH.new"
+    fi
+    continue
+  fi
 
   if is_never_overwrite "$FILE_PATH" && [ -f "$LOCAL_PATH" ]; then
     log "↩︎  $FILE_PATH — preservado (configuración de este proyecto)"
@@ -289,6 +307,16 @@ else
   [ $ERRORS -gt 0 ]    && echo "   Errores:       $ERRORS"
   echo ""
   
+  if $SELF_UPDATE; then
+    echo ""
+    echo "   ⚠️  Este script se actualizó a sí mismo. Para aplicarlo:"
+    echo ""
+    echo "       mv sync-workflow.sh.new sync-workflow.sh"
+    echo "       bash sync-workflow.sh --editor $EDITOR"
+    echo ""
+    echo "   No se reemplaza solo: bash lee el script mientras lo ejecuta."
+  fi
+
   if [ $MODIFIED -gt 0 ]; then
     echo ""
     echo "   ⚠️  Estos archivos cambiaron respecto al template y se conservaron:"
