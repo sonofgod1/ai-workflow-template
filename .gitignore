@@ -48,3 +48,6 @@ build/
 
 # Aider (si se usó antes)
 .aider.*
+
+# Registro de sincronización del workflow (local, no versionar)
+.claude/.workflow-sync

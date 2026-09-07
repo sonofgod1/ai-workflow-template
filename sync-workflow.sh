@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # sync-workflow.sh
 # Sincroniza el workflow desde el repo master usando GitHub Tree API.
-# Uso: bash sync-workflow.sh [--dry-run] [--editor claude|cursor|all]
+# Uso: bash sync-workflow.sh [--dry-run] [--force] [--editor claude|cursor|all]
+#
+# Los archivos que difieren del template y no coinciden con lo que este script
+# escribió la última vez (.claude/.workflow-sync) se consideran personalizados y
+# NO se pisan. --force los sobreescribe.
 #
 # Requisitos: curl, git, (jq o python3)
 # El repositorio fuente se define en WORKFLOW_REPO a continuación.
@@ -18,11 +22,13 @@ RAW_BASE="https://raw.githubusercontent.com/$WORKFLOW_REPO/$BRANCH"
 # ─── Flags y Argumentos ───────────────────────────────────────────────────────
 
 DRY_RUN=false
+FORCE=false
 EDITOR="claude" # default para retrocompatibilidad
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --dry-run) DRY_RUN=true ;;
+        --force) FORCE=true ;;
         --editor) EDITOR="$2"; shift ;;
         *) echo "Parámetro desconocido: $1"; exit 1 ;;
     esac
@@ -53,6 +59,25 @@ if [[ "$EDITOR" == "cursor" || "$EDITOR" == "all" ]]; then
 fi
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+
+# Manifiesto de lo que el sync escribió la última vez. Sin él no se puede
+# distinguir "el template avanzó" de "el usuario personalizó este archivo":
+# los dos casos se ven igual como "difiere del remoto".
+MANIFEST=".claude/.workflow-sync"
+
+sha() { shasum -a 256 "$1" 2>/dev/null | cut -d" " -f1; }
+
+manifest_hash() {
+  [ -f "$MANIFEST" ] || return 0
+  grep -F "  $1" "$MANIFEST" 2>/dev/null | tail -n1 | cut -d" " -f1
+}
+
+manifest_record() {
+  mkdir -p "$(dirname "$MANIFEST")"
+  [ -f "$MANIFEST" ] && grep -vF "  $1" "$MANIFEST" > "$MANIFEST.tmp" 2>/dev/null || : > "$MANIFEST.tmp"
+  echo "$2  $1" >> "$MANIFEST.tmp"
+  mv "$MANIFEST.tmp" "$MANIFEST"
+}
 
 log()  { echo "  $1"; }
 ok()   { echo "  ✓ $1"; }
@@ -178,7 +203,9 @@ echo ""
 UPDATED=0
 SKIPPED=0
 PRESERVED=0
+MODIFIED=0
 ERRORS=0
+MODIFIED_LIST=""
 
 while IFS= read -r FILE_PATH; do
   [ -z "$FILE_PATH" ] && continue
@@ -192,21 +219,47 @@ while IFS= read -r FILE_PATH; do
     continue
   fi
 
-  if $DRY_RUN; then
-    echo "  [dry-run] $FILE_PATH"
-    ((UPDATED++)) || true
-    continue
-  fi
-
   # Crear directorio si no existe
   DIR=$(dirname "$LOCAL_PATH")
   mkdir -p "$DIR"
 
-  # Descargar archivo
+  # Descargar a .tmp y decidir ANTES de pisar nada.
   DL_HTTP_CODE=$(curl -s -o "$LOCAL_PATH.tmp" -w "%{http_code}" "${API_HEADERS[@]}" "$RAW_URL")
 
   if [ "$DL_HTTP_CODE" = "200" ]; then
+    REMOTE_SHA=$(sha "$LOCAL_PATH.tmp")
+
+    if [ -f "$LOCAL_PATH" ]; then
+      LOCAL_SHA=$(sha "$LOCAL_PATH")
+
+      if [ "$LOCAL_SHA" = "$REMOTE_SHA" ]; then
+        rm -f "$LOCAL_PATH.tmp"
+        manifest_record "$FILE_PATH" "$REMOTE_SHA"
+        ((SKIPPED++)) || true
+        continue
+      fi
+
+      # Difiere del remoto. ¿Lo cambió el template, o lo personalizó el usuario?
+      # Si coincide con lo que este script escribió la última vez, nadie lo tocó.
+      KNOWN_SHA=$(manifest_hash "$FILE_PATH")
+      if [ "$LOCAL_SHA" != "$KNOWN_SHA" ] && ! $FORCE; then
+        rm -f "$LOCAL_PATH.tmp"
+        warn "$FILE_PATH — modificado localmente, NO se pisa"
+        MODIFIED_LIST="$MODIFIED_LIST$FILE_PATH"$'\n'
+        ((MODIFIED++)) || true
+        continue
+      fi
+    fi
+
+    if $DRY_RUN; then
+      rm -f "$LOCAL_PATH.tmp"
+      echo "  [dry-run] $FILE_PATH"
+      ((UPDATED++)) || true
+      continue
+    fi
+
     mv "$LOCAL_PATH.tmp" "$LOCAL_PATH"
+    manifest_record "$FILE_PATH" "$REMOTE_SHA"
     # Marcar ejecutables: hooks de Claude y git-hooks
     if [[ "$FILE_PATH" == *.sh ]] || [[ "$FILE_PATH" == git-hooks/* ]]; then
       chmod +x "$LOCAL_PATH"
@@ -229,11 +282,28 @@ if $DRY_RUN; then
   echo "📋 Dry-run completado — $UPDATED archivos se actualizarían"
 else
   echo "✅ Sync completado"
-  echo "   Actualizados: $UPDATED"
-  [ $PRESERVED -gt 0 ] && echo "   Preservados:  $PRESERVED"
-  [ $ERRORS -gt 0 ] && echo "   Errores:       $ERRORS"
+  echo "   Actualizados:  $UPDATED"
+  [ $SKIPPED -gt 0 ]   && echo "   Sin cambios:   $SKIPPED"
+  [ $PRESERVED -gt 0 ] && echo "   Preservados:   $PRESERVED"
+  [ $MODIFIED -gt 0 ]  && echo "   Conservados:   $MODIFIED (modificados localmente)"
+  [ $ERRORS -gt 0 ]    && echo "   Errores:       $ERRORS"
   echo ""
   
+  if [ $MODIFIED -gt 0 ]; then
+    echo ""
+    echo "   ⚠️  Estos archivos cambiaron respecto al template y se conservaron:"
+    echo "$MODIFIED_LIST" | sed '/^$/d;s/^/       /'
+    echo ""
+    echo "   Puede ser una personalización tuya — /architect ajusta los comandos a la"
+    echo "   escala del proyecto — o que se instalaron antes de que existiera el"
+    echo "   registro de sincronización. Para ver qué te perderías:"
+    echo ""
+    echo "       git diff <archivo>          # tus cambios frente al último commit"
+    echo ""
+    echo "   Si quieres la versión del template de todas formas:"
+    echo "       bash sync-workflow.sh --force"
+  fi
+
   if [ $UPDATED -gt 0 ]; then
     echo "   Nota: Revisa si hay que instalar hooks con /git-setup"
     echo ""

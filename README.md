@@ -523,6 +523,11 @@ bash sync-workflow.sh --editor all
 **`--editor`** acepta `claude` (por defecto), `cursor` o `all`. Los `git-hooks/` se sincronizan
 siempre, con cualquier valor, porque no dependen del editor.
 
+**Nunca pisa lo que personalizaste.** `/architect` puede ajustar los comandos a la escala del
+proyecto, así que el sync lleva un registro de lo que escribió (`.claude/.workflow-sync`, local, no
+versionado). Un archivo que difiere del template y no coincide con ese registro se considera tuyo:
+se conserva, se lista al final, y solo `--force` lo sobreescribe.
+
 **Qué sincroniza:**
 
 | `--editor` | Rutas |
