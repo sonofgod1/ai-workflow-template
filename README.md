@@ -523,6 +523,18 @@ bash sync-workflow.sh --editor all
 **`--editor`** acepta `claude` (por defecto), `cursor` o `all`. Los `git-hooks/` se sincronizan
 siempre, con cualquier valor, porque no dependen del editor.
 
+**Si tu instalación es anterior a septiembre de 2026, hazle un bootstrap primero.** Hasta entonces
+`sync-workflow.sh` no se sincronizaba a sí mismo, así que una copia vieja no puede traerse la versión
+nueva sola — y sin ella no protege tus personalizaciones. Una sola vez:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sonofgod1/ai-workflow-template/main/sync-workflow.sh \
+  -o sync-workflow.sh && chmod +x sync-workflow.sh
+```
+
+Desde ahí se actualiza solo: cuando hay versión nueva la deja como `sync-workflow.sh.new` y te pide
+un `mv`, porque bash lee el script mientras lo ejecuta y sobrescribirlo en marcha lo corrompe.
+
 **Nunca pisa lo que personalizaste.** `/architect` puede ajustar los comandos a la escala del
 proyecto, así que el sync lleva un registro de lo que escribió (`.claude/.workflow-sync`, local, no
 versionado). Un archivo que difiere del template y no coincide con ese registro se considera tuyo:
