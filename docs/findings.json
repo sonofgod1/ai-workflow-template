@@ -77,6 +77,22 @@
       "resuelto": null,
       "commit": null,
       "nota": "Arreglado en la misma sesión en que se introdujo: resolver_commit() exige un hash de 7-40 hex y rechaza HEAD, branches y tags."
+    },
+    {
+      "id": "B2",
+      "severidad": "blocker",
+      "titulo": "El guardia de escrituras bloqueaba a /git-setup instalando los hooks",
+      "estado": "resuelto",
+      "origen": "docs/reviews/2026-09-08-enforcement.md",
+      "archivos": [
+        ".workflow/write-guard.py",
+        ".claude/protected.txt"
+      ],
+      "feature": null,
+      "creado": "2026-09-08",
+      "resuelto": "2026-09-08",
+      "commit": "15bffe2cdcefd53d94eea7df00958dcaf4e2d7b5",
+      "nota": "Prefijo '!' de excepción en protected.txt; !.git/hooks/** exceptúa la instalación de hooks"
     }
   ]
 }

@@ -96,6 +96,44 @@ aquí porque afecta a toda instalación existente del template, no solo a este r
   seguridad es una decisión tuya, no mía. El workaround usado aquí fue armar las
   cadenas por partes.
 
+### B2. El guardia de escrituras bloqueaba a `/git-setup` instalando los hooks
+
+- **Archivos:** `.workflow/write-guard.py`, `.claude/protected.txt`
+- **Introducido por:** el arreglo de B1, en esta misma sesión. Es una regresión mía,
+  no un defecto preexistente.
+- **Síntoma:** `protected.txt` protege `.git/**`. Antes de B1 eso solo cubría borrados
+  (`rm`, `mv`), así que `cp git-hooks/pre-commit .git/hooks/` pasaba. Al extender la
+  protección a todas las formas de escritura por Bash, esa copia quedó bloqueada:
+
+  ```
+  🛑 BLOQUEADO: el comando escribiría en '.git/hooks', protegido por
+     .claude/protected.txt (patrón: '.git/**').
+  ```
+
+- **Por qué importa:** `/git-setup` es el **primer comando** del workflow, y su paso 3
+  es exactamente esa copia. La regresión dejaba inejecutable la instalación de hooks
+  en todo proyecto nuevo — es decir, rompía la capa de protección que funciona igual
+  en cualquier editor, que es la más valiosa de las tres. Se descubrió al intentar
+  instalarlos en este mismo repo.
+- **Corrección aplicada:** prefijo `!` en `protected.txt` para declarar excepciones.
+  `.git/**` sigue protegido; `!.git/hooks/**` lo exceptúa. Lo entienden los tres
+  lectores de la lista: `check-protected.sh`, `check-bash.sh` y `write-guard.py`.
+- **Verificado:**
+
+  | Caso | Esperado | Real |
+  |---|---|---|
+  | `cp git-hooks/pre-commit .git/hooks/` | pasa | pasa |
+  | `echo x > .git/config` | bloquea | bloquea |
+  | borrado recursivo de `.git/objects` | bloquea | bloquea |
+  | `rm .git/hooks/pre-commit` | pasa | pasa |
+  | Write a `.git/hooks/pre-commit` | pasa | pasa |
+  | Write a `.git/config` | bloquea | bloquea |
+
+- **Lección:** ampliar la cobertura de un control de seguridad puede romper el trabajo
+  legítimo que ese mismo sistema necesita hacer. B1 y B2 son la misma decisión vista
+  desde los dos lados, y por eso el mecanismo de excepciones tenía que existir desde
+  el principio.
+
 ## 🟢 Lo bueno
 
 - `check-bash.sh` ya manejaba bien los heredocs y las rutas con `./`, con el
