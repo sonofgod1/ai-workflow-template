@@ -193,7 +193,12 @@ def matches_any(path, patterns):
 
 def load_protected(root):
     entries = []
-    path = root / ".claude" / "protected.txt"
+    # La lista local, si existe, reemplaza a la sincronizada. Ver el comentario
+    # en check-protected.sh: sirve para repositorios donde los archivos que
+    # protected.txt protege son el código fuente.
+    path = root / ".claude" / "protected.local.txt"
+    if not path.exists():
+        path = root / ".claude" / "protected.txt"
     try:
         for line in path.read_text(encoding="utf-8").splitlines():
             line = line.strip()

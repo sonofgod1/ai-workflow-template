@@ -18,7 +18,13 @@ ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}
 # patrón coincide, y el hook deja pasar la escritura sin decir nada.
 ROOT=$(cd "$ROOT" 2>/dev/null && pwd -P || echo "$ROOT")
 
+# protected.local.txt, si existe, REEMPLAZA a protected.txt. Existe para el caso
+# en que los archivos que protected.txt protege son, en ese repositorio concreto,
+# el código fuente — el repositorio de la propia plantilla es el ejemplo: ahí
+# CLAUDE.md y .github/workflows/ son el producto que se entrega, no gobernanza.
+# Nunca se sincroniza, así que un proyecto normal jamás lo hereda.
 PROTECTED_FILE="$ROOT/.claude/protected.txt"
+[ -f "$ROOT/.claude/protected.local.txt" ] && PROTECTED_FILE="$ROOT/.claude/protected.local.txt"
 [ -f "$PROTECTED_FILE" ] || exit 0
 
 # Sin python3 no podemos leer la entrada, y un hook de protección que no puede

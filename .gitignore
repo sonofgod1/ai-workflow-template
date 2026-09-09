@@ -57,3 +57,7 @@ build/
 # cómo se verifica este repo.
 .workflow/.phase.json
 .workflow/.last-verify.json
+
+# Lista de archivos protegidos específica de esta copia del repo. No se versiona:
+# si se clonara a un proyecto nuevo, le desactivaría protecciones que ahí sí aplican.
+.claude/protected.local.txt

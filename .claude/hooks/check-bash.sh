@@ -83,6 +83,7 @@ fi
 # no la hacía cumplir nada: `rm -rf docs/contracts/` pasaba sin más.
 
 PROTECTED_FILE="$ROOT/.claude/protected.txt"
+[ -f "$ROOT/.claude/protected.local.txt" ] && PROTECTED_FILE="$ROOT/.claude/protected.local.txt"
 
 [ -f "$PROTECTED_FILE" ] || exit 0
 command -v python3 > /dev/null 2>&1 || exit 0
