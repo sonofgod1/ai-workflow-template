@@ -59,7 +59,11 @@ SYNC_PATHS+=(".workflow/verify.sh" ".workflow/phase.sh")
 SYNC_PATHS+=(".workflow/write-guard.py" ".workflow/findings.py")
 SYNC_PATHS+=(".workflow/audit-deps.sh" ".workflow/check-migrations.py")
 SYNC_PATHS+=(".workflow/danger-scan.py" ".workflow/tests")
-SYNC_PATHS+=(".workflow/check-tools.sh")
+SYNC_PATHS+=(".workflow/check-tools.sh" ".workflow/check-regression.py")
+SYNC_PATHS+=(".workflow/ship.sh" ".workflow/pr-body.py" ".workflow/batch.sh")
+# delivery.conf NO va aquí: es la autorización de entrega de cada proyecto, y
+# repartirla desde el template le concedería a otro repo un permiso que su dueño
+# no dio. Es lo contrario de lo que protected.txt protege.
 
 if [[ "$EDITOR" == "claude" || "$EDITOR" == "all" ]]; then
     SYNC_PATHS+=(".claude/commands" ".claude/hooks" ".claude/agents" ".claude/settings.json" ".claude/protected.txt")
