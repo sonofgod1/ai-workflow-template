@@ -9,14 +9,22 @@ largo el drift es cuestión de tiempo.
 
 Los reportes en markdown siguen siendo el lugar de la prosa: el síntoma, el por
 qué importa, la sugerencia. Este índice guarda solo lo que hay que consultar y
-validar: id, severidad, estado, origen y commit.
+validar: id, severidad, estado, origen, commit y el test que lo cubre.
+
+Cerrar exige nombrar un test, o registrar por qué no lo hay. Un hallazgo cerrado
+sin test deja al humano como único arnés de pruebas: la próxima vez que alguien
+rompa eso, nadie se enterará hasta que un humano lo vuelva a probar a mano.
 
 Uso:
     python3 .workflow/findings.py list [--abiertos] [--severidad blocker]
     python3 .workflow/findings.py add --id B1 --severidad blocker \\
         --titulo "PUT no es atómico" --origen docs/reviews/2026-09-08-api.md \\
         [--archivos backend/api.py:42 ...] [--feature docs/features/x.md]
-    python3 .workflow/findings.py cerrar B1 --commit abc1234
+    python3 .workflow/findings.py cerrar B1 --commit abc1234 \\
+        --test tests/test_api.py::test_put_atomico [--probar-regresion]
+    python3 .workflow/findings.py cerrar B1 --commit abc1234 \\
+        --sin-test --razon "cambio de copy, no hay comportamiento que ejercitar"
+    python3 .workflow/findings.py test-exento B1 --razon "..."
     python3 .workflow/findings.py estado B1 --nuevo descartado --nota "..."
     python3 .workflow/findings.py siguiente-id --severidad blocker
     python3 .workflow/findings.py validate [--sin-bloqueantes]
@@ -128,10 +136,62 @@ def cmd_add(args):
         "resuelto": None,
         "commit": None,
         "nota": None,
+        "test": None,
     })
     guardar(data)
     print(f"✓ {hid} registrado ({args.severidad}) — {args.titulo}")
     return 0
+
+
+FALTA_TEST = """❌ Cerrar un hallazgo exige el test que lo cubre.
+
+   Un arreglo sin test deja al humano como único arnés de pruebas: la próxima vez
+   que alguien rompa esto, nadie se entera hasta que se vuelva a probar a mano.
+
+   Con test:   --test tests/test_api.py::test_put_atomico
+   Y para saber si el test sirve de verdad, agrega --probar-regresion: monta el
+   árbol sin el arreglo y comprueba que ahí el test falla.
+
+   Sin test:   --sin-test --razon "..."
+   Es válido (un cambio de copy, un README, un ajuste de CI no tienen comportamiento
+   que ejercitar), pero queda registrado con su razón. Una exención sin razón se
+   vuelve permanente y nadie recuerda por qué está ahí."""
+
+
+def verificar_test_en_commit(sha, specs):
+    """Comprueba que cada test exista EN el commit del arreglo, no solo en el disco."""
+    rutas = [spec.split("::", 1)[0] for spec in specs]
+    for ruta in rutas:
+        r = subprocess.run(["git", "cat-file", "-e", f"{sha}:{ruta}"],
+                           capture_output=True, text=True, check=False)
+        if r.returncode != 0:
+            sys.exit(f"❌ '{ruta}' no existe en el commit {sha[:7]}.\n"
+                     "   El test tiene que estar commiteado junto al arreglo, no solo en tu disco.")
+
+    tocados = subprocess.run(["git", "show", "--name-only", "--format=", sha],
+                             capture_output=True, text=True, check=False).stdout.split()
+    sin_tocar = [r for r in rutas if r not in tocados]
+    if sin_tocar:
+        # No es un fallo: en test-first el test ya venía de un commit anterior.
+        print(f"⚠️  {', '.join(sin_tocar)} no cambió en {sha[:7]}. Si el test ya existía y")
+        print("   pasaba antes del arreglo, no cubre este hallazgo. Verifícalo con --probar-regresion.")
+    return rutas
+
+
+def probar_regresion(sha, specs, cmd):
+    """Delega en check-regression.py. Devuelve (resultado, razón)."""
+    script = Path(__file__).resolve().parent / "check-regression.py"
+    if not script.exists():
+        return "no-verificada", f"falta {script}"
+    argv = [sys.executable, str(script), "--commit", sha, "--json", "--test", *specs]
+    if cmd:
+        argv += ["--cmd", cmd]
+    r = subprocess.run(argv, capture_output=True, text=True, check=False)
+    try:
+        out = json.loads(r.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return "no-verificada", f"check-regression.py no devolvió JSON: {r.stderr.strip()[:200]}"
+    return out.get("resultado", "no-verificada"), out.get("razon", "")
 
 
 def cmd_cerrar(args):
@@ -139,19 +199,74 @@ def cmd_cerrar(args):
     h = buscar(data, args.id)
     if not h:
         sys.exit(f"❌ No existe el hallazgo {args.id}.")
+
+    if args.test and args.sin_test:
+        sys.exit("❌ --test y --sin-test se excluyen: o hay test o hay razón de por qué no.")
+    if not args.test and not args.sin_test:
+        sys.exit(FALTA_TEST)
+    if args.sin_test and not args.razon:
+        sys.exit("❌ --sin-test exige --razon. Una exención sin razón se vuelve permanente\n"
+                 "   y nadie recuerda por qué está ahí.")
+
     sha = resolver_commit(args.commit)
     if sha is None:
         sys.exit(f"❌ '{args.commit}' no es un hash de commit válido de este repositorio.\n"
                  "   Tiene que ser un hash (7-40 caracteres hex), no HEAD ni un nombre de branch:\n"
                  "   esos existen siempre y dejarían pasar un cierre de algo que aún no commiteaste.\n"
                  "   Cierra el hallazgo DESPUÉS de commitear, copiando el hash real.")
+
+    if args.sin_test:
+        test = {"estado": "exento", "rutas": [], "razon": args.razon,
+                "regresion": None, "verificado": date.today().isoformat()}
+    else:
+        verificar_test_en_commit(sha, args.test)
+        test = {"estado": "declarado", "rutas": list(args.test), "razon": None,
+                "regresion": None, "verificado": date.today().isoformat()}
+
+        if args.probar_regresion:
+            resultado, razon = probar_regresion(sha, args.test, args.cmd)
+            test["regresion"] = resultado
+            if resultado == "no-prueba-nada":
+                # Aquí es donde este chequeo gana su sitio: el test existe, la suite
+                # está verde, y no habría atrapado el bug. Cerrar sería mentir.
+                sys.exit(f"❌ El test pasa SIN el arreglo: {razon}.\n"
+                         "   No demuestra nada. Tiene que ejercitar el camino que fallaba,\n"
+                         "   con los datos que lo hacían fallar. El hallazgo sigue abierto.")
+            if resultado == "confirmada":
+                test["estado"] = "probado"
+                print(f"✓ Regresión confirmada: {razon}.")
+            else:
+                print(f"⚠️  Regresión sin verificar ({resultado}): {razon}.")
+                print("   El test queda 'declarado', no 'probado'. Esto NO es verde.")
+
     h["estado"] = "resuelto"
     h["commit"] = sha
     h["resuelto"] = date.today().isoformat()
+    h["test"] = test
     if args.nota:
         h["nota"] = args.nota
     guardar(data)
-    print(f"✓ {h['id']} resuelto en {args.commit[:7]}")
+    etiqueta = {"probado": "con test probado", "declarado": "con test declarado",
+                "exento": "exento de test"}[test["estado"]]
+    print(f"✓ {h['id']} resuelto en {args.commit[:7]} — {etiqueta}")
+    return 0
+
+
+def cmd_test_exento(args):
+    """Registra la exención en un hallazgo ya cerrado.
+
+    Existe para dos casos reales: los hallazgos que se cerraron antes de que esta
+    regla existiera, y el descubrimiento tardío de que un arreglo no tiene
+    comportamiento que ejercitar.
+    """
+    data = cargar()
+    h = buscar(data, args.id)
+    if not h:
+        sys.exit(f"❌ No existe el hallazgo {args.id}.")
+    h["test"] = {"estado": "exento", "rutas": [], "razon": args.razon,
+                 "regresion": None, "verificado": date.today().isoformat()}
+    guardar(data)
+    print(f"✓ {h['id']} exento de test — {args.razon}")
     return 0
 
 
@@ -210,6 +325,40 @@ def resolver_commit(ref):
     return r.stdout.strip() or None
 
 
+def revisar_test(h, hid):
+    """Comprueba que un hallazgo cerrado tenga test, o una exención con razón.
+
+    Verifica además que el test siga existiendo en el commit que lo cerró. Un test
+    borrado después deja el hallazgo sin cobertura y el índice diciendo que sí la
+    tiene: es exactamente el drift que este índice existe para no permitir.
+    """
+    test = h.get("test")
+    if not test:
+        return [f"{hid}: cerrado sin test ni exención registrada "
+                f"(usa 'test-exento {hid} --razon ...' si no hay comportamiento que ejercitar)"]
+
+    estado = test.get("estado")
+    if estado == "exento":
+        if not test.get("razon"):
+            return [f"{hid}: exento de test sin razón registrada"]
+        return []
+    if estado not in ("declarado", "probado"):
+        return [f"{hid}: estado de test inválido '{estado}'"]
+    if not test.get("rutas"):
+        return [f"{hid}: test '{estado}' sin rutas"]
+
+    problemas = []
+    for spec in test["rutas"]:
+        ruta = spec.split("::", 1)[0]
+        r = subprocess.run(["git", "cat-file", "-e", f"{h['commit']}:{ruta}"],
+                           capture_output=True, text=True, check=False)
+        if r.returncode != 0:
+            problemas.append(f"{hid}: el test '{ruta}' no existe en {h['commit'][:7]}")
+        elif not Path(ruta).exists():
+            problemas.append(f"{hid}: el test '{ruta}' existía al cerrarlo y ya no está en el árbol")
+    return problemas
+
+
 def cmd_validate(args):
     data = cargar()
     problemas = []
@@ -235,6 +384,8 @@ def cmd_validate(args):
                 problemas.append(f"{hid}: marcado resuelto sin commit")
             elif not commit_existe(h["commit"]):
                 problemas.append(f"{hid}: el commit {h['commit']} no existe en el repositorio")
+            if args.exigir_test:
+                problemas.extend(revisar_test(h, hid))
 
         origen = h.get("origen")
         if origen and not Path(origen).exists():
@@ -253,6 +404,13 @@ def cmd_validate(args):
         return 1
 
     print(f"✓ Índice de hallazgos consistente ({len(data['hallazgos'])} registrados).")
+    if args.exigir_test:
+        cerrados = [h for h in data["hallazgos"] if h.get("estado") == "resuelto"]
+        probados = [h for h in cerrados if (h.get("test") or {}).get("estado") == "probado"]
+        exentos = [h for h in cerrados if (h.get("test") or {}).get("estado") == "exento"]
+        declarados = len(cerrados) - len(probados) - len(exentos)
+        print(f"  Cerrados: {len(cerrados)} — {len(probados)} con regresión probada, "
+              f"{declarados} con test declarado, {len(exentos)} exentos.")
     return 0
 
 
@@ -277,11 +435,24 @@ def main():
     p.add_argument("--feature")
     p.set_defaults(func=cmd_add)
 
-    p = sub.add_parser("cerrar", help="marcar resuelto (exige commit real)")
+    p = sub.add_parser("cerrar", help="marcar resuelto (exige commit real y test)")
     p.add_argument("id")
     p.add_argument("--commit", required=True)
+    p.add_argument("--test", nargs="+", metavar="RUTA[::NOMBRE]",
+                   help="test que falla sin este arreglo")
+    p.add_argument("--probar-regresion", action="store_true",
+                   help="comprobar que el test falla en el árbol sin el arreglo")
+    p.add_argument("--cmd", help="comando para correr el test (si el automático no sirve)")
+    p.add_argument("--sin-test", action="store_true",
+                   help="cerrar sin test; exige --razon y queda registrado")
+    p.add_argument("--razon", help="por qué no hay test (obligatorio con --sin-test)")
     p.add_argument("--nota")
     p.set_defaults(func=cmd_cerrar)
+
+    p = sub.add_parser("test-exento", help="registrar exención de test en un hallazgo ya cerrado")
+    p.add_argument("id")
+    p.add_argument("--razon", required=True)
+    p.set_defaults(func=cmd_test_exento)
 
     p = sub.add_parser("estado", help="cambiar estado")
     p.add_argument("id")
@@ -296,6 +467,8 @@ def main():
     p = sub.add_parser("validate", help="verificar consistencia del índice")
     p.add_argument("--sin-bloqueantes", action="store_true",
                    help="fallar si hay bloqueantes sin cerrar (usar en main)")
+    p.add_argument("--exigir-test", action="store_true",
+                   help="fallar si algún hallazgo cerrado no tiene test ni exención")
     p.set_defaults(func=cmd_validate)
 
     args = ap.parse_args()

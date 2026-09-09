@@ -189,11 +189,43 @@ jobs:
             echo "✓ Sin índice de hallazgos todavía."
             exit 0
           fi
+          # --exigir-test: un hallazgo cerrado sin test ni exención registrada no
+          # pasa. Es la barrera que evita que el humano quede como único arnés de
+          # pruebas del proyecto.
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            python3 .workflow/findings.py validate --sin-bloqueantes
+            python3 .workflow/findings.py validate --sin-bloqueantes --exigir-test
           else
-            python3 .workflow/findings.py validate
+            python3 .workflow/findings.py validate --exigir-test
           fi
+
+  # ── Tests del propio andamiaje ──────────────────────────────────────────────
+  # Los scripts de .workflow/ son la barrera del proyecto, así que sus tests tienen
+  # que correr en algún sitio: si no, la regla "todo hallazgo deja un test" no
+  # aplica al código que la hace cumplir.
+  andamiaje:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Tests de .workflow/
+        run: |
+          shopt -s nullglob
+          TESTS=(.workflow/tests/test-*.py)
+          if [ ${#TESTS[@]} -eq 0 ]; then
+            echo "✓ Sin tests de andamiaje."
+            exit 0
+          fi
+          # git worktree y los repos temporales de los tests necesitan identidad.
+          git config --global user.email "ci@example.com"
+          git config --global user.name "ci"
+          FALLOS=0
+          for t in "${TESTS[@]}"; do
+            echo "── $t"
+            python3 "$t" || FALLOS=1
+          done
+          exit $FALLOS
+        shell: bash
 
   # ── Contrato de verificación ────────────────────────────────────────────────
   # Solo para repos que declararon sus propios pasos. Los jobs javascript/python
