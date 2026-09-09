@@ -134,11 +134,16 @@ for entry in "${VERIFY_STEPS[@]}"; do
     # mentir sobre por qué algo quedó sin verificar, que es justo lo que este
     # script existe para no hacer.
     if [ -f ".workflow/verify.conf" ] && grep -q "\"$NAME:\"" ".workflow/verify.conf" 2>/dev/null; then
+      # Declarado vacío por el proyecto: es una excepción registrada en un archivo
+      # versionado y revisable, igual que las de dependencias o de tests. Cuenta
+      # como no verificado, pero no como fallo: --strict solo tumba lo que quedó
+      # sin correr por accidente, no lo que se decidió a conciencia.
       echo "⚠️  $NAME — declarado sin comando en verify.conf, saltado"
+      printf '%s\tskipped-declarado\t0\t0\n' "$NAME" >> "$RESULTS"
     else
       echo "⚠️  $NAME — sin herramienta instalada, saltado"
+      printf '%s\tskipped\t0\t0\n' "$NAME" >> "$RESULTS"
     fi
-    printf '%s\tskipped\t0\t0\n' "$NAME" >> "$RESULTS"
     continue
   fi
 
@@ -175,12 +180,16 @@ done
 # aquí produciría "0\n0" y rompería la comparación numérica de abajo.
 PASS=$(grep -c $'\tpass\t'    "$RESULTS" 2>/dev/null || true)
 FAIL=$(grep -c $'\tfail\t'    "$RESULTS" 2>/dev/null || true)
-SKIP=$(grep -c $'\tskipped\t' "$RESULTS" 2>/dev/null || true)
+SKIP=$(grep -c $'\tskipped\t'           "$RESULTS" 2>/dev/null || true)
+SKIP_DECL=$(grep -c $'\tskipped-declarado\t' "$RESULTS" 2>/dev/null || true)
 PASS=${PASS:-0}; FAIL=${FAIL:-0}; SKIP=${SKIP:-0}
 
 if [ "$FAIL" -gt 0 ]; then
   OVERALL="falla"
-elif [ "$SKIP" -gt 0 ]; then
+elif [ "$SKIP" -gt 0 ] || [ "$SKIP_DECL" -gt 0 ]; then
+  # Las dos clases de saltado dan 'parcial': en los dos casos hay algo sin
+  # verificar, y decir 'ok' sería la mentira que este contrato evita. La
+  # diferencia solo la usa --strict.
   OVERALL="parcial"
 else
   OVERALL="ok"
@@ -227,7 +236,7 @@ PYEOF
 
 echo ""
 echo "════════════════════════════════════════════════════"
-echo "  Verificación: $OVERALL — $PASS ok, $FAIL fallando, $SKIP saltados"
+echo "  Verificación: $OVERALL — $PASS ok, $FAIL fallando, $((SKIP + SKIP_DECL)) saltados"
 echo "  Commit: $(git rev-parse --short HEAD 2>/dev/null || echo '?')  Branch: $(git branch --show-current 2>/dev/null || echo '?')"
 echo "  $(date '+%Y-%m-%d %H:%M:%S')"
 echo "════════════════════════════════════════════════════"
@@ -241,9 +250,21 @@ case "$OVERALL" in
   parcial)
     echo ""
     echo "⚠️  Hay pasos sin verificar. Esto NO es verde:"
-    grep $'\tskipped\t' "$RESULTS" 2>/dev/null | cut -f1 | sed 's/^/     - /'
-    echo "   Instala la herramienta que falta o decláralo en .workflow/verify.conf."
-    $STRICT && exit 1
+    if [ "$SKIP" -gt 0 ]; then
+      echo "   Por falta de herramienta:"
+      grep $'\tskipped\t' "$RESULTS" 2>/dev/null | cut -f1 | sed 's/^/     - /'
+      echo "   Instálala, o decláralo en .workflow/verify.conf con su razón."
+    fi
+    if [ "$SKIP_DECL" -gt 0 ]; then
+      echo "   Declarados sin comando en verify.conf (excepción registrada):"
+      grep $'\tskipped-declarado\t' "$RESULTS" 2>/dev/null | cut -f1 | sed 's/^/     - /'
+    fi
+    # --strict tumba lo que quedó sin correr por accidente. Lo que el proyecto
+    # declaró vacío ya es una decisión escrita y revisable: convertirla en fallo
+    # obligaría a borrar el paso, y entonces nadie sabría que falta.
+    if $STRICT && [ "$SKIP" -gt 0 ]; then
+      exit 1
+    fi
     exit 0
     ;;
   *)

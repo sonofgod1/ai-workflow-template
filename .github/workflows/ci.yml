@@ -269,13 +269,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Estos dos no cuestan nada si el proyecto no los usa, y sin ellos
+      # CI_SETUP no tiene con qué instalar dependencias.
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.x' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
       - name: Contrato de verificación
         run: |
           if [ ! -f .workflow/verify.conf ]; then
             echo "⚠️  Sin .workflow/verify.conf; los jobs por stack cubren este repo."
             exit 0
           fi
+
+          # El runner llega vacío: sin dependencias, sin linters, sin node_modules.
+          # verify.sh no puede adivinar cómo prepararlos, así que el proyecto lo
+          # declara en CI_SETUP. Sin esto, un repo con dependencias veía fallar sus
+          # cinco pasos en cuatro segundos y el job no significaba nada.
+          CI_SETUP=()
+          # shellcheck source=/dev/null
+          . .workflow/verify.conf
+          if [ ${#CI_SETUP[@]} -eq 0 ]; then
+            echo "ℹ️  Sin CI_SETUP en verify.conf: se asume que los pasos no necesitan"
+            echo "   preparación. Si tu proyecto tiene dependencias, declaralas ahí."
+          fi
+          for cmd in "${CI_SETUP[@]}"; do
+            echo "── setup: $cmd"
+            eval "$cmd" || { echo "❌ falló la preparación"; exit 1; }
+          done
+
           bash .workflow/verify.sh --strict
+        shell: bash
 
   # ── Dependencias vulnerables ────────────────────────────────────────────────
   # Antes esto era un ítem del checklist de /security que alguien tenía que
