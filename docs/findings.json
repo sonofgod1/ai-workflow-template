@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "hallazgos": [
+    {
+      "id": "B1",
+      "severidad": "blocker",
+      "titulo": "La protección de archivos se saltaba con una redirección de Bash",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-08-enforcement.md",
+      "archivos": [
+        ".claude/hooks/check-protected.sh",
+        ".claude/hooks/check-bash.sh"
+      ],
+      "feature": null,
+      "creado": "2026-09-08",
+      "resuelto": null,
+      "commit": null,
+      "nota": null
+    },
+    {
+      "id": "I1",
+      "severidad": "important",
+      "titulo": "Las restricciones de fase eran solo texto",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-08-enforcement.md",
+      "archivos": [
+        ".claude/commands/review.md",
+        ".claude/commands/test.md"
+      ],
+      "feature": null,
+      "creado": "2026-09-08",
+      "resuelto": null,
+      "commit": null,
+      "nota": null
+    },
+    {
+      "id": "I2",
+      "severidad": "important",
+      "titulo": "\"Implementación completada\" no exigía evidencia",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-08-enforcement.md",
+      "archivos": [
+        ".claude/commands/implement.md"
+      ],
+      "feature": null,
+      "creado": "2026-09-08",
+      "resuelto": null,
+      "commit": null,
+      "nota": null
+    },
+    {
+      "id": "I3",
+      "severidad": "important",
+      "titulo": "check-bash.sh bloquea comandos que solo mencionan un patrón peligroso",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-08-enforcement.md",
+      "archivos": [
+        ".claude/hooks/check-bash.sh:20"
+      ],
+      "feature": null,
+      "creado": "2026-09-08",
+      "resuelto": null,
+      "commit": null,
+      "nota": null
+    },
+    {
+      "id": "I4",
+      "severidad": "important",
+      "titulo": "findings.py aceptaba refs simbólicas al cerrar un hallazgo",
+      "estado": "descartado",
+      "origen": "docs/reviews/2026-09-08-enforcement.md",
+      "archivos": [
+        ".workflow/findings.py"
+      ],
+      "feature": null,
+      "creado": "2026-09-08",
+      "resuelto": null,
+      "commit": null,
+      "nota": "Arreglado en la misma sesión en que se introdujo: resolver_commit() exige un hash de 7-40 hex y rechaza HEAD, branches y tags."
+    }
+  ]
+}
