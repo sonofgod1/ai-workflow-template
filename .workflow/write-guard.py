@@ -192,6 +192,13 @@ def matches_any(path, patterns):
 
 
 def load_protected(root):
+    """Devuelve (patrones, excepciones).
+
+    Una excepción ('!ruta') anula la protección aunque un patrón más amplio la
+    cubra: '.git/**' protege el repositorio, pero /git-setup tiene que poder
+    instalar los hooks en .git/hooks/.
+    """
+    excepciones = []
     entries = []
     # La lista local, si existe, reemplaza a la sincronizada. Ver el comentario
     # en check-protected.sh: sirve para repositorios donde los archivos que
@@ -202,11 +209,15 @@ def load_protected(root):
     try:
         for line in path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
-            if line and not line.startswith("#"):
-                entries.append((line.lstrip("+"), line.startswith("+")))
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("!"):
+                excepciones.append(line[1:])
+                continue
+            entries.append((line.lstrip("+"), line.startswith("+")))
     except OSError:
         pass
-    return entries
+    return entries, excepciones
 
 
 def load_phase(root):
@@ -272,12 +283,16 @@ def main():
     if not targets:
         return 0
 
-    protected = load_protected(root)
+    protected, excepciones = load_protected(root)
     phase = load_phase(root)
 
     for target in targets:
         rel = relativize(root, target)
         if rel is None or not rel:
+            continue
+
+        # Una excepción explícita gana sobre cualquier patrón.
+        if matches_any(rel, excepciones):
             continue
 
         # 1. Archivos protegidos — solo para Bash: Write/Edit ya los cubre

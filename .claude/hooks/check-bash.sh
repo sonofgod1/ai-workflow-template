@@ -118,14 +118,27 @@ def strip_heredocs(text):
 cmd = strip_heredocs(cmd)
 
 protected = []
+excepciones = []
 try:
     with open(sys.argv[1], encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
-            if line and not line.startswith("#"):
+            if not line or line.startswith("#"):
+                continue
+            # '!' = excepción: anula la protección de un patrón más amplio.
+            if line.startswith("!"):
+                excepciones.append(line[1:])
+            else:
                 protected.append(line.lstrip("+"))
 except OSError:
     raise SystemExit(0)
+
+def exento(rel):
+    for pattern in excepciones:
+        base = pattern.rstrip("/*")
+        if fnmatch.fnmatch(rel, pattern) or rel == base or rel.startswith(base + "/"):
+            return True
+    return False
 
 VERBS = ("rm", "shred", "truncate", "mv")
 
@@ -150,7 +163,7 @@ for piece in re.split(r"[;&|]+|\n", cmd):
         # lstrip("./") quitaría el punto de ".env" y de ".claude/": hay que
         # recortar solo el prefijo "./" literal.
         rel = re.sub(r"^(\./)+", "", arg).rstrip("/")
-        if not rel:
+        if not rel or exento(rel):
             continue
         for pattern in protected:
             base = pattern.rstrip("/*")

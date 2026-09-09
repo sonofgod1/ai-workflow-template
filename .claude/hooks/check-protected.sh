@@ -147,8 +147,17 @@ claude_md_policy() {
 
 CREATE_ONLY=""
 
+# Primera pasada: las excepciones ('!') ganan sobre cualquier patrón.
 while IFS= read -r pattern; do
-    [[ "$pattern" =~ ^#.*$ || -z "$pattern" ]] && continue
+    [[ "$pattern" == '!'* ]] || continue
+    pattern="${pattern#!}"
+    if [[ "$REL_PATH" == $pattern || "$FILE_PATH" == $pattern ]]; then
+        exit 0
+    fi
+done < "$PROTECTED_FILE"
+
+while IFS= read -r pattern; do
+    [[ "$pattern" =~ ^#.*$ || -z "$pattern" || "$pattern" == '!'* ]] && continue
 
     # Prefijo '+': la ruta admite archivos nuevos, no modificar los existentes.
     allow_create=false
