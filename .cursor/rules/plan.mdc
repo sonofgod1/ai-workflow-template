@@ -173,11 +173,15 @@ la versión anterior de la aplicación mientras dura el despliegue. Si no hay: "
 
 ## Tests que deben existir al terminar
 - [ ] [test concreto: qué entrada, qué se espera]
-- [ ] [al menos uno que falle hoy y pase después: el que prueba que el fix sirve]
+- [ ] **El test de regresión**: [ruta::nombre] — falla hoy, pasa después.
+      Nómbralo con la entrada exacta que reproduce el fallo, no una cómoda: es lo
+      que `findings.py cerrar --probar-regresion` va a comprobar contra el árbol
+      sin el arreglo, y si pasa sin él, el cierre se rechaza.
 
 ## Criterio de terminado
 - `bash .workflow/verify.sh` en `ok`
 - Los tests de arriba existen y pasan
+- El test de regresión falla sin el arreglo (`check-regression.py` en `confirmada`)
 - [cualquier otra condición concreta]
 
 ## Plan de prueba manual

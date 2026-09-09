@@ -306,8 +306,8 @@ git commit -m "[tipo]([ID]): [descripción corta de qué se arregló]"
 git add [ruta/archivo(s) de docs/reviews afectados]
 git commit -m "docs: registrar [ID nuevo] ([descripción de una línea])"
 
-# Para marcar este fix como completado en decisiones.md
-git add [ruta/decisiones.md u otros docs de tracking tocados]
+# El índice y decisiones.md (que findings.py regeneró solo, no lo edites)
+git add docs/findings.json docs/reviews/decisiones.md
 git commit -m "docs: marcar [ID] como completado"
 
 Ejemplos concretos según el tipo de cambio:
@@ -357,13 +357,13 @@ El usuario va a seguir este ciclo. No lo apresures ni lo saltes:
       --test [ruta::nombre] --probar-regresion
     (falla si el hash no existe: se cierra DESPUÉS de commitear, nunca antes.
      Y falla si el test pasa sin el arreglo: entonces no cubre nada)
-11. Marcar ID como completado en docs/reviews/decisiones.md con el mismo hash
-12. git add docs/findings.json docs/reviews/decisiones.md
-13. git commit -m "docs: marcar [ID] como completado"
-14. git checkout develop && git merge feature/[slug] --no-ff
-15. git branch -d feature/[slug]
-16. git push origin develop
-17. bash .workflow/phase.sh clear                ← liberar la fase
+    (decisiones.md se regenera solo: no hay paso manual que marcarlo)
+11. git add docs/findings.json docs/reviews/decisiones.md
+12. git commit -m "docs: marcar [ID] como completado"
+13. git checkout develop && git merge feature/[slug] --no-ff
+14. git branch -d feature/[slug]
+15. git push origin develop
+16. bash .workflow/phase.sh clear                ← liberar la fase
 ```
 
 **No declares la feature como lista hasta que el usuario confirme que probó y pasó.**

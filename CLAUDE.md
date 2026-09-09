@@ -410,7 +410,7 @@ docs/
 │   └── YYYY-MM-DD-[nombre-slug].md
 ├── reviews/           ← Reviews de código con hallazgos numerados
 │   ├── YYYY-MM-DD-[nombre].md      ← Review completa
-│   └── YYYY-MM-DD-decisiones.md   ← Triaje y estado de cada hallazgo
+│   └── decisiones.md               ← GENERADO desde findings.json, no editar
 ├── changes/           ← Cambios post-deploy (ver /change), uno por modificación
 │   └── YYYY-MM-DD-[slug].md
 ├── tech-debt.md       ← Deuda técnica con IDs (TD-001, TD-002...)
@@ -488,10 +488,29 @@ Los tres estados de `test` que quedan en el índice — `probado`, `declarado`,
 hallazgo que se cerró antes de que esta regla existiera:
 `python3 .workflow/findings.py test-exento I1 --razon "..."`.
 
-### Estado de hallazgos en decisiones.md
+### `docs/reviews/decisiones.md` es generado, no escrito
 
-- `[ ]` o sin ✅ — pendiente
-- `✅ B1 — fixed in abc1234` — completado con hash del commit
+Lo produce `findings.py` en cada `add`, `cerrar` o `estado`. **No se edita a mano:**
+cualquier cambio directo se pierde en la siguiente mutación del índice, y CI lo
+rechaza con `findings.py decisiones --check`.
+
+Mantenerlo al día era un paso manual del ciclo, y un paso manual que copia un dato
+que ya existe en otro sitio no es documentación: es una segunda fuente de verdad
+esperando divergir. El markdown ahora muestra el estado, el commit y el estado del
+test de cada hallazgo, agrupados por severidad.
+
+La prosa no desaparece, cambia de sitio:
+
+| Qué | Dónde |
+|-----|-------|
+| Síntoma, por qué importa, sugerencia | el reporte de review, `docs/reviews/*.md` |
+| Por qué se descartó, por qué se posterga | la nota del hallazgo (`--nota`) |
+| Estado, commit, test, severidad | el índice → `decisiones.md`, generado |
+
+```bash
+python3 .workflow/findings.py decisiones           # regenerar
+python3 .workflow/findings.py decisiones --check   # lo que corre en CI
+```
 
 ---
 
@@ -514,12 +533,12 @@ hallazgo que se cerró antes de que esta regla existiera:
 10. git commit -m "fix(ID): descripción"         ← código + test, juntos
 11. python3 .workflow/findings.py cerrar [ID] --commit [hash del paso 10] \
       --test [ruta::nombre] --probar-regresion        ← prueba que el test sirve
-12. Marcar ID como completado en docs/reviews/decisiones.md con el mismo hash
-13. git add docs/findings.json docs/reviews/decisiones.md
-14. git commit -m "docs: marcar [ID] como completado"  ← docs separado del código
-15. git checkout develop && git merge feature/[slug] --no-ff
-16. git branch -d feature/[slug]
-17. git push origin develop
+    (decisiones.md se regenera solo: no hay paso manual que marcarlo)
+12. git add docs/findings.json docs/reviews/decisiones.md
+13. git commit -m "docs: marcar [ID] como completado"  ← docs separado del código
+14. git checkout develop && git merge feature/[slug] --no-ff
+15. git branch -d feature/[slug]
+16. git push origin develop
 ```
 
 **Commit por intención:** código en un commit, docs en otro. Nunca mezclar.

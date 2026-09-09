@@ -159,17 +159,28 @@ tal cual: "ninguna".]
     --titulo "..." --origen [ruta del reporte o del plan]
 O "ninguno".]
 
+### Test de regresión
+[Ruta::nombre del test que el plan pidió, y si falla sin el arreglo. Si el plan no
+pedía ninguno y el cambio tiene comportamiento observable, dilo: es un hueco del
+plan, no algo que resuelvas por tu cuenta ampliando el scope.
+
+Si el cambio no tiene comportamiento que ejercitar (copy, README, CI), nómbralo
+aquí con su razón: el cierre irá con `--sin-test --razon "..."`.]
+
 ### Plan de prueba manual
-[Copiado del plan, para que el usuario lo recorra.]
+[Copiado del plan, para que el usuario lo recorra: muestreo, no pasada completa —
+el test de arriba es el arnés.]
 
 ### Commits sugeridos
 # Código — git add explícito, nunca `git add .`
 git add [archivos reales tocados]
 git commit -m "[tipo]([scope]): [descripción]"
 
-# Cerrar el hallazgo, con el hash real del commit de arriba
-python3 .workflow/findings.py cerrar [ID] --commit [hash]
-git add docs/findings.json
+# Cerrar el hallazgo, con el hash real del commit de arriba y el test que lo cubre
+python3 .workflow/findings.py cerrar [ID] --commit [hash] \
+  --test [ruta::nombre] --probar-regresion
+# decisiones.md lo regenera findings.py: se agrega, no se edita
+git add docs/findings.json docs/reviews/decisiones.md
 git commit -m "docs: marcar [ID] como completado"
 
 # Mergear

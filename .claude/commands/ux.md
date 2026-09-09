@@ -117,7 +117,7 @@ Si el argumento es "todo el frontend", recorre los flujos principales en este or
 - [Qué se hizo bien — específico, no genérico]
 ```
 
-**IDs obligatorios.** Cada hallazgo debe tener un ID (B1, I3, S5) para poder referenciarlo en `/implement` y en el archivo de decisiones.
+**IDs obligatorios.** Cada hallazgo debe tener un ID (B1, I3, S5) para poder referenciarlo en `/implement` y en `docs/reviews/decisiones.md`, que `findings.py` genera solo.
 
 ### 4. Guardar el reporte en disco
 

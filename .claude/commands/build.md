@@ -177,7 +177,8 @@ git commit -m "[tipo]([scope]): [descripción]"
 # Cerrar el hallazgo, con el hash real del commit de arriba y el test que lo cubre
 python3 .workflow/findings.py cerrar [ID] --commit [hash] \
   --test [ruta::nombre] --probar-regresion
-git add docs/findings.json
+# decisiones.md lo regenera findings.py: se agrega, no se edita
+git add docs/findings.json docs/reviews/decisiones.md
 git commit -m "docs: marcar [ID] como completado"
 
 # Mergear

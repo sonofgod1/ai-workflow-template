@@ -220,7 +220,9 @@ Los hallazgos se numeran con IDs fijos para poder referenciarlos en commits, doc
 | `TD-001...` | Deuda técnica — anotada, no urgente | Al inicio del siguiente sprint |
 | `B1.1` | Sub-hallazgo descubierto al arreglar B1 | Junto con el padre |
 
-Los hallazgos viven en `docs/reviews/`. Cada review tiene su archivo de decisiones con el estado de cada ID.
+Los hallazgos viven en `docs/reviews/`. El estado de cada ID está en
+`docs/reviews/decisiones.md`, que **se genera** desde `docs/findings.json`: no se
+edita a mano y CI comprueba que esté al día.
 
 ---
 
@@ -604,6 +606,25 @@ motivo equivocado. Enlaza `node_modules`/`.venv` del árbol principal por lo mis
 tiene test ni exención, y también si el test con el que se cerró **ya no existe**
 — ese borrado dejaría el índice afirmando una cobertura que no está.
 
+### `decisiones.md` se genera, no se escribe
+
+`findings.py` reescribe `docs/reviews/decisiones.md` en cada `add`, `cerrar` o
+`estado`. Antes eran dos pasos manuales del ciclo — cerrar en el índice y marcarlo
+en el markdown — y el segundo se olvidaba, así que el estado en prosa se iba
+separando del real. Un paso manual que copia un dato que ya existe en otro sitio no
+es documentación: es una segunda fuente de verdad esperando divergir.
+
+```bash
+python3 .workflow/findings.py decisiones           # regenerar
+python3 .workflow/findings.py decisiones --check   # lo que corre en CI
+```
+
+El archivo lleva su aviso de generado en la cabecera y **no tiene fecha de
+generación**: una fecha de "hoy" haría fallar `--check` al día siguiente sin que
+nadie hubiera cambiado nada. La prosa sigue viva en el reporte de review y en la
+nota de cada hallazgo (`--nota`), que es lo que el markdown muestra en la columna
+de razón.
+
 ---
 
 ## Estructura
@@ -663,7 +684,7 @@ mi-proyecto/
 │   │   └── YYYY-MM-DD-[slug].md
 │   ├── reviews/                       ← Hallazgos de /review, /security, /ux
 │   │   ├── YYYY-MM-DD-[nombre].md
-│   │   └── YYYY-MM-DD-decisiones.md
+│   │   └── decisiones.md              ← GENERADO desde findings.json
 │   ├── changes/                       ← Registro de /change (post-deploy)
 │   │   └── YYYY-MM-DD-[slug].md
 │   ├── tech-debt.md                   ← Deuda técnica con IDs (TD-001, TD-002...)

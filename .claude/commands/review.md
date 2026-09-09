@@ -88,7 +88,7 @@ Si existe `graphify-out/GRAPH_REPORT.md`, léelo antes de revisar. Los god nodes
    - [Qué se hizo bien — específico, no genérico]
    ```
 
-   **IDs obligatorios.** Cada hallazgo debe tener un ID (B1, I3, S5) para poder referenciarlo en `/implement` y en el archivo de decisiones.
+   **IDs obligatorios.** Cada hallazgo debe tener un ID (B1, I3, S5) para poder referenciarlo en `/implement` y en `docs/reviews/decisiones.md`, que `findings.py` genera solo.
 
 5. **Categorías a revisar:**
    - Correctitud: bugs lógicos, off-by-one, concurrencia

@@ -81,6 +81,8 @@ detecta la tensión, la nombra, y la devuelve.
 
 15. **No se despliega con vulnerabilidades conocidas sin excepción registrada.** `bash .workflow/audit-deps.sh` corre en CI y bloquea. Si no hay parche disponible, el riesgo aceptado se registra como hallazgo con su razón: una excepción sin registrar se vuelve permanente y nadie recuerda por qué está ahí.
 
+16. **Todo hallazgo cerrado deja un test que falla sin el arreglo.** `findings.py cerrar` exige `--test` o una exención con `--razon`. Un test escrito sobre el código ya arreglado pasa siempre y no demuestra nada: `--probar-regresion` monta el árbol sin el arreglo y comprueba que ahí el test falla. Sin esto, el humano es el único arnés de pruebas del proyecto y cada hallazgo cerrado cuesta una sesión suya.
+
 ---
 
 ## Qué se hace cumplir con código y qué depende de ti
@@ -445,7 +447,7 @@ docs/
 │   └── YYYY-MM-DD-[nombre-slug].md
 ├── reviews/           ← Reviews de código con hallazgos numerados
 │   ├── YYYY-MM-DD-[nombre].md      ← Review completa
-│   └── YYYY-MM-DD-decisiones.md   ← Triaje y estado de cada hallazgo
+│   └── decisiones.md               ← GENERADO desde findings.json, no editar
 ├── changes/           ← Cambios post-deploy (ver @change), uno por modificación
 │   └── YYYY-MM-DD-[slug].md
 ├── tech-debt.md       ← Deuda técnica con IDs (TD-001, TD-002...)
@@ -476,17 +478,76 @@ python3 .workflow/findings.py siguiente-id --severidad blocker
 python3 .workflow/findings.py add --id B3 --severidad blocker \
   --titulo "..." --origen docs/reviews/2026-01-15-api.md \
   --archivos backend/api.py:88
-python3 .workflow/findings.py cerrar B3 --commit a1b2c3d
+python3 .workflow/findings.py cerrar B3 --commit a1b2c3d \
+  --test backend/tests/test_api.py::test_put_es_atomico --probar-regresion
 ```
 
 `cerrar` falla si el hash no existe en el repositorio: un hallazgo se cierra
 **después** de commitear, nunca antes. Esa es la comprobación que antes no hacía
 nadie, y por la que el estado en markdown se iba separando de la realidad.
 
-### Estado de hallazgos en decisiones.md
+### El test es parte del cierre, no un extra
 
-- `[ ]` o sin ✅ — pendiente
-- `✅ B1 — fixed in abc1234` — completado con hash del commit
+`cerrar` no acepta un hallazgo sin test. Hay dos salidas legítimas:
+
+```bash
+# Con test, y comprobando que sirve
+python3 .workflow/findings.py cerrar B3 --commit a1b2c3d \
+  --test backend/tests/test_api.py::test_put_es_atomico --probar-regresion
+
+# Sin test, con la razón registrada
+python3 .workflow/findings.py cerrar S7 --commit a1b2c3d \
+  --sin-test --razon "cambio de copy en el aviso de error, sin comportamiento que ejercitar"
+```
+
+`--probar-regresion` es lo que le da sentido a todo esto. Un test escrito después
+del arreglo, sobre el código ya arreglado, **pasa siempre**: la suite queda verde y
+nadie sospecha que ese test no habría atrapado nada. El chequeo monta el árbol del
+commit padre en un worktree aparte, le trae encima solo los archivos de test del
+arreglo, y corre el test ahí:
+
+| Resultado | Qué significa | Qué hace `cerrar` |
+|-----------|---------------|-------------------|
+| `confirmada` | el test falla sin el arreglo | cierra como `probado` |
+| `no-prueba-nada` | el test pasa sin el arreglo | **rechaza el cierre**: el hallazgo sigue abierto |
+| `no-verificada` | no se pudo correr (falta el runner, no recolectó) | cierra como `declarado` y lo dice: no es verde |
+
+```bash
+python3 .workflow/check-regression.py --commit a1b2c3d \
+  --test tests/test_api.py::test_put [--cmd "pytest -x"]
+```
+
+Se puede correr solo, antes de cerrar. Códigos de salida: `0` confirmada,
+`1` el test no prueba nada, `2` sin verificar.
+
+Los tres estados de `test` que quedan en el índice — `probado`, `declarado`,
+`exento` — los resume `validate --exigir-test`, que es lo que corre en CI. Para un
+hallazgo que se cerró antes de que esta regla existiera:
+`python3 .workflow/findings.py test-exento I1 --razon "..."`.
+
+### `docs/reviews/decisiones.md` es generado, no escrito
+
+Lo produce `findings.py` en cada `add`, `cerrar` o `estado`. **No se edita a mano:**
+cualquier cambio directo se pierde en la siguiente mutación del índice, y CI lo
+rechaza con `findings.py decisiones --check`.
+
+Mantenerlo al día era un paso manual del ciclo, y un paso manual que copia un dato
+que ya existe en otro sitio no es documentación: es una segunda fuente de verdad
+esperando divergir. El markdown ahora muestra el estado, el commit y el estado del
+test de cada hallazgo, agrupados por severidad.
+
+La prosa no desaparece, cambia de sitio:
+
+| Qué | Dónde |
+|-----|-------|
+| Síntoma, por qué importa, sugerencia | el reporte de review, `docs/reviews/*.md` |
+| Por qué se descartó, por qué se posterga | la nota del hallazgo (`--nota`) |
+| Estado, commit, test, severidad | el índice → `decisiones.md`, generado |
+
+```bash
+python3 .workflow/findings.py decisiones           # regenerar
+python3 .workflow/findings.py decisiones --check   # lo que corre en CI
+```
 
 ---
 
@@ -499,20 +560,22 @@ nadie, y por la que el estado en markdown se iba separando de la realidad.
 1. @implement [ID]
 2. Agente muestra plan (componentes del proyecto separados según "Tipo de proyecto")
 3. Tú apruebas el plan
-4. Agente implementa
+4. Agente implementa el arreglo Y el test que falla sin el arreglo
 5. Agente corre bash .workflow/verify.sh y pega la salida    ← evidencia, no promesa
-6. Tú pruebas manualmente todos los casos del plan
+6. Tú revisas el test: ¿ejercita el caso que fallaba, con los datos que fallaban?
+   Muestreo, no pasada completa: el test es el arnés, no tú.
 7. Si algo falla → reportas al agente → ajusta o registra nuevo hallazgo
 8. git status → verificar archivos (sin .db, sin tsbuildinfo, sin graphify-out/)
 9. git add explícito (NUNCA git add .)
-10. git commit -m "fix(ID): descripción"         ← código
-11. python3 .workflow/findings.py cerrar [ID] --commit [hash del paso 10]
-12. Marcar ID como completado en docs/reviews/decisiones.md con el mismo hash
-13. git add docs/findings.json docs/reviews/decisiones.md
-14. git commit -m "docs: marcar [ID] como completado"  ← docs separado del código
-15. git checkout develop && git merge feature/[slug] --no-ff
-16. git branch -d feature/[slug]
-17. git push origin develop
+10. git commit -m "fix(ID): descripción"         ← código + test, juntos
+11. python3 .workflow/findings.py cerrar [ID] --commit [hash del paso 10] \
+      --test [ruta::nombre] --probar-regresion        ← prueba que el test sirve
+    (decisiones.md se regenera solo: no hay paso manual que marcarlo)
+12. git add docs/findings.json docs/reviews/decisiones.md
+13. git commit -m "docs: marcar [ID] como completado"  ← docs separado del código
+14. git checkout develop && git merge feature/[slug] --no-ff
+15. git branch -d feature/[slug]
+16. git push origin develop
 ```
 
 **Commit por intención:** código en un commit, docs en otro. Nunca mezclar.
