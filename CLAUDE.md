@@ -120,6 +120,20 @@ VERIFY_STEPS=(
 )
 ```
 
+### El código de `.workflow/` no se lintea aquí
+
+`.workflow/` es código de la plantilla, vendorizado en tu repositorio. Su lint vive
+en el repositorio de la plantilla, así que **excluílo de tu configuración**:
+
+```toml
+# ruff.toml  (o [tool.ruff] en pyproject.toml)
+extend-exclude = [".workflow/"]
+```
+
+Sin eso vas a ver errores que no son tuyos — y arreglarlos en tu copia los perdería
+en el siguiente `sync-workflow.sh`. Si encontrás un error real ahí, es un hallazgo
+de la plantilla, no de tu proyecto.
+
 Verificar no reemplaza probar: la verificación demuestra que no rompiste lo que ya
 estaba cubierto, la prueba manual demuestra que lo nuevo hace lo que se pidió.
 

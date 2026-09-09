@@ -559,6 +559,20 @@ bash .workflow/phase.sh clear    # liberar
 Una fase olvidada caduca sola a las 12 horas: el enforcement no puede dejar el
 repo trabado.
 
+### El código de `.workflow/` no se lintea aquí
+
+`.workflow/` es código de la plantilla, vendorizado en tu repositorio. Su lint vive
+en el repositorio de la plantilla, así que **excluílo de tu configuración**:
+
+```toml
+# ruff.toml  (o [tool.ruff] en pyproject.toml)
+extend-exclude = [".workflow/"]
+```
+
+Sin eso vas a ver errores que no son tuyos — y arreglarlos en tu copia los perdería
+en el siguiente `sync-workflow.sh`. Si encontrás un error real ahí, es un hallazgo
+de la plantilla, no de tu proyecto.
+
 ### `.workflow/findings.py` — el índice de hallazgos
 
 Los reportes en markdown llevan la prosa. `docs/findings.json` lleva lo
