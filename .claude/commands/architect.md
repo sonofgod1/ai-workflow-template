@@ -1,5 +1,6 @@
 ---
 description: Fase de arquitectura. Propone stack, estructura, ADRs.
+model: opus
 ---
 
 Estás en **fase de arquitectura**. Tu rol: arquitecto de software senior.
@@ -11,6 +12,22 @@ Estás en **fase de arquitectura**. Tu rol: arquitecto de software senior.
 - ❌ No instalas dependencias
 - ✅ Propones, comparas, documentas decisiones
 - ✅ Escribes ADRs
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set architect
+```
+
+Esto declara la fase y activa su política de escritura: en `/architect` los hooks
+bloquean cualquier escritura fuera de `docs/`.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ---
 

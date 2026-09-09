@@ -50,10 +50,18 @@ echo "🤖 Editor seleccionado: $EDITOR"
 # Archivos y carpetas a sincronizar según el editor
 # sync-workflow.sh y generate-cursor-rules.sh entran aquí: sin ellos, este
 # script nunca podía repartir sus propias mejoras a proyectos ya instalados.
+# Las herramientas de .workflow/ se listan una por una a propósito: la carpeta
+# también guarda estado del proyecto (.phase.json, .last-verify.json) y su
+# configuración de verificación (verify.conf). Sincronizar la carpeta entera
+# pisaría los pasos de verificación que cada proyecto definió para sí mismo.
 SYNC_PATHS=("git-hooks" ".github" "sync-workflow.sh")
+SYNC_PATHS+=(".workflow/verify.sh" ".workflow/phase.sh")
+SYNC_PATHS+=(".workflow/write-guard.py" ".workflow/findings.py")
+SYNC_PATHS+=(".workflow/audit-deps.sh" ".workflow/check-migrations.py")
+SYNC_PATHS+=(".workflow/danger-scan.py" ".workflow/tests")
 
 if [[ "$EDITOR" == "claude" || "$EDITOR" == "all" ]]; then
-    SYNC_PATHS+=(".claude/commands" ".claude/hooks" ".claude/settings.json" ".claude/protected.txt")
+    SYNC_PATHS+=(".claude/commands" ".claude/hooks" ".claude/agents" ".claude/settings.json" ".claude/protected.txt")
     SYNC_PATHS+=("generate-cursor-rules.sh")
 fi
 

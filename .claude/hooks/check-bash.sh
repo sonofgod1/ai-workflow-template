@@ -18,32 +18,63 @@ except Exception:
 
 [ -z "$COMMAND" ] && exit 0
 
-DANGEROUS_PATTERNS=(
-    'rm[[:space:]]+-rf?[[:space:]]+/'
-    'rm[[:space:]]+-rf?[[:space:]]+\*'
-    'rm[[:space:]]+-rf?[[:space:]]+~'
-    'git[[:space:]]+push.*--force'
-    'git[[:space:]]+push.*-f([[:space:]]|$)'
-    'git[[:space:]]+reset[[:space:]]+--hard'
-    'git[[:space:]]+clean[[:space:]]+-fd'
-    'DROP[[:space:]]+TABLE'
-    'DROP[[:space:]]+DATABASE'
-    'TRUNCATE'
-    'mkfs\.'
-    'dd[[:space:]]+if=.*of=/dev'
-    ':(){.*};:'
-    '>/dev/sda'
-    'chmod[[:space:]]+-R[[:space:]]+777'
-)
+# ─── Comandos destructivos ────────────────────────────────────────────────────
+#
+# Antes esto era un bucle de regex sobre el texto crudo del comando: cualquier
+# comando que solo MENCIONARA un patrón dentro de una cadena o un heredoc quedaba
+# bloqueado. Documentar esta misma capa de seguridad era imposible desde el agente,
+# y el camino de escape natural era que el usuario escribiera "confirmo" por
+# costumbre — que es como una barrera deja de valer algo (hallazgo I3).
+#
+# danger-scan.py distingue invocación de mención mirando la posición de comando:
+# un borrado recursivo en posición de comando bloquea; el mismo texto dentro de un
+# `echo` pasa, con aviso.
 
-for pattern in "${DANGEROUS_PATTERNS[@]}"; do
-    if [[ "$COMMAND" =~ $pattern ]]; then
-        echo "🛑 COMANDO PELIGROSO DETECTADO: $COMMAND" >&2
-        echo "Patrón: $pattern" >&2
-        echo "Si realmente quieres ejecutar esto, pide al usuario que escriba 'confirmo' explícitamente." >&2
+ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+ROOT=$(cd "$ROOT" 2>/dev/null && pwd -P || echo "$ROOT")
+SCAN="$ROOT/.workflow/danger-scan.py"
+
+USAR_RESPALDO=yes
+if [ -f "$SCAN" ] && command -v python3 > /dev/null 2>&1; then
+    USAR_RESPALDO=no
+    SCAN_CODE=0
+    printf '%s' "$INPUT" | python3 "$SCAN" || SCAN_CODE=$?
+    if [ "$SCAN_CODE" -eq 2 ]; then
         exit 2
     fi
-done
+fi
+
+if [ "$USAR_RESPALDO" = "yes" ]; then
+    # Sin python3 no se puede hacer el análisis fino. Se vuelve al bucle original:
+    # falsos positivos, pero ningún falso negativo. De los dos fallos posibles en un
+    # control de seguridad, este es el aceptable.
+    DANGEROUS_PATTERNS=(
+        'rm[[:space:]]+-rf?[[:space:]]+/'
+        'rm[[:space:]]+-rf?[[:space:]]+\*'
+        'rm[[:space:]]+-rf?[[:space:]]+~'
+        'git[[:space:]]+push.*--force'
+        'git[[:space:]]+push.*-f([[:space:]]|$)'
+        'git[[:space:]]+reset[[:space:]]+--hard'
+        'git[[:space:]]+clean[[:space:]]+-fd'
+        'DROP[[:space:]]+TABLE'
+        'DROP[[:space:]]+DATABASE'
+        'TRUNCATE'
+        'mkfs\.'
+        'dd[[:space:]]+if=.*of=/dev'
+        ':(){.*};:'
+        '>/dev/sda'
+        'chmod[[:space:]]+-R[[:space:]]+777'
+    )
+
+    for pattern in "${DANGEROUS_PATTERNS[@]}"; do
+        if [[ "$COMMAND" =~ $pattern ]]; then
+            echo "🛑 COMANDO PELIGROSO DETECTADO: $COMMAND" >&2
+            echo "Patrón: $pattern (análisis de respaldo: python3 no disponible)" >&2
+            echo "Si realmente quieres ejecutar esto, pide al usuario que escriba 'confirmo'." >&2
+            exit 2
+        fi
+    done
+fi
 
 # ─── Borrar y mover archivos protegidos ───────────────────────────────────────
 #
@@ -51,8 +82,6 @@ done
 # sin esto la regla dura 2 ("nunca borres archivos sin confirmación explícita")
 # no la hacía cumplir nada: `rm -rf docs/contracts/` pasaba sin más.
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-ROOT=$(cd "$ROOT" 2>/dev/null && pwd -P || echo "$ROOT")
 PROTECTED_FILE="$ROOT/.claude/protected.txt"
 
 [ -f "$PROTECTED_FILE" ] || exit 0

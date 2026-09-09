@@ -1,6 +1,7 @@
 ---
 description: Audita la experiencia de usuario del frontend. No escribe código nuevo.
 argument-hint: [flujo, pantalla, o "todo el frontend"]
+model: opus
 ---
 
 Estás en **fase de auditoría UX**. Tu rol: auditor de experiencia de usuario — estricto pero constructivo.
@@ -12,6 +13,22 @@ Objetivo de auditoría: **$ARGUMENTS**
 - ❌ No haces edits — solo reportas
 - ✅ Señalas problemas de experiencia, flujo y consistencia
 - ✅ Ranqueas hallazgos por severidad con el mismo sistema de IDs del proyecto
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set ux
+```
+
+Esto declara la fase y activa su política de escritura: en `/ux` los hooks
+bloquean cualquier escritura fuera de `docs/`.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ---
 
@@ -105,6 +122,33 @@ Si el argumento es "todo el frontend", recorre los flujos principales en este or
 ### 4. Guardar el reporte en disco
 
 Guarda en `docs/reviews/YYYY-MM-DD-ux-[nombre-flujo].md`. No solo lo muestres en chat.
+
+---
+
+## Registrar los hallazgos en el índice
+
+El reporte en markdown lleva la prosa: síntoma, por qué importa, sugerencia. El
+índice lleva lo que hay que poder consultar y validar sin leerlo todo — qué está
+abierto hoy, y si el commit con el que se cerró algo existe de verdad.
+
+Registra **cada** hallazgo del reporte:
+
+```bash
+# id libre para esa severidad
+python3 .workflow/findings.py siguiente-id --severidad blocker
+
+python3 .workflow/findings.py add --id B3 --severidad blocker \
+  --titulo "PUT no es atómico en asignaciones" \
+  --origen docs/reviews/2026-01-15-api.md \
+  --archivos backend/api/asignaciones.py:88
+```
+
+Severidades: `blocker` (B), `important` (I), `suggestion` (S), `debt` (TD).
+
+Consultar en cualquier momento: `python3 .workflow/findings.py list --abiertos`
+
+Si el índice y el markdown se separan, el índice deja de servir. Regístralos en
+el mismo momento en que guardas el reporte, no después.
 
 ---
 

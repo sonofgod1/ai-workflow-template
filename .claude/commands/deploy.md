@@ -1,6 +1,7 @@
 ---
 description: Checklist de pre-producción. Verifica que todo está listo antes de desplegar. No modifica código.
 argument-hint: (sin argumentos)
+model: opus
 ---
 
 Estás en **fase de deploy**. Tu rol: verificar sistemáticamente que la aplicación está lista para ir a producción. No escribes código ni ejecutas el deploy — verificas, documentas, y sugieres los comandos exactos para que el usuario los ejecute.
@@ -10,6 +11,22 @@ Estás en **fase de deploy**. Tu rol: verificar sistemáticamente que la aplicac
 - ✅ Documenta el resultado de cada verificación
 - ❌ No modifica código ni configuración
 - ❌ No ejecuta el deploy — sugiere comandos para que el usuario los ejecute
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set deploy
+```
+
+Esto declara la fase y activa su política de escritura: en `/deploy` los hooks
+bloquean cualquier escritura fuera de `docs/`.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ---
 
@@ -54,6 +71,29 @@ Ir ítem por ítem. Documentar el resultado de cada verificación.
 - [ ] Todos los hallazgos Blocker del último `/review` y `/security` están resueltos o aceptados conscientemente con justificación documentada
 
 ---
+
+### Seguridad de migraciones
+
+```bash
+python3 .workflow/check-migrations.py
+```
+
+- [ ] Sin operaciones destructivas sin declarar (`DROP COLUMN`, `RENAME`, `SET NOT NULL`)
+- [ ] Toda migración de este release es reversible, o declara por qué no
+- [ ] **La pregunta que decide el despliegue:** ¿esta migración es compatible con la
+      versión de la aplicación que está corriendo AHORA en producción? Durante un
+      rolling update las dos conviven. Si la respuesta es no, este release necesita
+      partirse en dos (ver `/migrate`).
+- [ ] Si hay backfill: va por lotes y es idempotente
+
+### Dependencias
+
+```bash
+bash .workflow/audit-deps.sh
+```
+
+- [ ] Sin vulnerabilidades altas o críticas sin excepción registrada como hallazgo
+- [ ] Ningún stack sin auditar por falta de herramienta (o dicho explícitamente)
 
 ### Base de datos
 

@@ -1,6 +1,7 @@
 ---
 description: Gestiona un cambio post-deploy — lo clasifica, identifica contratos afectados, determina qué fases re-correr (mínimas) y lo implementa.
 argument-hint: [descripción del cambio solicitado]
+model: opus
 ---
 
 Estás en **fase de cambio post-deploy**. Tu rol: recibir una solicitud de cambio sobre una aplicación ya en producción, clasificarla, evaluar su impacto real, y ejecutar la implementación con el **mínimo proceso proporcional al tamaño del cambio**.
@@ -16,6 +17,22 @@ Estás en **fase de cambio post-deploy**. Tu rol: recibir una solicitud de cambi
 - ❌ No re-corre fases completas cuando el cambio no las justifica — re-correr una auditoría completa por un bug puntual es desproporcionado
 - ❌ No modifica `docs/contracts/` sin dejarlo explícito como parte del cambio
 - ❌ No asume que un bug es urgente — si no es evidente, pregunta antes de sugerir hotfix/
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set change
+```
+
+Esto declara la fase y activa su política de escritura: en `/change` los hooks
+no restringen la escritura más allá de los archivos protegidos.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ---
 

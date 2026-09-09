@@ -1,0 +1,162 @@
+---
+description: Diseña y revisa un cambio de schema seguro para producción, con la regla expand/migrate/contract. Úsalo con @migrate
+globs:
+alwaysApply: false
+---
+
+Estás en **fase de migración de datos**. Tu rol: quien piensa qué pasa durante el
+despliegue, no solo después.
+
+Cambio de schema: **lo que el usuario haya escrito junto a `@migrate`** — qué cambia en el schema.
+Si no lo indicó, pregúntaselo antes de continuar.
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set migrate
+```
+
+Esto declara la fase y activa su política de escritura: en `@migrate` los hooks
+no restringen la escritura más allá de los archivos protegidos.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
+
+---
+
+## La regla que existe esta fase para hacer cumplir
+
+Durante un despliegue **las dos versiones de la aplicación conviven**: minutos en un
+rolling update, horas si hay que revertir. Una migración que solo es compatible con
+el código nuevo rompe en esa ventana — y rompe en producción, con datos reales, en
+el peor momento posible.
+
+De ahí la regla **expand / migrate / contract**:
+
+| Fase | Qué haces | Quién funciona |
+|------|-----------|----------------|
+| **1. Expand** | Agregar lo nuevo: columna nullable, con default, tabla nueva | código viejo (lo ignora) y nuevo |
+| **2. Migrate** | Backfill de datos + desplegar el código nuevo | los dos |
+| **3. Contract** | Quitar lo viejo — **en un release posterior** | solo el nuevo, que ya es el único |
+
+**El error que esto evita:** hacer 1 y 3 en el mismo release. Es lo natural — "agrego
+la columna nueva y quito la vieja" — y es exactamente lo que rompe.
+
+Renombrar es el caso más traicionero: un `RENAME COLUMN` parece inocente y no lo es.
+Para el código anterior, la columna simplemente desapareció. Se hace en tres pasos:
+agregar la nueva, backfill y escritura doble, y quitar la vieja después.
+
+---
+
+## Paso 1 — Clasificar el cambio
+
+Antes de escribir nada, di en qué fase estás y por qué:
+
+```
+## Cambio de schema: [descripción]
+
+**Fase:** Expand / Migrate / Contract
+**Compatible hacia atrás:** sí / no — [por qué]
+**Si es Contract:** ¿en qué release dejó de usarse lo que voy a quitar, y está ya
+desplegado en producción? [si no lo sabes, PARA y pregunta]
+**Volumen estimado de la tabla:** [filas — determina si el backfill puede ir en una
+sola sentencia o necesita lotes]
+**Reversible:** sí / no — [si no, por qué, y qué respaldo existe]
+```
+
+Si el cambio es Contract y no puedes confirmar que el código anterior ya no está en
+producción, **para**. Esa confirmación no es técnica: es operativa, y la tiene el
+usuario.
+
+---
+
+## Paso 2 — Reglas de escritura de la migración
+
+**Siempre:**
+- Columna nueva → `nullable=True` **o** con `server_default`. Nunca `NOT NULL` sin
+  default sobre una tabla con filas: los INSERT del código anterior no mandan ese campo.
+- Toda migración necesita su vuelta atrás (`downgrade()`, `-- down`, `reverse_code`).
+  Si de verdad es irreversible, decláralo en el archivo con la razón.
+- Índices en tablas grandes: `CREATE INDEX CONCURRENTLY` (PostgreSQL). Sin eso se
+  bloquean las escrituras mientras se construye.
+
+**Backfill:**
+- Un `UPDATE` sin `WHERE` sobre una tabla grande mantiene un lock largo. Hazlo por
+  lotes, con un límite por iteración y un punto de reanudación.
+- El backfill va **separado** del cambio de estructura: si falla a la mitad, no
+  quieres que arrastre el DDL.
+- Debe ser idempotente: si se corta y se reintenta, no puede duplicar ni corromper.
+
+**Lo que nunca va en una migración:**
+- Lógica de negocio que dependa del código de la aplicación (el código cambia, la
+  migración ya corrió).
+- Borrados sin respaldo verificado.
+
+---
+
+## Paso 3 — Verificar antes de dar por buena
+
+```bash
+python3 .workflow/check-migrations.py
+```
+
+Detecta las operaciones que solo son seguras en la fase de contracción y las que
+pueden bloquear una tabla en producción. Si marca algo y **de verdad** estás en la
+fase de contracción, decláralo en el propio archivo de migración:
+
+```
+# expand-contract: contract — la columna dejó de usarse en v1.4.0, desplegado 2026-01-10
+# irreversible: la tabla de auditoría no se puede reconstruir; backup verificado antes
+```
+
+La declaración necesita una razón concreta detrás; una marca suelta no cuenta.
+
+**Y prueba el ciclo completo contra una copia de datos reales:**
+
+```
+1. Aplicar la migración          → debe pasar
+2. Revertirla                    → debe pasar y dejar el schema como estaba
+3. Volver a aplicarla            → debe pasar
+```
+
+Una migración que solo se probó hacia adelante no está probada: el momento en que
+necesitas el rollback es el peor momento para descubrir que no funciona.
+
+---
+
+## Reporte al terminar
+
+```
+## Migración: [descripción]
+
+### Fase
+[Expand / Migrate / Contract] — [por qué]
+
+### Archivos
+- `ruta/migracion` — [qué hace]
+
+### Compatibilidad durante el despliegue
+[Qué pasa con el código anterior mientras esta migración ya corrió. Concreto:
+"el código v1.3 sigue leyendo `fax`, que no se toca; la columna nueva `telefono`
+la ignora por ser nullable".]
+
+### Vuelta atrás
+[El comando concreto. O la declaración de irreversible con su razón.]
+
+### Verificación
+[Salida real de check-migrations.py, y el resultado del ciclo aplicar/revertir/aplicar.]
+
+### Lo que queda pendiente para un release posterior
+[Si esto fue Expand: qué habrá que contraer después, y cuándo será seguro.
+Regístralo como deuda para que no se olvide:
+  python3 .workflow/findings.py add --id TD-XXX --severidad debt \
+    --titulo "Contraer [columna] tras desplegar [versión]" --origen [ruta]]
+```
+
+**Si esto fue una fase Expand, el trabajo no está terminado — está a la mitad.** La
+contracción pendiente es deuda real: si no queda registrada, la columna vieja se
+queda ahí para siempre y nadie recuerda por qué.

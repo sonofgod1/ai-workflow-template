@@ -172,3 +172,98 @@ jobs:
             exit 0
           fi
           exit "$CODE"
+
+  # ── Índice de hallazgos ─────────────────────────────────────────────────────
+  # El markdown lleva la prosa; docs/findings.json lleva lo verificable. Esto
+  # comprueba que los hashes de commit con los que se cerró un hallazgo existan
+  # de verdad, y que main no lleve bloqueantes abiertos.
+  hallazgos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Validar índice de hallazgos
+        run: |
+          if [ ! -f docs/findings.json ]; then
+            echo "✓ Sin índice de hallazgos todavía."
+            exit 0
+          fi
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            python3 .workflow/findings.py validate --sin-bloqueantes
+          else
+            python3 .workflow/findings.py validate
+          fi
+
+  # ── Contrato de verificación ────────────────────────────────────────────────
+  # Solo para repos que declararon sus propios pasos. Los jobs javascript/python
+  # de arriba cubren los stacks detectables; esto cubre el resto (bash, Go, Rust,
+  # o cualquier proyecto con comandos propios) sin duplicar nada.
+  #
+  # --strict aquí y no en local: un paso saltado por falta de herramienta es
+  # tolerable mientras trabajas, pero en la barrera que no se puede saltar tiene
+  # que contar como fallo. Si no, "sin linter instalado" pasa por verde.
+  verificacion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Contrato de verificación
+        run: |
+          if [ ! -f .workflow/verify.conf ]; then
+            echo "⚠️  Sin .workflow/verify.conf; los jobs por stack cubren este repo."
+            exit 0
+          fi
+          bash .workflow/verify.sh --strict
+
+  # ── Dependencias vulnerables ────────────────────────────────────────────────
+  # Antes esto era un ítem del checklist de /security que alguien tenía que
+  # acordarse de correr. Una CVE conocida en una dependencia directa no se
+  # descubre cuando el humano se acuerda.
+  dependencias:
+    needs: detect
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        if: needs.detect.outputs.node == 'yes'
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Instalar dependencias Node
+        if: needs.detect.outputs.node == 'yes'
+        # --ignore-scripts: auditar no debe ejecutar los postinstall del árbol
+        # que estamos auditando precisamente por no confiar en él.
+        run: npm ci --ignore-scripts
+
+      - uses: actions/setup-python@v5
+        if: needs.detect.outputs.python == 'yes'
+        with:
+          python-version: '3.12'
+
+      - name: Instalar pip-audit
+        if: needs.detect.outputs.python == 'yes'
+        run: pip install pip-audit
+
+      - name: Auditar dependencias
+        run: bash .workflow/audit-deps.sh
+
+  # ── Seguridad de migraciones ────────────────────────────────────────────────
+  # El incidente clásico de despliegue: una migración que borra una columna
+  # mientras la versión anterior de la aplicación sigue corriendo. Durante un
+  # rolling update las dos versiones conviven.
+  migraciones:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Revisar migraciones del cambio
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python3 .workflow/check-migrations.py --base "${{ github.event.pull_request.base.sha }}"
+          else
+            python3 .workflow/check-migrations.py --all
+          fi

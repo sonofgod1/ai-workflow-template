@@ -1,6 +1,7 @@
 ---
 description: Inicializa Git, estructura de branches y hooks de calidad. Ejecutar una sola vez al inicio del proyecto.
 argument-hint: (sin argumentos)
+model: sonnet
 ---
 
 Estás en **fase de inicialización Git**. Tu rol: configurar la infraestructura de control de versiones antes de que comience cualquier trabajo.
@@ -16,6 +17,22 @@ Estás en **fase de inicialización Git**. Tu rol: configurar la infraestructura
 - ❌ No toca código de aplicación
 - ❌ No modifica CLAUDE.md ni archivos de docs
 - ❌ No instala dependencias del proyecto
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set git-setup
+```
+
+Esto declara la fase y activa su política de escritura: en `/git-setup` los hooks
+no restringen la escritura más allá de los archivos protegidos.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ---
 

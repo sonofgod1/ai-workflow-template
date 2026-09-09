@@ -93,7 +93,7 @@ GOB_OVERRIDES = [
      'Modificar la sección "Norte del proyecto" requiere mi aprobación explícita, igual que cualquier archivo protegido de la regla 1.'),
     ("Cada fase tiene un slash command con restricciones claras. **Fuera de un comando, modo consulta: respondes preguntas, no modificas nada.**",
      "Cada fase es una regla que el usuario invoca con `@`, con restricciones claras. **Fuera de una fase, modo consulta: respondes preguntas, no modificas nada.**"),
-    ("| Fase | Comando | Qué haces |", "| Fase | Regla | Qué haces |"),
+    ("| Fase | Comando | Modelo | Qué haces |", "| Fase | Regla | Modelo sugerido | Qué haces |"),
     ("Los slash commands (especialmente `@implement`) usan", "Las reglas de fase (especialmente `@implement`) usan"),
 ]
 
@@ -108,10 +108,15 @@ cualquier editor):
 - `commit-msg` — rechaza el commit si el asunto no sigue el formato convencional.
 - `pre-commit` — bloquea `.env`, `*.db`, `node_modules/` y demás archivos prohibidos; corre lint y type-check.
 - `pre-push` — corre los tests y advierte si el push va directo a `main`.
+- `.workflow/verify.sh` — el contrato de verificación. Córrelo antes de declarar nada terminado
+  y pega su salida real: sin evidencia no hay reporte (regla 12).
+- `.workflow/check-migrations.py` — bloquea migraciones que rompen la versión anterior (regla 14).
+- `.workflow/audit-deps.sh` — bloquea dependencias con vulnerabilidades conocidas (regla 15).
+- `gitleaks` en `pre-commit` — impide que un secreto entre al historial.
 
 **Depende enteramente de que tú las respetes** (no hay nada que te lo impida):
 
-- Las 11 reglas duras de arriba.
+- Las 15 reglas duras de arriba, incluida la política de escritura por fase (regla 13).
 - La lista de archivos protegidos de la regla 1.
 - No ejecutar comandos destructivos sin que el usuario escriba "confirmo".
 - Parar y preguntar en vez de adivinar.
