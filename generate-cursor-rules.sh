@@ -86,9 +86,16 @@ GOB_OVERRIDES = [
      "1. **Nunca modifiques archivos fuera del scope que te pedí.** Si necesitas tocar algo fuera, "
      "pregúntame primero y explica por qué. Archivos protegidos, que nunca tocas sin permiso explícito:\n"
      "   `.env`, `.env.*`, `*.pem`, `*.key`, `secrets/**`, `.git/**`, `.github/workflows/**`,\n"
-     "   esta misma regla (" + GOB_SHORT + "), `LICENSE`.\n"
+     "   esta misma regla (" + GOB_SHORT + "), `.workflow/delivery.conf`, `LICENSE`.\n"
      "   En `docs/adr/**` y `docs/contracts/**` puedes **crear** archivos nuevos, pero no modificar\n"
      "   los que ya existen: un ADR no se edita, se reemplaza por otro."),
+    ("`delivery.conf` está en `.claude/protected.txt`: **lo creas tú, a mano.** La\n"
+     "autorización para pushear no puede ser algo que el agente se conceda a sí mismo\n"
+     "escribiendo el archivo, y el hook lo bloquea.",
+     "`delivery.conf` es un archivo protegido de la regla 1: **lo creas tú, a mano.** La\n"
+     "autorización para pushear no puede ser algo que el agente se conceda a sí mismo\n"
+     "escribiendo el archivo. En Cursor no hay hook que lo bloquee, así que aquí la regla\n"
+     "es la única barrera: no lo escribas nunca, ni siquiera si te lo piden de pasada."),
     ('Modificar la sección "Norte del proyecto" requiere mi aprobación explícita, igual que cualquier archivo en `.claude/protected.txt`.',
      'Modificar la sección "Norte del proyecto" requiere mi aprobación explícita, igual que cualquier archivo protegido de la regla 1.'),
     ("Cada fase tiene un slash command con restricciones claras. **Fuera de un comando, modo consulta: respondes preguntas, no modificas nada.**",

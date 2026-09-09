@@ -119,6 +119,8 @@ claude                            # o abre la carpeta en Cursor
      ↓
 /migrate            Cambios de schema seguros: expand/migrate/contract.    [opus]
      ↓
+/ship               Puerta local + PR con su cuerpo generado. No mergea.  [sonnet]
+     ↓
 /deploy             Checklist pre-producción: tests, migraciones, env vars, monitoreo.
      ↓
      ⟲ /change      Modificaciones post-deploy. Clasifica el cambio, identifica
@@ -146,6 +148,7 @@ En Cursor los mismos comandos se invocan con `@`: `@discovery`, `@implement`, `@
 | UX | `/ux <flujo>` | Solo audita flujos de frontend, no reescribe. |
 | Feature | `/feature <descripción>` | Evalúa antes de actuar. Ancla al norte del proyecto. |
 | Migraciones | `/migrate <cambio>` | Clasifica la fase (expand/migrate/contract) y exige reversibilidad. |
+| Entrega | `/ship [base]` | Corre la puerta local, abre el PR con su contexto. **No mergea.** |
 | Pre-producción | `/deploy` | Solo verifica y documenta. No modifica código. |
 | Cambio post-deploy | `/change <descripción>` | Proporcional al tamaño del cambio. |
 
@@ -605,6 +608,64 @@ motivo equivocado. Enlaza `node_modules`/`.venv` del árbol principal por lo mis
 `validate --exigir-test` es lo que corre en CI: falla si un hallazgo cerrado no
 tiene test ni exención, y también si el test con el que se cerró **ya no existe**
 — ese borrado dejaría el índice afirmando una cobertura que no está.
+
+### `.workflow/ship.sh` — la puerta antes del PR
+
+El ciclo por hallazgo tenía ~10 acciones humanas: aprobar el plan, probar a mano,
+`git add`, commitear, cerrar, commitear docs, mergear, borrar branch, pushear. Con
+eso la velocidad del proyecto es la atención de una persona, y una review de 20
+hallazgos son 20 sentadas en serie.
+
+El modo PR mueve la unidad de trabajo de *un turno de conversación* a *un PR en una
+cola*: aprobar el plan y revisar el PR. Dos acciones, no diez.
+
+```bash
+bash .workflow/ship.sh              # la puerta: ¿está listo para PR?
+bash .workflow/ship.sh --cuerpo     # el cuerpo del PR, para leerlo antes
+bash .workflow/ship.sh --abrir-pr   # push + gh pr create
+```
+
+La puerta corre **todo lo que CI va a exigir**, antes de pushear: branch correcta,
+árbol limpio, commits sobre la base, verificación, `validate --exigir-test`,
+`decisiones --check`, migraciones, dependencias, reglas de Cursor y los tests del
+andamiaje. Un PR que abre en rojo devuelve el trabajo al humano, que es lo que este
+modo existe para evitar.
+
+| Veredicto | Significa |
+|-----------|-----------|
+| `listo` | todo en verde, adelante |
+| `listo CON AVISOS` | hay pasos saltados por falta de herramienta; **no es verde**, y el cuerpo del PR lo dice |
+| `NO listo` | algo en rojo: se para y se reporta |
+
+**Autorización, no configuración.** `--abrir-pr` exige que el proyecto haya creado
+`.workflow/delivery.conf` con `MODO_ENTREGA=pr` y `AGENTE_PUEDE_PUSHEAR=si`. Sin
+eso el script se niega y da los comandos para que los corra el humano: por defecto
+rige la regla dura 3, y que el agente pueda pushear es una decisión de producto por
+proyecto, no algo que se herede de la plantilla.
+
+El archivo está en `.claude/protected.txt`, así que **lo escribe el humano**: una
+autorización que el agente pueda concederse a sí mismo escribiendo un archivo no es
+una autorización. El hook lo bloquea.
+
+**El merge nunca es del agente**, en ningún modo. Decidir que algo entra a `develop`
+o a `main` es la decisión; el resto es ejecución. Un agente que mergea su propio
+trabajo no tiene revisor.
+
+Y el modo PR **solo es seguro con branch protection y los checks exigidos**: si el
+merge está disponible con CI en rojo, "CI es el aprobador" no significa nada. Los
+`contexts` concretos los imprime `/git-setup` en su paso 6.
+
+### `.workflow/pr-body.py` — el contexto va en el PR, no en tu memoria
+
+Si el revisor tiene que reconstruir por qué existe el cambio leyendo commits, sigue
+siendo el integrador. El cuerpo se arma de artefactos que ya existen: el plan
+(anclaje al norte, origen, plan de prueba manual), los hallazgos cerrados con el
+estado de su test, la evidencia de `.last-verify.json`, y las migraciones tocadas.
+
+Dice también lo que falta: si no hay plan, si nadie verificó localmente, si la
+evidencia se tomó con el árbol sucio, o si algún cierre quedó `declarado` o
+`exento`. Esos son los puntos donde el revisor tiene que mirar de verdad, y
+callarlos sería la forma más fácil de que el PR verde no signifique nada.
 
 ### `decisiones.md` se genera, no se escribe
 

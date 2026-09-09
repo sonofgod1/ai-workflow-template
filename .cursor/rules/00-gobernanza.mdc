@@ -49,13 +49,13 @@ detecta la tensión, la nombra, y la devuelve.
 
 1. **Nunca modifiques archivos fuera del scope que te pedí.** Si necesitas tocar algo fuera, pregúntame primero y explica por qué. Archivos protegidos, que nunca tocas sin permiso explícito:
    `.env`, `.env.*`, `*.pem`, `*.key`, `secrets/**`, `.git/**`, `.github/workflows/**`,
-   esta misma regla (`00-gobernanza`), `LICENSE`.
+   esta misma regla (`00-gobernanza`), `.workflow/delivery.conf`, `LICENSE`.
    En `docs/adr/**` y `docs/contracts/**` puedes **crear** archivos nuevos, pero no modificar
    los que ya existen: un ADR no se edita, se reemplaza por otro.
 
 2. **Nunca borres archivos sin confirmación explícita.** "Limpiar el repo" o "reorganizar" no es confirmación.
 
-3. **Nunca hagas commits ni pushes.** Yo hago los commits. Tú me dices qué cambiaste y por qué.
+3. **Nunca hagas commits ni pushes.** Yo hago los commits. Tú me dices qué cambiaste y por qué. **Única excepción:** si este proyecto creó `.workflow/delivery.conf` con `MODO_ENTREGA=pr`, `@ship` puede commitear y pushear **la branch de trabajo** y abrir el PR. Nunca la base, y **el merge nunca** (ver "Modos de entrega").
 
 4. **Nunca instales dependencias sin avisarme.** Si una librería es necesaria, pídela explícitamente y dime el porqué + alternativas que descartaste.
 
@@ -168,7 +168,7 @@ Cada comando declara su fase, y los hooks la hacen cumplir:
 
 | Política | Fases | Puede escribir |
 |----------|-------|----------------|
-| `docs` | discovery, architect, contracts, feature, plan, review, security, ux, deploy | solo `docs/` |
+| `docs` | discovery, architect, contracts, feature, plan, review, security, ux, deploy, ship | solo `docs/` |
 | `tests` | test | tests y `docs/` |
 | `full` | implement, build, change, git-setup | cualquier archivo no protegido |
 
@@ -325,6 +325,7 @@ Cada fase es una regla que el usuario invoca con `@`, con restricciones claras. 
 | UX | `@ux` | opus | Audita flujos, consistencia, estados y accesibilidad básica del frontend. |
 | Feature | `@feature` | opus | Evalúa complejidad de trabajo nuevo, define qué fases activar, y crea el archivo de tracking en `docs/features/`. |
 | **Migraciones** | **`@migrate`** | **opus** | **Diseña un cambio de schema seguro para producción (expand/migrate/contract). Verifica reversibilidad.** |
+| **Entrega** | **`@ship`** | **sonnet** | **Corre la puerta local, genera el cuerpo del PR y lo abre. No mergea.** |
 | Pre-producción | `@deploy` | opus | Checklist de deploy: tests, migraciones, env vars, monitoreo, Git. No modifica código. |
 | Cambio post-deploy | `@change` | opus | Gestiona cambios sobre la app en producción. Clasifica, identifica contratos afectados y re-corre solo las fases mínimas. |
 
@@ -551,7 +552,79 @@ python3 .workflow/findings.py decisiones --check   # lo que corre en CI
 
 ---
 
-## Ciclo de trabajo por hallazgo
+## Modos de entrega
+
+Hay dos, y la diferencia es **quién integra**. Se elige por proyecto, no se hereda.
+
+### Modo local (por defecto)
+
+El agente implementa y para. El humano commitea, mergea y pushea. Es el ciclo de
+16 pasos de abajo: ~10 acciones humanas por hallazgo. Rige la regla dura 3.
+
+Es el modo correcto cuando el proyecto es pequeño, o cuando todavía no confías en
+la puerta automática, o cuando no hay remoto.
+
+### Modo PR
+
+El agente entrega un PR verde con su contexto; el humano revisa una vez y mergea.
+Las acciones humanas por hallazgo bajan de ~10 a 2: **aprobar el plan** y **revisar
+el PR**. Se activa creando `.workflow/delivery.conf`:
+
+```bash
+MODO_ENTREGA=pr           # el agente entrega en PRs, no en tu terminal
+AGENTE_PUEDE_PUSHEAR=si   # la branch de trabajo, nunca la base
+BASE_POR_DEFECTO=develop
+```
+
+`delivery.conf` es un archivo protegido de la regla 1: **lo creas tú, a mano.** La
+autorización para pushear no puede ser algo que el agente se conceda a sí mismo
+escribiendo el archivo. En Cursor no hay hook que lo bloquee, así que aquí la regla
+es la única barrera: no lo escribas nunca, ni siquiera si te lo piden de pasada.
+
+**El merge sigue siendo humano en los dos modos.** No es una restricción técnica:
+decidir que algo entra a `develop` o a `main` es la decisión, y el resto es
+ejecución. Un agente que mergea su propio trabajo no tiene revisor.
+
+Para que el modo PR sea seguro hacen falta dos condiciones, y si falta una el modo
+es peor que el local:
+
+1. **Branch protection con los checks exigidos.** "CI es el aprobador" es una frase
+   vacía si el merge está disponible con CI en rojo. Los `contexts` concretos están
+   en `@git-setup`, paso 6.
+2. **El PR nace verde.** `bash .workflow/ship.sh` corre localmente todo lo que CI
+   va a exigir, **antes** de pushear. Un PR que abre en rojo devuelve el trabajo al
+   humano, que es exactamente lo que este modo elimina.
+
+```bash
+bash .workflow/ship.sh                 # la puerta: ¿está listo para PR?
+bash .workflow/ship.sh --cuerpo        # el cuerpo del PR, para leerlo antes
+bash .workflow/ship.sh --abrir-pr      # push + gh pr create (exige delivery.conf)
+```
+
+El cuerpo lo arma `pr-body.py` de artefactos que ya existen: el plan (anclaje al
+norte, origen, prueba manual), los hallazgos cerrados con el estado de su test, la
+evidencia de `.last-verify.json`, y las migraciones tocadas. Si el revisor tiene
+que reconstruir el porqué leyendo commits, vuelve a ser el integrador.
+
+---
+
+## Ciclo de trabajo por hallazgo — modo PR
+
+```
+0. git checkout develop && git checkout -b feature/[slug]
+1. @plan [ID]  →  2. Tú apruebas el plan          ← acción humana 1
+3. @build docs/plans/[archivo]        (implementa, con su test de regresión)
+4. @ship                              (puerta + PR con su cuerpo)
+5. Tú revisas el PR y mergeas          ← acción humana 2
+```
+
+Dos acciones humanas por hallazgo. Lo que desaparece no es la revisión: es el
+acompañamiento paso a paso: `git add`, el commit, el `cerrar`, el merge local, el
+push. La revisión se concentra en un sitio, con todo el contexto delante.
+
+---
+
+## Ciclo de trabajo por hallazgo — modo local
 
 ```
 0. Estar en la branch correcta (feature/[slug] o fix/[slug] desde develop)

@@ -242,6 +242,25 @@ en un repo de una sola persona lo deja sin forma de mergear, porque GitHub no pe
 aprobar tu propio PR. Lo mismo con `require_code_owner_reviews` si el único code owner
 eres tú.
 
+**Los `contexts` son la lista de checks que GitHub va a exigir.** Es lo que
+convierte a CI en el aprobador de verdad: un check que corre pero no está aquí
+puede fallar y el merge sigue disponible. Los seis de abajo son los que no
+dependen del stack, así que valen para cualquier proyecto:
+
+| Check | Qué exige |
+|-------|-----------|
+| `archivos-prohibidos` | ni `.env`, ni `*.db`, ni claves versionadas |
+| `secretos` | gitleaks sobre el historial del PR |
+| `commits-convencionales` | formato `tipo(scope): descripción` |
+| `hallazgos` | índice consistente, cerrados con test, `decisiones.md` al día |
+| `generados` | `.cursor/rules/` al día con `.claude/commands/` |
+| `andamiaje` | los tests de `.workflow/` pasan |
+
+Si el proyecto declaró sus pasos en `.workflow/verify.conf`, **agrega también
+`verificacion`** — y `javascript` o `python` si esos jobs aplican a su stack. Sin
+eso, los tests del proyecto corren pero no bloquean, que es la forma silenciosa de
+no tener barrera.
+
 **Si trabaja solo** — se exige PR y CI en verde, pero cero aprobaciones:
 
 ```bash
@@ -255,7 +274,8 @@ for BRANCH in main develop; do
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": ["archivos-prohibidos", "secretos", "commits-convencionales"]
+    "contexts": ["archivos-prohibidos", "secretos", "commits-convencionales",
+                 "hallazgos", "generados", "andamiaje"]
   },
   "enforce_admins": false,
   "required_pull_request_reviews": {
@@ -281,7 +301,8 @@ for BRANCH in main develop; do
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": ["archivos-prohibidos", "secretos", "commits-convencionales"]
+    "contexts": ["archivos-prohibidos", "secretos", "commits-convencionales",
+                 "hallazgos", "generados", "andamiaje"]
   },
   "enforce_admins": false,
   "required_pull_request_reviews": {

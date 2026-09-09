@@ -1,0 +1,150 @@
+---
+description: Entrega el trabajo de esta branch como PR, con su cuerpo generado. No mergea. Úsalo con @ship
+globs:
+alwaysApply: false
+---
+
+Estás en **fase de entrega**. Tu rol: dejar el trabajo listo para que una persona
+lo revise **una vez**, en un PR, en vez de acompañarla paso a paso por su terminal.
+
+Base del PR: **lo que el usuario haya escrito junto a `@ship`** — base, por defecto develop.
+Si no lo indicó, pregúntaselo antes de continuar. (si no lo indicó: `develop`)
+
+**Restricciones:**
+- ❌ **No mergeas nunca.** Decidir que algo entra a `develop` o a `main` es la
+  decisión que se le devuelve al humano. Todo lo demás es ejecución.
+- ❌ No pusheas la base. Solo la branch de trabajo.
+- ❌ No arreglas lo que la puerta encuentre en rojo sin decirlo: si `ship.sh` falla,
+  reportas qué falló y esperas. Un paso rojo puede significar que el cambio no está
+  terminado, no que haya que insistir.
+- ❌ No abres el PR si el proyecto no autorizó el modo PR. El script lo comprueba,
+  pero tú tampoco lo intentas por otra vía.
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set ship
+```
+
+Política `docs`: en entrega no se escribe código. Si un bloqueo te detiene, **no lo
+rodees**: significa que estás arreglando algo, y arreglar es `@implement` o
+`@build`, no `@ship`. Para y dilo.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
+
+---
+
+## Por qué existe esta fase
+
+El ciclo por hallazgo tenía ~10 acciones humanas: aprobar el plan, probar a mano,
+`git status`, `git add`, commitear, cerrar el hallazgo, commitear docs, mergear,
+borrar la branch, pushear. Con eso el rendimiento del proyecto queda atado a la
+atención de una persona, y una review de 20 hallazgos son 20 sentadas en serie.
+
+El PR mueve la unidad de trabajo de *un turno de conversación* a *un PR en una
+cola*. Lo que el humano hace pasa a ser: aprobar el plan, y revisar el PR. Dos, no
+diez. Para que eso funcione hacen falta dos cosas, y las dos son este comando:
+
+1. **El PR tiene que nacer verde.** Uno que abre en rojo devuelve el trabajo. Por
+   eso `ship.sh` corre localmente todo lo que CI va a exigir, antes de pushear.
+2. **El cuerpo del PR tiene que traer el contexto.** Si el revisor tiene que
+   reconstruir por qué existe el cambio leyendo commits, vuelve a ser el integrador.
+   `pr-body.py` lo arma del plan, los hallazgos cerrados, la evidencia de
+   verificación y la prueba de regresión — artefactos que ya existen.
+
+---
+
+## Paso 1 — La puerta
+
+```bash
+bash .workflow/ship.sh --base [base]
+```
+
+Comprueba, en este orden: que estés en una branch de trabajo y no en la base, que
+no quede nada sin commitear, que haya commits sobre la base, y después todo lo que
+CI exige — verificación, `findings.py validate --exigir-test`, `decisiones --check`,
+migraciones, dependencias, reglas de Cursor y los tests del andamiaje.
+
+Tres salidas:
+
+| Salida | Qué significa | Qué haces |
+|--------|---------------|-----------|
+| `listo` | todo en verde | seguir al paso 2 |
+| `listo CON AVISOS` | hay pasos saltados (falta la herramienta) | seguir, **y nombrar en el reporte qué quedó sin correr localmente** |
+| `NO listo` | algo en rojo | **parar.** Reportar qué falló, y esperar instrucción |
+
+`listo CON AVISOS` no es verde. Que CI los corra en un entorno limpio es la razón
+por la que no bloquea, no una excusa para no mencionarlo.
+
+---
+
+## Paso 2 — Revisar el cuerpo antes de abrirlo
+
+```bash
+bash .workflow/ship.sh --cuerpo
+```
+
+Léelo como lo leería el revisor. Tres cosas que tienes que comprobar tú, porque el
+script no puede:
+
+- **¿"Por qué" dice algo?** Si salió "Sin plan en `docs/plans/`" y el cambio tocó
+  más de un componente o algún contrato, eso es un hueco: dilo, no lo tapes
+  escribiendo el porqué a mano en el PR.
+- **¿Algún cierre quedó `declarado` o `exento`?** Son los puntos donde el revisor
+  tiene que mirar de verdad. Señálalos en tu reporte.
+- **¿La evidencia corresponde a lo commiteado?** Si el cuerpo dice que el árbol
+  estaba sucio al verificar, o que no hay evidencia, eso va en el reporte.
+
+---
+
+## Paso 3 — Abrir el PR
+
+```bash
+bash .workflow/ship.sh --abrir-pr --base [base]
+```
+
+Pushea la branch y abre el PR con el cuerpo generado. Si el proyecto no creó
+`.workflow/delivery.conf`, el script **se niega** y te da los comandos para que los
+corra el usuario: por defecto rige la regla dura 3, y el modo PR es una decisión de
+producto por proyecto, no algo que se herede de la plantilla. Si eso pasa,
+**muéstrale los comandos y para** — no busques otra forma de pushear.
+
+Cuando abras el PR, cierra su cuerpo con la línea de atribución que corresponda a
+la sesión.
+
+---
+
+## REPORTE AL TERMINAR — formato obligatorio
+
+```
+## Entregado: [branch] → [base]
+
+### Puerta
+[Pegar el veredicto literal de ship.sh:
+
+  ════════════════════════════════════════════════════
+    ship: listo — todo en verde
+  ════════════════════════════════════════════════════
+
+Si fue `listo CON AVISOS`, nombrar aquí cada paso saltado y qué haría falta
+para cerrarlo.]
+
+### PR
+[URL, o "no abierto: el proyecto no autorizó el modo PR" + los comandos que
+ tiene que correr el usuario.]
+
+### Qué tiene que mirar el revisor
+- [Los cierres `declarado` o `exento`, si hay]
+- [Lo que quedó sin verificar localmente, si hay]
+- [Huecos del plan, si hay]
+- "nada en particular: todo verde y con test probado" si es el caso
+
+### Lo que NO hice
+- No mergeé: esa decisión es tuya.
+- [Cualquier otra cosa que la puerta encontró y no toqué]
+```
+
+**No declares el trabajo entregado si la puerta salió en rojo.** Un PR abierto en
+rojo es trabajo devuelto, no trabajo entregado.
