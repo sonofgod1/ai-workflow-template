@@ -21,6 +21,9 @@ secrets/**
 .github/workflows/**
 .claude/protected.txt
 CLAUDE.md
+# La autorización para pushear no puede ser algo que el agente se conceda a sí
+# mismo escribiendo el archivo. La crea el humano, a mano, una vez por proyecto.
+.workflow/delivery.conf
 +docs/adr/**
 +docs/contracts/**
 LICENSE

@@ -25,7 +25,7 @@ STATE=".workflow/.phase.json"
 #   full  — cualquier archivo no protegido.
 phase_policy() {
   case "$1" in
-    discovery|architect|contracts|feature|plan|review|security|ux|deploy) echo "docs" ;;
+    discovery|architect|contracts|feature|plan|review|security|ux|deploy|ship) echo "docs" ;;
     test)                                                                 echo "tests" ;;
     implement|build|change|migrate|git-setup)                             echo "full" ;;
     *)                                                                    echo "" ;;
@@ -35,7 +35,7 @@ phase_policy() {
 usage() {
   sed -n '2,15p' "$0"
   echo ""
-  echo "Fases válidas: discovery architect contracts feature plan implement build test review security ux deploy change migrate git-setup"
+  echo "Fases válidas: discovery architect contracts feature plan implement build test review security ux deploy change migrate git-setup ship"
 }
 
 ACTION="${1:-show}"
