@@ -368,7 +368,7 @@ Instalados por `/git-setup` (o `@git-setup`). Son hooks de Git, así que funcion
 |------|----------|
 | `pre-commit` | Bloquea archivos prohibidos (`.env`, `*.db`), lint JS/TS, type-check TypeScript, lint Python con ruff, y **gitleaks sobre lo staged** |
 | `commit-msg` | Valida formato convencional: `tipo(scope): descripción`. Rechaza el commit si no cumple. |
-| `pre-push` | Corre tests (npm test / pytest según stack detectado), advierte push directo a main |
+| `pre-push` | Corre `.workflow/verify.sh` —el contrato del proyecto—, avisa fuerte si la verificación fue parcial, y advierte del push directo a main |
 
 Los archivos que Claude nunca puede tocar sin autorización explícita se listan en `.claude/protected.txt`:
 
