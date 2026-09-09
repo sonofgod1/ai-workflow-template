@@ -234,6 +234,37 @@ def caso_cuerpo_dice_si_falta_evidencia():
         assert "Nadie verificó este cambio localmente" in cuerpo, cuerpo
 
 
+def caso_cuerpo_traduce_los_estados_de_verify():
+    """Los pasos verdes tienen que verse verdes: verify.sh escribe 'pass', no 'ok'.
+
+    El vocabulario de verify.sh y el de pr-body.py se desincronizaron una vez y el
+    cuerpo del PR mostró '❓' en los cuatro pasos que habían pasado. Un revisor
+    leyendo eso no puede aprobar nada.
+    """
+    import json
+    with tempfile.TemporaryDirectory() as d:
+        montar(d)
+        ev = Path(d) / ".workflow" / ".last-verify.json"
+        ev.write_text(json.dumps({
+            "version": 1, "timestamp": "2026-09-09T10:00:00-06:00",
+            "git_head": "a" * 40, "git_branch": "feature/signo",
+            "working_tree_sucio": False, "resultado": "parcial",
+            "pasos": [
+                {"paso": "lint", "estado": "pass", "exit_code": 0, "duracion_s": 1},
+                {"paso": "test", "estado": "fail", "exit_code": 1, "duracion_s": 2},
+                {"paso": "typecheck", "estado": "skipped", "exit_code": 0, "duracion_s": 0},
+                {"paso": "raro", "estado": "inventado", "exit_code": 0, "duracion_s": 0},
+            ],
+        }), encoding="utf-8")
+        cuerpo, _ = ship(d, "--cuerpo")
+        assert "| `lint` | ✅ |" in cuerpo, cuerpo
+        assert "| `test` | ❌ |" in cuerpo, cuerpo
+        assert "| `typecheck` | ⚠️ saltado |" in cuerpo, cuerpo
+        # Un estado desconocido se muestra tal cual, no como interrogante.
+        assert "`inventado`" in cuerpo, cuerpo
+        assert "❓" not in cuerpo, cuerpo
+
+
 def caso_cuerpo_sin_plan_lo_dice():
     """Si no hay plan, el cuerpo lo señala en vez de callarlo."""
     with tempfile.TemporaryDirectory() as d:
@@ -264,6 +295,7 @@ CASOS = [
     caso_cuerpo_trae_los_artefactos,
     caso_cuerpo_en_orden_cronologico,
     caso_cuerpo_dice_si_falta_evidencia,
+    caso_cuerpo_traduce_los_estados_de_verify,
     caso_cuerpo_sin_plan_lo_dice,
     caso_cuerpo_marca_el_cierre_exento,
 ]

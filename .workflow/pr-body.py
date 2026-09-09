@@ -118,8 +118,16 @@ def bloque_verificacion():
         lineas.append("")
         lineas.append("| Paso | Estado |")
         lineas.append("|------|--------|")
+        # verify.sh escribe pass/fail/skipped. Se aceptan también los sinónimos por
+        # si el vocabulario cambia, y un estado desconocido se muestra tal cual: un
+        # "❓" oculta el dato en vez de reportarlo, que es lo contrario de lo que
+        # este cuerpo tiene que hacer.
+        marcas = {"pass": "✅", "ok": "✅",
+                  "fail": "❌", "failed": "❌",
+                  "skipped": "⚠️ saltado", "skip": "⚠️ saltado"}
         for p in pasos:
-            marca = {"ok": "✅", "failed": "❌", "skipped": "⚠️ saltado"}.get(p.get("estado"), "❓")
+            estado = str(p.get("estado", ""))
+            marca = marcas.get(estado, f"`{estado or 'sin estado'}`")
             lineas.append(f"| `{p.get('paso')}` | {marca} |")
     if resultado == "parcial":
         lineas.append("")
