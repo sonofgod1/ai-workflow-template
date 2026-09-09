@@ -563,12 +563,46 @@ consultable y lo verificable:
 python3 .workflow/findings.py list --abiertos
 python3 .workflow/findings.py add --id B3 --severidad blocker \
   --titulo "..." --origen docs/reviews/2026-01-15-api.md
-python3 .workflow/findings.py cerrar B3 --commit a1b2c3d
+python3 .workflow/findings.py cerrar B3 --commit a1b2c3d \
+  --test backend/tests/test_api.py::test_put_es_atomico --probar-regresion
 ```
 
 `cerrar` falla si el hash no existe en el repo: un hallazgo se cierra después de
 commitear, nunca antes. Es la comprobación que faltaba para que el estado en
 markdown no se fuera separando de la realidad.
+
+### `.workflow/check-regression.py` — el test tiene que fallar sin el arreglo
+
+`cerrar` no acepta un hallazgo sin test: o `--test`, o `--sin-test --razon "..."`,
+que queda registrada. La razón de que sea obligatorio es de rendimiento, no de
+pureza: sin test, el humano es el único arnés de pruebas del proyecto y cada
+hallazgo cerrado le cuesta una pasada manual completa. Con test, esa pasada se
+vuelve un muestreo.
+
+Pero un test escrito después del arreglo, sobre el código ya arreglado, **pasa
+siempre**. La suite queda verde y nadie sospecha que ese test no habría atrapado
+nada. `--probar-regresion` lo comprueba de la única forma que vale: monta el árbol
+del commit padre en un worktree aparte, le trae encima solo los archivos de test
+del arreglo, y corre el test ahí.
+
+```bash
+python3 .workflow/check-regression.py --commit a1b2c3d \
+  --test tests/test_api.py::test_put [--cmd "pytest -x"]
+```
+
+| Resultado | Significa | `cerrar` hace |
+|-----------|-----------|---------------|
+| `confirmada` (exit 0) | el test falla sin el arreglo | cierra como `probado` |
+| `no-prueba-nada` (exit 1) | el test pasa sin el arreglo | **rechaza el cierre** |
+| `no-verificada` (exit 2) | no se pudo correr | cierra como `declarado`, y lo dice |
+
+Trae los archivos de test que el commit tocó, no solo el que se nombra: un test
+nuevo suele venir con su `conftest.py` o su fixture, y sin ellos falla por el
+motivo equivocado. Enlaza `node_modules`/`.venv` del árbol principal por lo mismo.
+
+`validate --exigir-test` es lo que corre en CI: falla si un hallazgo cerrado no
+tiene test ni exención, y también si el test con el que se cerró **ya no existe**
+— ese borrado dejaría el índice afirmando una cobertura que no está.
 
 ---
 

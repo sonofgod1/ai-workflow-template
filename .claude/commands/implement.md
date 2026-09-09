@@ -208,6 +208,37 @@ nuevo hace lo que se pidió. Hacen falta las dos.
 
 ---
 
+## EL TEST DE REGRESIÓN ES PARTE DEL ARREGLO
+
+Un arreglo sin test no está terminado. No es una cuestión de pureza: sin test, el
+usuario queda como el único arnés de pruebas del proyecto, y cada hallazgo cerrado
+le cuesta una pasada manual completa. Con test, esa pasada es un muestreo.
+
+**El test va en el mismo commit que el arreglo**, y tiene que **fallar sin el
+arreglo**. Un test escrito mirando el código ya corregido pasa siempre y no
+demuestra nada: la suite queda verde y nadie sospecha que no habría atrapado el
+bug. Así que se escribe apuntando al caso que fallaba, con los datos que lo hacían
+fallar — el del reporte del hallazgo, no uno cómodo.
+
+Compruébalo antes de reportar:
+
+```bash
+python3 .workflow/check-regression.py --commit [hash] --test [ruta::nombre]
+```
+
+Exige el commit ya hecho, así que en la práctica lo corre el usuario en el paso 10
+del ciclo (`cerrar --probar-regresion` lo hace por él y **rechaza el cierre** si el
+test pasa sin el arreglo). Lo tuyo es escribir el test de forma que eso pase: si al
+quitar mentalmente tu cambio el test seguiría verde, el test está mal.
+
+**Cuando de verdad no hay test posible** — un cambio de copy, un README, un ajuste
+de CI, una regla de linter — dilo en el reporte con la razón, y el cierre usa
+`--sin-test --razon "..."`. Es una salida legítima y registrada, no un atajo: no la
+uses para "esto es difícil de testear". Si es difícil de testear, eso es el
+hallazgo.
+
+---
+
 ## REPORTE AL TERMINAR — formato obligatorio
 
 ```
@@ -233,6 +264,15 @@ nuevo hace lo que se pidió. Hacen falta las dos.
 
 Si el resultado fue `parcial`, nombra aquí qué pasos quedaron sin verificar y por qué.
 Si fue `falla` y decidiste reportar igual, di cuál falla y por qué es preexistente.]
+
+### Test de regresión
+| Hallazgo | Test | Falla sin el arreglo | Cómo comprobarlo |
+|----------|------|----------------------|------------------|
+| [ID] | [ruta::nombre] | sí / no aplica | `--probar-regresion` al cerrar |
+
+[Si no hay test posible: decirlo aquí con la razón, y que el cierre irá con
+`--sin-test --razon "..."`. Si el arreglo no tiene test y tampoco razón, el
+reporte está incompleto.]
 
 ### Deuda anotada
 - [TD-XXX si encontraste algo que no arreglaste pero deberías anotar en docs/tech-debt.md]
@@ -305,7 +345,7 @@ El usuario va a seguir este ciclo. No lo apresures ni lo saltes:
 
 ```
 1. bash .workflow/verify.sh                      ← evidencia, antes de nada
-2. Prueba manual de todos los casos del plan
+2. Muestreo manual + revisar el test: ¿ejercita el caso que fallaba?
 3. Si algo falla → usuario reporta → ajustar aquí o registrar como nuevo hallazgo
 4. git status → verificar archivos (sin .db, sin tsbuildinfo, sin graphify-out/)
 5. git add explícito (nunca git add .)
@@ -313,8 +353,10 @@ El usuario va a seguir este ciclo. No lo apresures ni lo saltes:
 7. Si hay hallazgos nuevos → python3 .workflow/findings.py add ... + docs/reviews/
 8. git add explícito de los docs recién tocados
 9. git commit -m "docs: registrar [hallazgo]"    ← docs separado del código
-10. python3 .workflow/findings.py cerrar [ID] --commit [hash del paso 6]
-    (falla si el hash no existe: se cierra DESPUÉS de commitear, nunca antes)
+10. python3 .workflow/findings.py cerrar [ID] --commit [hash del paso 6] \
+      --test [ruta::nombre] --probar-regresion
+    (falla si el hash no existe: se cierra DESPUÉS de commitear, nunca antes.
+     Y falla si el test pasa sin el arreglo: entonces no cubre nada)
 11. Marcar ID como completado en docs/reviews/decisiones.md con el mismo hash
 12. git add docs/findings.json docs/reviews/decisiones.md
 13. git commit -m "docs: marcar [ID] como completado"
