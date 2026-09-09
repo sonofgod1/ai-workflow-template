@@ -10,6 +10,48 @@ Incluye estrategia de Git profesional (branches, hooks de calidad, commits conve
 
 ---
 
+## Trabajar EN la plantilla, no con ella
+
+Este repositorio se gobierna a sí mismo: los hooks de `.claude/` están activos aquí y
+`CLAUDE.md` se carga como instrucciones del proyecto. Eso es deliberado — es
+dogfooding, y es como se encontraron varios bugs reales de la propia capa de
+protección. Pero crea una confusión que hay que nombrar explícitamente:
+
+> **Aquí, `CLAUDE.md`, `.claude/commands/`, `.claude/protected.txt` y
+> `.github/workflows/ci.yml` son el producto que se entrega, no reglas que gobiernen
+> este repositorio.**
+
+Tratarlos como archivos protegidos, o exigir aquí `/git-setup`, la rama `develop` y
+un "Norte del proyecto" definido, es un error de categoría: son cosas que la plantilla
+le pide a los proyectos que la consumen, no a sí misma.
+
+### `.claude/protected.local.txt`
+
+Para eso existe. Si ese archivo está presente, **reemplaza** a `protected.txt`:
+
+```
+.claude/protected.txt         ← la lista que se entrega a los proyectos
+.claude/protected.local.txt   ← la lista real de ESTA copia del repo, si difiere
+```
+
+En este repositorio protege solo lo que es secreto en cualquier repo (`.env`, claves,
+`.git/`) y deja fuera los archivos que aquí son código fuente.
+
+**No se versiona ni se sincroniza**, a propósito: si se colara a un proyecto nuevo, le
+desactivaría protecciones que ahí sí aplican. Si clonas este repo para trabajar en la
+plantilla, créalo a mano.
+
+Un proyecto normal también puede usarlo, para el caso contrario: **añadir**
+protecciones propias sin tocar la lista que sincroniza el template.
+
+### Lo que sí aplica aquí
+
+- No commitear sin que el usuario lo pida (regla dura 3).
+- `bash .workflow/verify.sh` antes de dar nada por terminado (regla dura 12).
+- Los hallazgos van a `docs/findings.json`, igual que en cualquier proyecto.
+
+---
+
 ## Cómo usar
 
 ### Para un proyecto nuevo

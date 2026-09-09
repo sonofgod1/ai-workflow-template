@@ -5,7 +5,7 @@
       "id": "B1",
       "severidad": "blocker",
       "titulo": "La protección de archivos se saltaba con una redirección de Bash",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-08-enforcement.md",
       "archivos": [
         ".claude/hooks/check-protected.sh",
@@ -13,15 +13,15 @@
       ],
       "feature": null,
       "creado": "2026-09-08",
-      "resuelto": null,
-      "commit": null,
-      "nota": null
+      "resuelto": "2026-09-08",
+      "commit": "a37a2f4508dfe139f2e69bffed6da7517b6c4deb",
+      "nota": "write-guard.py cubre escrituras vía Bash; registrado en check-writes.sh para ambos matchers"
     },
     {
       "id": "I1",
       "severidad": "important",
       "titulo": "Las restricciones de fase eran solo texto",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-08-enforcement.md",
       "archivos": [
         ".claude/commands/review.md",
@@ -29,39 +29,39 @@
       ],
       "feature": null,
       "creado": "2026-09-08",
-      "resuelto": null,
-      "commit": null,
-      "nota": null
+      "resuelto": "2026-09-08",
+      "commit": "a37a2f4508dfe139f2e69bffed6da7517b6c4deb",
+      "nota": "phase.sh + política de escritura por fase, impuesta por write-guard.py"
     },
     {
       "id": "I2",
       "severidad": "important",
       "titulo": "\"Implementación completada\" no exigía evidencia",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-08-enforcement.md",
       "archivos": [
         ".claude/commands/implement.md"
       ],
       "feature": null,
       "creado": "2026-09-08",
-      "resuelto": null,
-      "commit": null,
-      "nota": null
+      "resuelto": "2026-09-08",
+      "commit": "a37a2f4508dfe139f2e69bffed6da7517b6c4deb",
+      "nota": "verify.sh como contrato único; sección de evidencia obligatoria en /implement y /build"
     },
     {
       "id": "I3",
       "severidad": "important",
       "titulo": "check-bash.sh bloquea comandos que solo mencionan un patrón peligroso",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-08-enforcement.md",
       "archivos": [
         ".claude/hooks/check-bash.sh:20"
       ],
       "feature": null,
       "creado": "2026-09-08",
-      "resuelto": null,
-      "commit": null,
-      "nota": null
+      "resuelto": "2026-09-08",
+      "commit": "a37a2f4508dfe139f2e69bffed6da7517b6c4deb",
+      "nota": "danger-scan.py distingue invocación de mención; 27 casos de regresión en .workflow/tests/"
     },
     {
       "id": "I4",
