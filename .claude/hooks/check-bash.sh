@@ -30,7 +30,17 @@ except Exception:
 # un borrado recursivo en posición de comando bloquea; el mismo texto dentro de un
 # `echo` pasa, con aviso.
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+# lib-root.sh resuelve el worktree actual cuando es del mismo repositorio que
+# CLAUDE_PROJECT_DIR, y CLAUDE_PROJECT_DIR en cualquier otro caso. Sin eso, dos
+# agentes en dos worktrees leen y escriben el estado del checkout principal.
+LIB="$(dirname "${BASH_SOURCE[0]}")/lib-root.sh"
+if [ -f "$LIB" ]; then
+  # shellcheck source=/dev/null
+  . "$LIB"
+  ROOT="$(wf_root)"
+else
+  ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+fi
 ROOT=$(cd "$ROOT" 2>/dev/null && pwd -P || echo "$ROOT")
 SCAN="$ROOT/.workflow/danger-scan.py"
 

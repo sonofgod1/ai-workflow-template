@@ -10,7 +10,17 @@
 
 set -euo pipefail
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+# lib-root.sh resuelve el worktree actual cuando es del mismo repositorio que
+# CLAUDE_PROJECT_DIR, y CLAUDE_PROJECT_DIR en cualquier otro caso. Sin eso, dos
+# agentes en dos worktrees leen y escriben el estado del checkout principal.
+LIB="$(dirname "${BASH_SOURCE[0]}")/lib-root.sh"
+if [ -f "$LIB" ]; then
+  # shellcheck source=/dev/null
+  . "$LIB"
+  ROOT="$(wf_root)"
+else
+  ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+fi
 
 # Resolver symlinks: si el proyecto se alcanza por dos rutas (p.ej. ~/projects
 # como symlink a /Volumes/Datos/projects) y CLAUDE_PROJECT_DIR llega por una
