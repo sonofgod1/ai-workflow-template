@@ -128,7 +128,16 @@ for entry in "${VERIFY_STEPS[@]}"; do
   fi
 
   if [ -z "$CMD" ]; then
-    echo "⚠️  $NAME — sin herramienta instalada, saltado"
+    # Un paso vacío puede venir de dos sitios: la autodetección, que lo deja así
+    # cuando falta la herramienta, o verify.conf, donde el proyecto lo declaró
+    # vacío a conciencia. Decir "sin herramienta instalada" en el segundo caso es
+    # mentir sobre por qué algo quedó sin verificar, que es justo lo que este
+    # script existe para no hacer.
+    if [ -f ".workflow/verify.conf" ] && grep -q "\"$NAME:\"" ".workflow/verify.conf" 2>/dev/null; then
+      echo "⚠️  $NAME — declarado sin comando en verify.conf, saltado"
+    else
+      echo "⚠️  $NAME — sin herramienta instalada, saltado"
+    fi
     printf '%s\tskipped\t0\t0\n' "$NAME" >> "$RESULTS"
     continue
   fi
