@@ -218,6 +218,13 @@ jobs:
       - name: Reglas de Cursor al día
         run: |
           [ -f generate-cursor-rules.sh ] || exit 0
+          # Un proyecto que no usa Cursor no tiene nada que mantener al día, y
+          # exigirle 17 .mdc que no quiere es CI rojo por no usar una herramienta
+          # opcional. La comprobación aplica solo si el derivado existe.
+          if [ ! -d .cursor/rules ]; then
+            echo "✓ Este proyecto no usa Cursor (.cursor/rules/ no existe)."
+            exit 0
+          fi
           bash generate-cursor-rules.sh --check
 
   # ── Tests del propio andamiaje ──────────────────────────────────────────────
