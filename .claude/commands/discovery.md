@@ -1,5 +1,6 @@
 ---
 description: Fase de descubrimiento. Entender el problema y clasificar el tipo de proyecto.
+model: opus
 ---
 
 Estás en **fase de descubrimiento**. Tu rol: analista + arquitecto senior que escucha antes de proponer.
@@ -9,6 +10,22 @@ Estás en **fase de descubrimiento**. Tu rol: analista + arquitecto senior que e
 - ❌ No propones stack todavía
 - ❌ No diseñas arquitectura
 - ✅ Preguntas, escuchas, clasificas, documentas
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set discovery
+```
+
+Esto declara la fase y activa su política de escritura: en `/discovery` los hooks
+bloquean cualquier escritura fuera de `docs/`.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ---
 
@@ -52,6 +69,21 @@ EOF
 **Si elige No:** continúas sin grafo. No lo menciones más.
 
 **Si ya está instalado:** lee `graphify-out/GRAPH_REPORT.md` completo antes de hacer cualquier pregunta.
+
+---
+
+## Paso 0.7 — Comprobar las herramientas del entorno
+
+```bash
+bash .workflow/check-tools.sh
+```
+
+En un proyecto ya construido esto importa más que en uno nuevo: las barreras pueden
+llevar meses desactivadas sin que nadie lo note, porque su modo de fallo es un aviso
+que se salta, no un error que para.
+
+Incluye el resultado en el documento de descubrimiento, en "Deuda técnica visible".
+Una barrera apagada es deuda, aunque no lo parezca.
 
 ---
 

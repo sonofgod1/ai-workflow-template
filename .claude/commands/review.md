@@ -1,6 +1,7 @@
 ---
 description: Revisa código como un senior reviewer. No escribe código nuevo.
 argument-hint: [archivo, carpeta, o "el flujo X"]
+model: opus
 ---
 
 Estás en **fase de revisión**. Tu rol: senior reviewer estricto pero constructivo.
@@ -14,6 +15,22 @@ Objetivo de revisión: **$ARGUMENTS**
 
 ---
 
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set review
+```
+
+Esto declara la fase y activa su política de escritura: en `/review` los hooks
+bloquean cualquier escritura fuera de `docs/`.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
+
+---
+
 ## Paso 0 — Leer el grafo si existe
 
 Si existe `graphify-out/GRAPH_REPORT.md`, léelo antes de revisar. Los god nodes y comunidades te dicen qué es crítico y qué tiene más dependencias.
@@ -24,9 +41,30 @@ Si existe `graphify-out/GRAPH_REPORT.md`, léelo antes de revisar. Los god nodes
 
 1. **Si el target son "los cambios recientes":** corre `git diff` o `git diff --staged`. Si no hay nada, avisa.
 
-2. **Lee el código a revisar completo** y el contexto cercano (archivos que lo importan, contratos relevantes, ADRs).
+2. **Revisa en paralelo, por ejes.** Lanza los tres revisores especializados **en el
+   mismo mensaje**, para que corran a la vez sobre el mismo target:
 
-3. **Produce el reporte** con hallazgos numerados:
+   - `reviewer-correctness` — bugs lógicos, casos de borde, concurrencia, errores
+   - `reviewer-security` — auth, inyecciones, secretos, exposición de datos
+   - `reviewer-contracts` — conformidad con `docs/contracts/`, coherencia entre componentes
+
+   A cada uno dale el target concreto (el diff, los archivos, o el flujo) y el
+   contexto que necesita. Vuelven con hallazgos **sin numerar**: los IDs los asignas
+   tú al consolidar, porque corriendo en paralelo todos propondrían `B1`.
+
+   Un revisor secuencial sobre un diff de 40 archivos hace una revisión superficial:
+   se le acaba la atención antes que el diff. Tres revisores con un eje cada uno no
+   tienen ese problema.
+
+   Si tu editor no soporta subagentes, recorre los tres ejes tú, **uno a la vez**,
+   cerrando cada eje antes de abrir el siguiente. No los mezcles en una sola pasada.
+
+3. **Consolida.** Junta lo que devolvieron, quita duplicados (dos revisores pueden
+   ver el mismo problema desde su eje), y asigna los IDs definitivos con
+   `python3 .workflow/findings.py siguiente-id --severidad [blocker|important|suggestion]`.
+
+
+4. **Produce el reporte** con hallazgos numerados:
 
    ```markdown
    # Revisión de [target] — [fecha]
@@ -52,7 +90,7 @@ Si existe `graphify-out/GRAPH_REPORT.md`, léelo antes de revisar. Los god nodes
 
    **IDs obligatorios.** Cada hallazgo debe tener un ID (B1, I3, S5) para poder referenciarlo en `/implement` y en el archivo de decisiones.
 
-4. **Categorías a revisar:**
+5. **Categorías a revisar:**
    - Correctitud: bugs lógicos, off-by-one, concurrencia
    - Contratos: ¿respeta los schemas en `docs/contracts/`?
    - Seguridad obvia: SQL injection, XSS, secretos en código
@@ -60,9 +98,36 @@ Si existe `graphify-out/GRAPH_REPORT.md`, léelo antes de revisar. Los god nodes
    - Backend + Frontend: si el cambio es en API, ¿el frontend maneja los errores nuevos?
    - Convenciones del proyecto: las que están en `CLAUDE.md`
 
-5. **No seas suave.** Si algo está mal, dilo. Pero siempre con el "por qué importa".
+6. **No seas suave.** Si algo está mal, dilo. Pero siempre con el "por qué importa".
 
-6. **Guarda el reporte en disco** en `docs/reviews/YYYY-MM-DD-[nombre].md`. No solo lo muestres en chat.
+7. **Guarda el reporte en disco** en `docs/reviews/YYYY-MM-DD-[nombre].md`. No solo lo muestres en chat.
+
+---
+
+## Registrar los hallazgos en el índice
+
+El reporte en markdown lleva la prosa: síntoma, por qué importa, sugerencia. El
+índice lleva lo que hay que poder consultar y validar sin leerlo todo — qué está
+abierto hoy, y si el commit con el que se cerró algo existe de verdad.
+
+Registra **cada** hallazgo del reporte:
+
+```bash
+# id libre para esa severidad
+python3 .workflow/findings.py siguiente-id --severidad blocker
+
+python3 .workflow/findings.py add --id B3 --severidad blocker \
+  --titulo "PUT no es atómico en asignaciones" \
+  --origen docs/reviews/2026-01-15-api.md \
+  --archivos backend/api/asignaciones.py:88
+```
+
+Severidades: `blocker` (B), `important` (I), `suggestion` (S), `debt` (TD).
+
+Consultar en cualquier momento: `python3 .workflow/findings.py list --abiertos`
+
+Si el índice y el markdown se separan, el índice deja de servir. Regístralos en
+el mismo momento en que guardas el reporte, no después.
 
 ---
 

@@ -18,6 +18,22 @@ Si no lo indicó, pregúntaselo antes de continuar.
 
 ---
 
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set test
+```
+
+Esto declara la fase y activa su política de escritura: en `@test` los hooks
+bloquean toda escritura a código de producción: solo puedes tocar archivos de test y `docs/`.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
+
+---
+
 ## Paso 0 — Leer contexto del proyecto
 
 Leer en orden:

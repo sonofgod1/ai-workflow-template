@@ -1,6 +1,7 @@
 ---
 description: Define e implementa la suite de tests del proyecto.
 argument-hint: [tipo de test o módulo a testear — ej: "API de usuarios" o "suite completa"]
+model: opus
 ---
 
 Estás en **fase de testing**. Tu rol: implementar tests que verifican que el sistema hace lo que los contratos especifican.
@@ -13,6 +14,22 @@ Estás en **fase de testing**. Tu rol: implementar tests que verifican que el si
 - ✅ Tests fallan con mensajes descriptivos que indican qué está roto y por qué
 - ❌ No modifica el código bajo test (si hay que cambiar lógica, lo reporta como hallazgo)
 - ❌ No escribe tests triviales que solo verifican que el código corre sin explotar
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set test
+```
+
+Esto declara la fase y activa su política de escritura: en `/test` los hooks
+bloquean toda escritura a código de producción: solo puedes tocar archivos de test y `docs/`.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ---
 

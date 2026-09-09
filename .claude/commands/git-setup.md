@@ -1,6 +1,7 @@
 ---
 description: Inicializa Git, estructura de branches y hooks de calidad. Ejecutar una sola vez al inicio del proyecto.
 argument-hint: (sin argumentos)
+model: sonnet
 ---
 
 Estás en **fase de inicialización Git**. Tu rol: configurar la infraestructura de control de versiones antes de que comience cualquier trabajo.
@@ -16,6 +17,22 @@ Estás en **fase de inicialización Git**. Tu rol: configurar la infraestructura
 - ❌ No toca código de aplicación
 - ❌ No modifica CLAUDE.md ni archivos de docs
 - ❌ No instala dependencias del proyecto
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set git-setup
+```
+
+Esto declara la fase y activa su política de escritura: en `/git-setup` los hooks
+no restringen la escritura más allá de los archivos protegidos.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ---
 
@@ -131,6 +148,23 @@ commit-msg    Valida formato de commits convencionales:
               • Rechaza commits que no sigan el formato
 ─────────────────────────────────────────────────────────────
 ```
+
+---
+
+### Paso 3.5 — Comprobar las herramientas del entorno
+
+```bash
+bash .workflow/check-tools.sh
+```
+
+Las barreras de este workflow se degradan **en silencio**: sin `gitleaks` el hook de
+secretos imprime un aviso y deja pasar el commit; sin `ruff` el lint de Python se
+salta. El proyecto parece configurado y no lo está, y eso se descubre el día del
+incidente en vez del primer día.
+
+Muestra la salida al usuario. Si falta algo marcado como crítico, **dilo
+explícitamente** y pregunta si quiere instalarlo ahora o asumir el riesgo por
+escrito. No lo pases por alto en el resumen final.
 
 ---
 
@@ -361,6 +395,7 @@ REFERENCIA RÁPIDA DE GIT
 
 ```
 Git preparado. Hooks instalados: pre-commit, pre-push, commit-msg.
+> Herramientas del entorno: [resultado de check-tools.sh — nombra lo que falte]
 Los comandos de arriba los ejecutas tú — yo no toco el historial.
 Cuando termines, avísame y verifico. Después, /discovery para empezar el proyecto.
 ```

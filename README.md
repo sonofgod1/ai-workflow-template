@@ -10,6 +10,48 @@ Incluye estrategia de Git profesional (branches, hooks de calidad, commits conve
 
 ---
 
+## Trabajar EN la plantilla, no con ella
+
+Este repositorio se gobierna a sí mismo: los hooks de `.claude/` están activos aquí y
+`CLAUDE.md` se carga como instrucciones del proyecto. Eso es deliberado — es
+dogfooding, y es como se encontraron varios bugs reales de la propia capa de
+protección. Pero crea una confusión que hay que nombrar explícitamente:
+
+> **Aquí, `CLAUDE.md`, `.claude/commands/`, `.claude/protected.txt` y
+> `.github/workflows/ci.yml` son el producto que se entrega, no reglas que gobiernen
+> este repositorio.**
+
+Tratarlos como archivos protegidos, o exigir aquí `/git-setup`, la rama `develop` y
+un "Norte del proyecto" definido, es un error de categoría: son cosas que la plantilla
+le pide a los proyectos que la consumen, no a sí misma.
+
+### `.claude/protected.local.txt`
+
+Para eso existe. Si ese archivo está presente, **reemplaza** a `protected.txt`:
+
+```
+.claude/protected.txt         ← la lista que se entrega a los proyectos
+.claude/protected.local.txt   ← la lista real de ESTA copia del repo, si difiere
+```
+
+En este repositorio protege solo lo que es secreto en cualquier repo (`.env`, claves,
+`.git/`) y deja fuera los archivos que aquí son código fuente.
+
+**No se versiona ni se sincroniza**, a propósito: si se colara a un proyecto nuevo, le
+desactivaría protecciones que ahí sí aplican. Si clonas este repo para trabajar en la
+plantilla, créalo a mano.
+
+Un proyecto normal también puede usarlo, para el caso contrario: **añadir**
+protecciones propias sin tocar la lista que sincroniza el template.
+
+### Lo que sí aplica aquí
+
+- No commitear sin que el usuario lo pida (regla dura 3).
+- `bash .workflow/verify.sh` antes de dar nada por terminado (regla dura 12).
+- Los hallazgos van a `docs/findings.json`, igual que en cualquier proyecto.
+
+---
+
 ## Cómo usar
 
 ### Para un proyecto nuevo
@@ -63,12 +105,19 @@ claude                            # o abre la carpeta en Cursor
      ↓
 /contracts          Define API, schemas de DB, tipos compartidos, env vars.
      ↓
-/implement          Escribe código respetando contratos y tipo de proyecto.
+/plan               Investiga en paralelo y produce un plan ejecutable.   [opus]
+     ↓              ── tú apruebas el plan ──
+/build              Ejecuta el plan aprobado y verifica hasta verde.    [sonnet]
+     ↓
+                    (para cambios chicos y sin ambigüedad: /implement, que
+                     planifica e implementa en un solo turno)
      ↓
 /test               Suite de tests: unitarios, integración, API y E2E.
 /review             Code review estricto con hallazgos numerados.
 /security           Audita auth, inyecciones, deps y secretos.
 /ux                 Audita flujos y consistencia del frontend (si aplica).
+     ↓
+/migrate            Cambios de schema seguros: expand/migrate/contract.    [opus]
      ↓
 /deploy             Checklist pre-producción: tests, migraciones, env vars, monitoreo.
      ↓
@@ -88,12 +137,15 @@ En Cursor los mismos comandos se invocan con `@`: `@discovery`, `@implement`, `@
 | Descubrimiento | `/discovery` | No escribe código, no propone stack. |
 | Arquitectura | `/architect` | No escribe código de aplicación. |
 | Contratos | `/contracts` | Solo interfaces y especificaciones, sin implementación. |
-| Implementación | `/implement <ID o feature>` | No commitea, no instala deps sin avisar. Muestra plan antes de tocar código. |
+| Planificación | `/plan <ID o feature>` | No escribe código. Investiga en paralelo y deja el plan en `docs/plans/`. |
+| Construcción | `/build <ruta del plan>` | No investiga, no rediseña, no amplía scope. Si el plan no coincide con el código, para. |
+| Implementación | `/implement <ID o feature>` | Solo para cambios chicos. No commitea, no instala deps sin avisar. Muestra plan antes de tocar código. |
 | Tests | `/test <target>` | No toca código de producción. |
 | Revisión | `/review <target>` | Solo analiza y reporta, no reescribe. |
 | Seguridad | `/security` | Solo analiza y reporta, no reescribe. |
 | UX | `/ux <flujo>` | Solo audita flujos de frontend, no reescribe. |
 | Feature | `/feature <descripción>` | Evalúa antes de actuar. Ancla al norte del proyecto. |
+| Migraciones | `/migrate <cambio>` | Clasifica la fase (expand/migrate/contract) y exige reversibilidad. |
 | Pre-producción | `/deploy` | Solo verifica y documenta. No modifica código. |
 | Cambio post-deploy | `/change <descripción>` | Proporcional al tamaño del cambio. |
 
@@ -303,9 +355,10 @@ Son los que Cursor no puede replicar. Automáticos, sin configuración manual.
 |------|-------------|----------|
 | `check-protected.sh` | Antes de editar cualquier archivo | Bloquea modificaciones a archivos en `.claude/protected.txt` |
 | `check-branch.sh` | Antes de editar cualquier archivo | Advierte si se está trabajando directamente en `main` |
-| `check-bash.sh` | Antes de ejecutar bash | Bloquea comandos destructivos (`rm -rf`, `DROP TABLE`, `git push --force`, etc.) |
+| `check-bash.sh` | Antes de ejecutar bash | Bloquea comandos destructivos **en posición de comando**, y borrados de archivos protegidos. Una mención dentro de una cadena o un heredoc pasa con aviso: un control que grita en falso entrena a ignorarlo |
+| `check-writes.sh` | Antes de editar y antes de ejecutar bash | Bloquea escrituras a archivos protegidos hechas por Bash (`cat >`, `tee`, `sed -i`, `cp`…) y hace cumplir la política de escritura de la fase activa |
 | `lint-on-save.sh` | Después de editar un archivo | Corre `ruff` en `.py` y `biome`/`prettier` en `.ts/.tsx/.js/.jsx` |
-| `session-summary.sh` | Al terminar la sesión | Muestra resumen de archivos modificados y recuerda que los commits son del usuario |
+| `session-summary.sh` | Al terminar la sesión | Resumen de archivos modificados, recordatorio de que los commits son del usuario, y aviso si hay código sin verificar |
 
 ### Git hooks (`git-hooks/`) — los dos editores
 
@@ -313,7 +366,7 @@ Instalados por `/git-setup` (o `@git-setup`). Son hooks de Git, así que funcion
 
 | Hook | Qué hace |
 |------|----------|
-| `pre-commit` | Bloquea archivos prohibidos (`.env`, `*.db`), lint JS/TS, type-check TypeScript, lint Python con ruff |
+| `pre-commit` | Bloquea archivos prohibidos (`.env`, `*.db`), lint JS/TS, type-check TypeScript, lint Python con ruff, y **gitleaks sobre lo staged** |
 | `commit-msg` | Valida formato convencional: `tipo(scope): descripción`. Rechaza el commit si no cumple. |
 | `pre-push` | Corre tests (npm test / pytest según stack detectado), advierte push directo a main |
 
@@ -326,6 +379,199 @@ Los archivos que Claude nunca puede tocar sin autorización explícita se listan
 
 ---
 
+## Modelos y subagentes
+
+La división que hace que esto escale: **opus donde hay que decidir, sonnet donde hay
+que ejecutar**. No es por comando, es por tarea cognitiva. Cada comando lo declara en
+su frontmatter (`model:`), así que no depende de qué modelo tuvieras puesto ese día.
+
+### Por qué `/plan` y `/build` están separados
+
+Cuando investigar, decidir e implementar ocurren en el mismo turno, el plan que sale
+es a nivel de archivo ("modificar `api.py`") — y eso no es ejecutable: quien
+implementa todavía tiene que decidir el diseño. Por eso no se puede delegar a un
+modelo más barato.
+
+`/plan` produce un plan a nivel de **cambio**: qué función, qué firma antes y
+después, qué comportamiento, qué casos de borde, qué tests deben existir. Con eso,
+`/build` no necesita criterio de diseño — y cuando lo necesita, **para**:
+
+```
+🛑 El plan no coincide con el código
+- Plan dice: [...]
+- Realidad: [...]
+- No sigo hasta que me digas: ¿ajusto el plan, o me das la decisión aquí?
+```
+
+Esa regla es lo que hace segura la delegación. Si se relaja, el reparto de modelos
+deja de tener sentido.
+
+### Los subagentes
+
+Solo hacen bien una cosa: **comprimir mucha lectura en pocas conclusiones**. Se usan
+donde eso es el cuello de botella.
+
+| Agente | Para qué | Lo lanza |
+|---|---|---|
+| `researcher` | Responde UNA pregunta concreta sobre el código, con `ruta:línea` | `/plan` |
+| `reviewer-correctness` | Bugs lógicos, casos de borde, concurrencia, errores | `/review` |
+| `reviewer-security` | Auth, inyecciones, secretos, exposición de datos | `/review`, `/security` |
+| `reviewer-contracts` | Conformidad con contratos, coherencia entre componentes | `/review` |
+
+`/plan` lanza varios `researcher` a la vez, uno por pregunta. `/review` lanza los
+tres revisores en paralelo, cada uno con su eje: un revisor secuencial sobre un diff
+de 40 archivos se queda sin atención antes que el diff.
+
+**Lo que NO se delega:** un subagente no puede preguntarte nada — devuelve un reporte
+y termina. Así que todo lo que existe para parar y esperar tu decisión (el anclaje al
+norte, las decisiones de producto, el "para y reporta") se queda en el hilo principal.
+Meterlo en un subagente haría que el agente resuelva solo lo que debía devolverte, que
+es justo el fallo que este workflow existe para atrapar.
+
+Implementar tampoco se delega: cada subagente arranca en frío y no ve lo que hicieron
+los otros, así que el código coherente entre archivos se les da mal.
+
+Los hooks del proyecto **sí** se aplican a las llamadas de herramienta de los
+subagentes — comprobado con una prueba controlada. Delegar no abre un agujero en la
+gobernanza.
+
+### En Cursor
+
+Cursor no tiene subagentes ni `model:` por regla. `/plan` y `/review` lo dicen
+explícitamente: si tu editor no los soporta, recorre las mismas preguntas o los
+mismos ejes tú, **uno a la vez**, cerrando cada uno antes de abrir el siguiente. El
+objetivo es el mismo — llegar a decidir con conclusiones, no con material crudo.
+
+---
+
+## Consistencia de datos y seguridad automática
+
+Las dos cosas que en software serio no pueden depender de que alguien se acuerde.
+
+### Migraciones: expand / migrate / contract
+
+Durante un despliegue **las dos versiones de la aplicación conviven**. Una migración
+que solo es compatible con el código nuevo rompe en esa ventana, en producción, con
+datos reales.
+
+| Fase | Qué haces | Release |
+|---|---|---|
+| **Expand** | Agregar lo nuevo: nullable o con default | N |
+| **Migrate** | Backfill + desplegar el código nuevo | N |
+| **Contract** | Quitar lo viejo | **N+1 o posterior** |
+
+El error que esto evita es hacer Expand y Contract en el mismo release — lo natural
+("agrego la columna nueva y quito la vieja"), y exactamente lo que rompe. Renombrar
+es siempre tres pasos.
+
+```bash
+python3 .workflow/check-migrations.py
+```
+
+Detecta `DROP COLUMN`, `RENAME`, `SET NOT NULL` sobre columnas existentes, cambios de
+tipo, `CREATE INDEX` sin `CONCURRENTLY`, `UPDATE` masivos sin `WHERE`, y migraciones
+sin vuelta atrás. Entiende alembic, django, prisma, flyway y SQL suelto. Escanea solo
+el camino de ida: un `drop_column` dentro de `downgrade()` es correcto, no un fallo.
+
+Cuando la operación destructiva es deliberada, se declara en el propio archivo:
+
+```
+# expand-contract: contract — la columna dejó de usarse en v1.4.0, desplegado 2026-01-10
+```
+
+La declaración exige una razón concreta detrás; una marca suelta no cuenta.
+
+### Dependencias y secretos
+
+```bash
+bash .workflow/audit-deps.sh
+```
+
+npm, pip, cargo, bundler o go según lo que detecte. Corre en CI y bloquea el merge
+con vulnerabilidades altas o críticas. Un stack sin herramienta instalada se reporta
+como **sin auditar**, no como limpio.
+
+`gitleaks` pasó de correr solo en CI a correr también en `pre-commit`: detectado
+después del push, el secreto ya está en el historial y hay que reescribir historia y
+rotar la credencial.
+
+---
+
+## Verificación y fases
+
+Tres piezas que convierten reglas escritas en reglas que se cumplen.
+
+### `.workflow/verify.sh` — el contrato de verificación
+
+Antes, "implementación completada" venía con una tabla de pruebas manuales y nada
+obligaba a haber corrido lint, type-check ni tests. Era una promesa. Ahora hay un
+comando único que produce evidencia:
+
+```bash
+bash .workflow/verify.sh            # completo
+bash .workflow/verify.sh --quick    # sin tests, para iterar
+bash .workflow/verify.sh --strict   # un paso saltado cuenta como fallo (CI)
+```
+
+| Resultado | Significa | Qué hacer |
+|---|---|---|
+| `ok` | todo en verde | reportar, pegando el resumen |
+| `parcial` | algún paso saltado por falta de herramienta | **no es verde**: nombrar qué quedó sin verificar |
+| `falla` | algún paso rojo | no reportar hasta corregir |
+
+Que `parcial` no cuente como verde es deliberado: "sin linter instalado" es
+precisamente el caso que se cuela cuando el resultado es binario.
+
+Los pasos se autodetectan (Node, Python) o se declaran en `.workflow/verify.conf`:
+
+```bash
+VERIFY_STEPS=(
+  "lint:npm run lint"
+  "typecheck:npm run typecheck"
+  "test:npm test"
+)
+```
+
+La evidencia queda en `.workflow/.last-verify.json`, y el hook de fin de sesión
+avisa si el código cambió después de la última verificación.
+
+### `.workflow/phase.sh` — la fase activa
+
+`/review`, `/security` y `/ux` declaraban "no escribes código" y nada lo impedía.
+Cada comando ahora declara su fase, y los hooks la hacen cumplir:
+
+| Política | Fases | Puede escribir |
+|---|---|---|
+| `docs` | discovery, architect, contracts, feature, review, security, ux, deploy | solo `docs/` |
+| `tests` | test | tests y `docs/` |
+| `full` | implement, change, git-setup | cualquier archivo no protegido |
+
+```bash
+bash .workflow/phase.sh show     # en qué fase estoy
+bash .workflow/phase.sh clear    # liberar
+```
+
+Una fase olvidada caduca sola a las 12 horas: el enforcement no puede dejar el
+repo trabado.
+
+### `.workflow/findings.py` — el índice de hallazgos
+
+Los reportes en markdown llevan la prosa. `docs/findings.json` lleva lo
+consultable y lo verificable:
+
+```bash
+python3 .workflow/findings.py list --abiertos
+python3 .workflow/findings.py add --id B3 --severidad blocker \
+  --titulo "..." --origen docs/reviews/2026-01-15-api.md
+python3 .workflow/findings.py cerrar B3 --commit a1b2c3d
+```
+
+`cerrar` falla si el hash no existe en el repo: un hallazgo se cierra después de
+commitear, nunca antes. Es la comprobación que faltaba para que el estado en
+markdown no se fuera separando de la realidad.
+
+---
+
 ## Estructura
 
 ```
@@ -334,7 +580,16 @@ mi-proyecto/
 ├── .github/
 │   ├── workflows/ci.yml               ← La barrera del servidor (no se salta)
 │   └── CODEOWNERS                     ← Quién aprueba qué (rellenar @TU-USUARIO)
+├── .workflow/                         ← Herramientas del workflow (los dos editores)
+│   ├── verify.sh                      ← Contrato único de verificación
+│   ├── verify.conf                    ← Pasos de verificación de ESTE proyecto
+│   ├── phase.sh                       ← Declara la fase activa
+│   ├── write-guard.py                 ← Extrae y bloquea escrituras (usado por los hooks)
+│   ├── findings.py                    ← Índice de hallazgos (docs/findings.json)
+│   ├── check-migrations.py            ← Seguridad de migraciones (expand/migrate/contract)
+│   └── audit-deps.sh                  ← Auditoría de dependencias
 ├── .claude/
+│   ├── agents/                        ← Subagentes: researcher y los 3 revisores
 │   ├── settings.json                  ← Hooks de Claude Code (PreToolUse / PostToolUse / Stop)
 │   ├── protected.txt                  ← Archivos que Claude no puede modificar
 │   ├── commands/                      ← Slash commands (uno por fase del SDLC)
@@ -393,7 +648,7 @@ usando cinco editores distintos no puede depender de que cada una tenga el hook 
 | Capa | Dónde corre | ¿Se puede saltar? | Qué cubre |
 |---|---|---|---|
 | Reglas y comandos | editor | sí, trivialmente | la intención del agente |
-| Hooks de Claude Code | local, solo Claude Code | sí | archivos protegidos, comandos destructivos |
+| Hooks de Claude Code | local, solo Claude Code | sí | archivos protegidos (Write **y** Bash), comandos destructivos, política de escritura de la fase |
 | Git hooks | local, cualquier editor | sí: `--no-verify` | commits, archivos prohibidos, lint, tests |
 | **CI** | servidor | **no** | lo mismo, más secretos, sobre el PR completo |
 | **CODEOWNERS** | servidor | **no** | quién puede cambiar qué |
@@ -414,6 +669,10 @@ Corre en cada PR a `main` y `develop`, y en cada push a esas ramas:
 | `secretos` | gitleaks sobre el historial completo |
 | `javascript` | `npm ci`, lint (biome o eslint), `tsc --noEmit`, tests — solo si hay `package.json` |
 | `python` | ruff y pytest — solo si hay `pyproject.toml` o `setup.py` |
+| `hallazgos` | Valida `docs/findings.json`: ids únicos, hashes de commit reales, y ningún bloqueante abierto en `main` |
+| `verificacion` | Corre `.workflow/verify.sh --strict` si el repo declaró sus pasos — cubre stacks que los jobs de arriba no detectan |
+| `dependencias` | `.workflow/audit-deps.sh`: npm audit, pip-audit, cargo audit… según el stack |
+| `migraciones` | `.workflow/check-migrations.py`: bloquea migraciones que rompen la versión anterior |
 
 Los jobs de stack se activan solos según lo que encuentren en el repo, así que el workflow sirve
 igual para un CLI en Python que para un monorepo fullstack.

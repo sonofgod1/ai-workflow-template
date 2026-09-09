@@ -11,6 +11,22 @@ Si no lo indicó, pregúntaselo antes de continuar.
 
 ---
 
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set implement
+```
+
+Esto declara la fase y activa su política de escritura: en `@implement` los hooks
+no restringen la escritura más allá de los archivos protegidos.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
+
+---
+
 ## ANTES DE TOCAR CÓDIGO — obligatorio
 
 ### 0. Anclar al norte del proyecto — antes que nada
@@ -164,6 +180,35 @@ trátalo como decisión de producto, no como decisión técnica.
 
 ---
 
+## VERIFICAR ANTES DE REPORTAR — obligatorio
+
+No existe "implementación completada" sin evidencia. Antes de escribir el reporte,
+corre el contrato de verificación del proyecto:
+
+```bash
+bash .workflow/verify.sh
+```
+
+Esto corre lint, type-check y tests con los comandos que el proyecto declaró
+(`.workflow/verify.conf`) o los que se detecten por stack, y deja la evidencia en
+`.workflow/.last-verify.json`.
+
+**Las tres salidas y qué hacer con cada una:**
+
+- `ok` → sigue al reporte y pega el resumen.
+- `falla` → **no reportes todavía**. Corrige y vuelve a correr. Si no puedes
+  corregirlo (el fallo es preexistente y ajeno a tu cambio), repórtalo como
+  hallazgo y dilo explícitamente en el reporte: nunca lo escondas.
+- `parcial` → hay pasos saltados por falta de herramienta. **Esto no es verde.**
+  Dilo en el reporte, nombra qué quedó sin verificar, y di qué haría falta para
+  cerrarlo.
+
+Correr la verificación no reemplaza la prueba manual: la verificación demuestra
+que no rompiste lo que ya estaba cubierto, la prueba manual demuestra que lo
+nuevo hace lo que se pidió. Hacen falta las dos.
+
+---
+
 ## REPORTE AL TERMINAR — formato obligatorio
 
 ```
@@ -177,6 +222,18 @@ trátalo como decisión de producto, no como decisión técnica.
 
 [COMPONENTE 2]:
 - [ruta] — [qué cambió en una línea]
+
+### Verificación — pegar la salida real, no describirla
+[Bloque literal del resumen de `bash .workflow/verify.sh`:
+
+  ════════════════════════════════════════════════════
+    Verificación: ok — 4 ok, 0 fallando, 0 saltados
+    Commit: a1b2c3d  Branch: feature/slug
+    2026-01-15 11:04:22
+  ════════════════════════════════════════════════════
+
+Si el resultado fue `parcial`, nombra aquí qué pasos quedaron sin verificar y por qué.
+Si fue `falla` y decidiste reportar igual, di cuál falla y por qué es preexistente.]
 
 ### Deuda anotada
 - [TD-XXX si encontraste algo que no arreglaste pero deberías anotar en docs/tech-debt.md]
@@ -248,20 +305,24 @@ Hacer esto **antes** de sugerir los commits, para que el commit de docs lo inclu
 El usuario va a seguir este ciclo. No lo apresures ni lo saltes:
 
 ```
-1. Prueba manual de todos los casos del plan
-2. Si algo falla → usuario reporta → ajustar aquí o registrar como nuevo hallazgo
-3. git status → verificar archivos (sin .db, sin tsbuildinfo, sin graphify-out/)
-4. git add explícito (nunca git add .)
-5. git commit -m "fix(ID): descripción"          ← código
-6. Si hay hallazgos nuevos → registrarlos en docs/reviews/decisiones.md
-7. git add explícito de los docs recién tocados
-8. git commit -m "docs: registrar [hallazgo]"    ← docs separado del código
-9. Marcar ID como completado en docs/reviews/decisiones.md con hash del commit
-10. git add explícito de decisiones.md (u otros docs de tracking tocados)
-11. git commit -m "docs: marcar [ID] como completado"
-12. git checkout develop && git merge feature/[slug] --no-ff
-13. git branch -d feature/[slug]
-14. git push origin develop
+1. bash .workflow/verify.sh                      ← evidencia, antes de nada
+2. Prueba manual de todos los casos del plan
+3. Si algo falla → usuario reporta → ajustar aquí o registrar como nuevo hallazgo
+4. git status → verificar archivos (sin .db, sin tsbuildinfo, sin graphify-out/)
+5. git add explícito (nunca git add .)
+6. git commit -m "fix(ID): descripción"          ← código
+7. Si hay hallazgos nuevos → python3 .workflow/findings.py add ... + docs/reviews/
+8. git add explícito de los docs recién tocados
+9. git commit -m "docs: registrar [hallazgo]"    ← docs separado del código
+10. python3 .workflow/findings.py cerrar [ID] --commit [hash del paso 6]
+    (falla si el hash no existe: se cierra DESPUÉS de commitear, nunca antes)
+11. Marcar ID como completado en docs/reviews/decisiones.md con el mismo hash
+12. git add docs/findings.json docs/reviews/decisiones.md
+13. git commit -m "docs: marcar [ID] como completado"
+14. git checkout develop && git merge feature/[slug] --no-ff
+15. git branch -d feature/[slug]
+16. git push origin develop
+17. bash .workflow/phase.sh clear                ← liberar la fase
 ```
 
 **No declares la feature como lista hasta que el usuario confirme que probó y pasó.**

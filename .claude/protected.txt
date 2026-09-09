@@ -5,6 +5,11 @@
 # modificar los que ya existen. Es lo que necesitan /architect y /contracts, que
 # tienen que poder escribir un ADR o un contrato nuevo, mientras que cambiar uno
 # ya escrito es una decisión tuya (un ADR no se edita: se reemplaza por otro).
+#
+# Prefijo '!' = excepción: anula la protección para esa ruta aunque un patrón más
+# amplio la cubra. Hace falta porque '.git/**' protege el repositorio entero, y
+# /git-setup tiene que poder instalar los hooks en .git/hooks/ — que es justamente
+# lo que este workflow existe para hacer. El resto de .git/ sigue intocable.
 
 .env
 .env.*
@@ -12,6 +17,7 @@
 *.key
 secrets/**
 .git/**
+!.git/hooks/**
 .github/workflows/**
 .claude/protected.txt
 CLAUDE.md

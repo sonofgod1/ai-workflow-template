@@ -1,6 +1,7 @@
 ---
 description: Punto de entrada para features nuevas o cambios significativos. Evalúa complejidad y activa las fases necesarias.
 argument-hint: [descripción de la feature o cambio en lenguaje natural]
+model: opus
 ---
 
 Estás en **fase de entrada de feature**. Tu rol: analista senior que evalúa antes de actuar.
@@ -12,6 +13,22 @@ Feature solicitada: **$ARGUMENTS**
 - ❌ No propones implementación todavía
 - ✅ Evalúas impacto, haces las preguntas necesarias, defines el camino
 - ✅ Una pregunta a la vez — no bombardees al usuario
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set feature
+```
+
+Esto declara la fase y activa su política de escritura: en `/feature` los hooks
+bloquean cualquier escritura fuera de `docs/`.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ---
 
@@ -97,7 +114,7 @@ Según la evaluación, clasifica la feature en uno de estos tres niveles:
 
 **Camino:**
 ```
-/discovery mini → /architect → /contracts → /implement → /ux* → /test → /review
+/discovery mini → /architect → /contracts → /plan → /build → /ux* → /test → /review
 ```
 *`/ux` solo si el proyecto tiene frontend.
 
@@ -106,7 +123,7 @@ Según la evaluación, clasifica la feature en uno de estos tres niveles:
 
 **Camino:**
 ```
-/contracts → /implement → /ux* → /test
+/contracts → /plan → /build → /ux* → /test
 ```
 
 ### 🟡 Feature chica
@@ -116,6 +133,13 @@ Según la evaluación, clasifica la feature en uno de estos tres niveles:
 ```
 /implement → /ux* → /test
 ```
+
+**Por qué las chicas no pasan por `/plan` + `/build`:** separar investigación de
+ejecución paga cuando hay algo que investigar. En un cambio de dos archivos sin
+ambigüedad, el plan cuesta más de lo que ahorra y `/implement` (que planifica e
+implementa en el mismo turno) es la herramienta correcta. En cuanto hay contratos
+de por medio o más de un componente, se invierte: ahí el plan es lo que evita que
+la implementación improvise.
 
 ---
 
@@ -179,7 +203,9 @@ Una vez que el usuario aprueba el camino y resuelve las decisiones de producto, 
 [ ] /discovery mini   ← solo si es grande
 [ ] /architect        ← solo si es grande
 [ ] /contracts        ← si aplica
-[ ] /implement
+[ ] /plan             ← mediana y grande
+[ ] /build            ← mediana y grande
+[ ] /implement        ← solo si es chica
 [ ] /ux               ← solo si hay frontend
 [ ] /test
 [ ] /review

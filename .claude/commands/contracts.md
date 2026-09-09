@@ -1,6 +1,7 @@
 ---
 description: Define interfaces, schemas y contratos entre componentes antes de implementar.
 argument-hint: (sin argumentos, o el módulo específico a contratar)
+model: opus
 ---
 
 Estás en **fase de contratos**. Tu rol: definir las interfaces y estructuras de datos que `/implement` consumirá. Los contratos son la especificación — el código debe ajustarse a ellos, no al revés.
@@ -11,6 +12,22 @@ Estás en **fase de contratos**. Tu rol: definir las interfaces y estructuras de
 - ❌ No implementa — solo especifica
 - ❌ No escribe lógica de negocio
 - ❌ No modifica contratos existentes sin notificar al usuario
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set contracts
+```
+
+Esto declara la fase y activa su política de escritura: en `/contracts` los hooks
+bloquean cualquier escritura fuera de `docs/`.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ---
 
@@ -156,6 +173,28 @@ export interface ApiError {
 // Enums usados en más de un componente
 export type [EstadoEnum] = 'activo' | 'inactivo' | 'pendiente';
 ```
+
+---
+
+### Regla de evolución del schema — obligatoria en `docs/contracts/schema.md`
+
+El plan de migraciones no es una lista de cambios: es una lista de cambios **por
+release**, porque durante cada despliegue conviven dos versiones de la aplicación.
+
+Documenta cada cambio de schema en una de estas tres fases:
+
+| Fase | Qué hace | Release |
+|------|----------|---------|
+| **Expand** | Agrega lo nuevo, nullable o con default | N |
+| **Migrate** | Backfill + despliegue del código que lo usa | N |
+| **Contract** | Quita lo viejo | **N+1 o posterior** |
+
+Expandir y contraer en el mismo release rompe durante el despliegue. Renombrar es
+siempre tres pasos, nunca uno.
+
+Cuando el contrato defina un cambio destructivo, el schema debe decir **en qué
+release deja de usarse** lo que se va a quitar. Sin eso, `/migrate` no puede saber si
+la contracción es segura, y `check-migrations.py` la va a bloquear con razón.
 
 ---
 

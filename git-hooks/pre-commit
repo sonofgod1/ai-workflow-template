@@ -156,6 +156,44 @@ if [ -n "$PY_FILES" ]; then
   fi
 fi
 
+# ─── 6. Secretos en lo que se va a commitear ──────────────────────────────────
+#
+# gitleaks ya corría en CI, pero eso es después del push: para entonces el secreto
+# ya está en el historial local y remoto, y limpiarlo exige reescribir historia y
+# rotar la credencial. Aquí se detecta antes de que entre.
+
+echo "  Buscando secretos en los cambios staged..."
+
+GITLEAKS=""
+if command -v gitleaks > /dev/null 2>&1; then
+  GITLEAKS="gitleaks"
+elif command -v docker > /dev/null 2>&1 && docker info > /dev/null 2>&1; then
+  GITLEAKS="docker run --rm -v $PWD:/repo -w /repo ghcr.io/gitleaks/gitleaks:latest"
+fi
+
+if [ -n "$GITLEAKS" ]; then
+  # `protect --staged` mira solo lo que está en el índice, que es lo que este
+  # commit va a escribir. Escanear el repo entero en cada commit sería lento y
+  # además fallaría por secretos históricos que este commit no introduce.
+  # --verbose: sin él gitleaks solo imprime el número de hallazgos, y el
+  # mensaje de abajo dice "ver arriba" cuando arriba no hay nada que ver.
+  # --redact oculta el valor del secreto, pero deja el archivo y la línea.
+  $GITLEAKS protect --staged --redact --verbose --no-banner
+  LEAK_CODE=$?
+  if [ $LEAK_CODE -ne 0 ]; then
+    echo "  ❌ gitleaks encontró posibles secretos en los cambios staged (ver arriba)."
+    echo "     Quítalos del código antes de commitear. Si es un falso positivo,"
+    echo "     añádelo a .gitleaksignore con una nota de por qué."
+    echo "     NO uses --no-verify para esto: el secreto quedaría en el historial."
+    EXIT_CODE=$LEAK_CODE
+  else
+    echo "  ✓ Sin secretos detectados."
+  fi
+else
+  echo "  ⚠️  gitleaks no instalado y sin docker. Saltando detección de secretos."
+  echo "     Instálalo: brew install gitleaks   (CI sí lo corre, pero eso es después del push)"
+fi
+
 # ─── Resultado final ──────────────────────────────────────────────────────────
 
 if [ $EXIT_CODE -eq 0 ]; then

@@ -14,6 +14,22 @@ Estás en **fase de descubrimiento**. Tu rol: analista + arquitecto senior que e
 
 ---
 
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set discovery
+```
+
+Esto declara la fase y activa su política de escritura: en `@discovery` los hooks
+bloquean cualquier escritura fuera de `docs/`.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
+
+---
+
 ## Paso 0 — Preguntar sobre graphify
 
 Antes de cualquier análisis, pregunta al usuario:
@@ -54,6 +70,21 @@ EOF
 **Si elige No:** continúas sin grafo. No lo menciones más.
 
 **Si ya está instalado:** lee `graphify-out/GRAPH_REPORT.md` completo antes de hacer cualquier pregunta.
+
+---
+
+## Paso 0.7 — Comprobar las herramientas del entorno
+
+```bash
+bash .workflow/check-tools.sh
+```
+
+En un proyecto ya construido esto importa más que en uno nuevo: las barreras pueden
+llevar meses desactivadas sin que nadie lo note, porque su modo de fallo es un aviso
+que se salta, no un error que para.
+
+Incluye el resultado en el documento de descubrimiento, en "Deuda técnica visible".
+Una barrera apagada es deuda, aunque no lo parezca.
 
 ---
 

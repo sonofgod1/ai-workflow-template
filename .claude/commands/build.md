@@ -1,0 +1,192 @@
+---
+description: Ejecuta un plan ya aprobado. No investiga, no rediseña, no amplía el scope.
+argument-hint: [ruta del plan en docs/plans/]
+model: sonnet
+---
+
+Estás en **fase de construcción**. Tu rol: ejecutar un plan que ya tomó las decisiones.
+
+Plan a ejecutar: **$ARGUMENTS**
+
+**Restricciones:**
+- ❌ No rediseñas: las decisiones ya están tomadas en el plan
+- ❌ No amplías el scope, ni siquiera "de paso"
+- ❌ No investigas el código más allá de lo que el plan te dice que toques
+- ✅ Implementas exactamente lo que dice el plan, y lo verificas
+
+---
+
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set build
+```
+
+Esto declara la fase y activa su política de escritura: en `/build` los hooks
+no restringen la escritura más allá de los archivos protegidos.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
+
+---
+
+## La regla que hace segura esta fase
+
+**Si el plan y la realidad no coinciden, paras.**
+
+El plan se escribió con investigación completa en `/plan`. Si al abrir un archivo
+encuentras algo que el plan no anticipó — la función tiene otra firma, el archivo no
+existe, hay un consumidor que el plan no menciona — eso **no** es algo que resuelvas
+tú improvisando. Significa que la investigación se quedó corta, y eso se arregla en
+`/plan`, no aquí.
+
+```
+🛑 El plan no coincide con el código
+
+- Plan dice: [cita la línea del plan]
+- Realidad: [qué encontraste, con ruta:línea]
+- Qué haría falta decidir: [la decisión concreta que no está en el plan]
+- No sigo hasta que me digas: ¿ajusto el plan con /plan, o me das la decisión aquí?
+```
+
+Esta es la única razón por la que esta fase puede correr en un modelo más barato:
+no se le pide criterio de diseño, y cuando hace falta criterio, para.
+
+---
+
+## Paso 1 — Leer el plan, y solo el plan
+
+Lee `$ARGUMENTS` completo. Además, únicamente:
+
+- Los contratos en `docs/contracts/` que el plan nombre
+- Los archivos que el plan dice que vas a tocar
+
+**No hagas exploración general del repositorio.** No leas el grafo, no hagas grep
+buscando contexto, no abras archivos "para entender mejor". Todo eso ya se hizo en
+`/plan`, y volver a hacerlo aquí solo llena el contexto de material que no necesitas.
+
+Si al leer el plan hay algo que no entiendes lo bastante para ejecutarlo, ese es un
+defecto del plan: párate y dilo, con la sección concreta que quedó ambigua.
+
+---
+
+## Paso 2 — Crear la branch
+
+```bash
+git checkout develop
+git checkout -b [feature|fix]/[slug del plan]
+```
+
+Si no existe `develop`, para y avisa: el proyecto necesita `/git-setup` primero
+(regla dura 10).
+
+---
+
+## Paso 3 — Implementar
+
+Archivo por archivo, en el orden del plan. Si el plan toca más de 5 archivos,
+implementa en bloques y avisa al terminar cada bloque.
+
+Por cada archivo, sigue la sección del plan al pie de la letra: la firma que dice,
+el comportamiento que dice, los casos de borde que nombra.
+
+**Convenciones del proyecto** (de `CLAUDE.md`): nombres descriptivos sin abreviar;
+comentarios solo del "por qué"; funciones de menos de 30 líneas; errores nunca
+silenciados; logs estructurados, nunca `print()`.
+
+**Escribe también los tests** que el plan lista en "Tests que deben existir al
+terminar". Un plan ejecutado sin sus tests no está ejecutado.
+
+---
+
+## Paso 4 — Verificar hasta verde
+
+```bash
+bash .workflow/verify.sh
+```
+
+- `falla` → corrige y vuelve a correr. Repite hasta verde. Si el fallo es
+  preexistente y ajeno a tu cambio, **no lo arregles de paso**: repórtalo como
+  hallazgo y dilo explícitamente en el reporte.
+- `parcial` → hay pasos saltados por falta de herramienta. **No es verde.** Nombra
+  qué quedó sin verificar.
+- `ok` → sigue al reporte.
+
+No declares nada terminado sin esta salida (regla dura 12).
+
+---
+
+## Reporte al terminar — formato obligatorio
+
+```
+## Construido: [título del plan]
+
+### Plan ejecutado
+docs/plans/[archivo] — [N de N] secciones completadas
+
+### Archivos tocados
+[Una sección por componente del proyecto, según "Tipo de proyecto" en CLAUDE.md]
+
+[COMPONENTE]:
+- `ruta` — [qué cambió en una línea]
+
+### Verificación — salida real, no descrita
+[Pega el bloque literal del resumen de verify.sh:
+
+  ════════════════════════════════════════════════════
+    Verificación: ok — 4 ok, 0 fallando, 0 saltados
+    Commit: a1b2c3d  Branch: feature/slug
+    2026-01-15 11:04:22
+  ════════════════════════════════════════════════════
+
+Si fue `parcial`, di qué quedó sin verificar. Si fue `falla` y aun así reportas,
+di cuál falla y por qué es preexistente.]
+
+### Tests agregados
+- `ruta/test_x.py::test_caso` — [qué prueba]
+
+### Desviaciones del plan
+[Cualquier punto donde tuviste que apartarte, y por qué. Si el plan se cumplió
+tal cual: "ninguna".]
+
+### Hallazgos encontrados
+[Cosas rotas fuera del scope que NO arreglaste. Regístralas:
+  python3 .workflow/findings.py add --id [ID] --severidad [blocker|important|suggestion] \
+    --titulo "..." --origen [ruta del reporte o del plan]
+O "ninguno".]
+
+### Plan de prueba manual
+[Copiado del plan, para que el usuario lo recorra.]
+
+### Commits sugeridos
+# Código — git add explícito, nunca `git add .`
+git add [archivos reales tocados]
+git commit -m "[tipo]([scope]): [descripción]"
+
+# Cerrar el hallazgo, con el hash real del commit de arriba
+python3 .workflow/findings.py cerrar [ID] --commit [hash]
+git add docs/findings.json
+git commit -m "docs: marcar [ID] como completado"
+
+# Mergear
+git checkout develop
+git merge feature/[slug] --no-ff -m "[tipo]([scope]): [descripción]"
+git branch -d feature/[slug]
+git push origin develop
+```
+
+**No declares la feature lista hasta que el usuario confirme que probó y pasó.**
+
+---
+
+## Actualizar tracking — si aplica
+
+Si el plan pertenece a una feature con archivo en `docs/features/`:
+
+1. Marcar `/build` como `[x]` en "Camino acordado"
+2. Agregar los hallazgos nuevos a "Hallazgos vinculados" con estado `[ ]`
+3. Agregar al Historial: `YYYY-MM-DD — /build completada ([plan])`
+
+Hazlo **antes** de sugerir los commits, para que el commit de docs lo incluya.

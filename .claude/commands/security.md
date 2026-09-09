@@ -1,6 +1,7 @@
 ---
 description: Auditoría de seguridad. Verifica autenticación, autorización, inputs, dependencias y secretos. No escribe código.
 argument-hint: (sin argumentos)
+model: opus
 ---
 
 Estás en **fase de auditoría de seguridad**. Tu rol: identificar vulnerabilidades y malas prácticas antes de ir a producción.
@@ -12,12 +13,43 @@ Estás en **fase de auditoría de seguridad**. Tu rol: identificar vulnerabilida
 
 ---
 
+## Fase activa — antes de cualquier otra cosa
+
+```bash
+bash .workflow/phase.sh set security
+```
+
+Esto declara la fase y activa su política de escritura: en `/security` los hooks
+bloquean cualquier escritura fuera de `docs/`.
+
+Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
+que esta fase puede hacer. Para, dilo, y espera instrucción.
+
+Al terminar, libera la fase: `bash .workflow/phase.sh clear`
+
+---
+
 ## Paso 0 — Leer contexto del proyecto
 
 1. `CLAUDE.md` → stack del proyecto, tipo de proyecto
 2. `docs/contracts/api.md` → endpoints y autenticación definida
 3. `docs/contracts/schema.md` → datos sensibles en la DB
 4. `graphify-out/GRAPH_REPORT.md` → si existe, identifica módulos de autenticación y manejo de datos
+
+---
+
+## Paso 0.5 — Revisión en paralelo del código
+
+Antes de recorrer el checklist a mano, lanza el agente `reviewer-security` sobre las
+zonas sensibles del proyecto (autenticación, endpoints de escritura, manejo de
+entrada del usuario, acceso a datos). Vuelve con hallazgos **sin numerar**: los IDs
+los asignas tú al consolidar.
+
+El checklist de abajo es para lo que un revisor de código no ve: configuración,
+infraestructura, políticas, dependencias. Lo que sí está en el código lo cubre mejor
+el revisor, y en paralelo.
+
+Si tu editor no soporta subagentes, recorre el checklist tú, entero.
 
 ---
 
@@ -59,19 +91,15 @@ Estás en **fase de auditoría de seguridad**. Tu rol: identificar vulnerabilida
 ### 4. Dependencias
 
 ```bash
-# Ejecutar y reportar el output completo
-
-# Node/npm:
-npm audit --audit-level=moderate
-
-# Python:
-pip-audit                    # pip install pip-audit
-# o alternativamente:
-safety check                 # pip install safety
-
-# Ruby:
-bundler audit
+bash .workflow/audit-deps.sh
 ```
+
+Contrato único de auditoría: detecta el gestor de dependencias del proyecto (npm,
+pip, cargo, bundler, go) y corre la herramienta que corresponda. **Pega la salida
+real en el reporte**, no la describas.
+
+Si algún stack sale como "sin herramienta instalada", eso **no** significa que esté
+limpio: significa que no se auditó. Dilo explícitamente y di qué falta instalar.
 
 - [ ] Sin vulnerabilidades críticas o altas sin justificación documentada
 - [ ] Las dependencias directas tienen versiones fijadas (no `*` ni ranges amplios en producción)
@@ -88,6 +116,18 @@ bundler audit
   - `Content-Security-Policy` (si hay frontend)
 - [ ] Los errores de API no exponen stack traces ni información del sistema en producción
 - [ ] Los IDs secuenciales en URLs públicas exponen el volumen de datos — evaluar si es aceptable o si se necesitan UUIDs
+
+### 5.5 Migraciones y consistencia de datos
+
+```bash
+python3 .workflow/check-migrations.py --all
+```
+
+- [ ] Ninguna migración destructiva sin declarar su fase de contracción
+- [ ] Toda migración tiene vuelta atrás, o declara por qué es irreversible
+- [ ] Los backfills sobre tablas grandes van por lotes, no en una sola sentencia
+- [ ] Las operaciones que deben ser atómicas están dentro de una transacción
+- [ ] Las operaciones que se pueden reintentar son idempotentes
 
 ### 6. Datos sensibles
 
@@ -123,3 +163,30 @@ bundler audit
 ```
 
 ## Producir docs/reviews/YYYY-MM-DD-security-[nombre].md
+
+---
+
+## Registrar los hallazgos en el índice
+
+El reporte en markdown lleva la prosa: síntoma, por qué importa, sugerencia. El
+índice lleva lo que hay que poder consultar y validar sin leerlo todo — qué está
+abierto hoy, y si el commit con el que se cerró algo existe de verdad.
+
+Registra **cada** hallazgo del reporte:
+
+```bash
+# id libre para esa severidad
+python3 .workflow/findings.py siguiente-id --severidad blocker
+
+python3 .workflow/findings.py add --id B3 --severidad blocker \
+  --titulo "PUT no es atómico en asignaciones" \
+  --origen docs/reviews/2026-01-15-api.md \
+  --archivos backend/api/asignaciones.py:88
+```
+
+Severidades: `blocker` (B), `important` (I), `suggestion` (S), `debt` (TD).
+
+Consultar en cualquier momento: `python3 .workflow/findings.py list --abiertos`
+
+Si el índice y el markdown se separan, el índice deja de servir. Regístralos en
+el mismo momento en que guardas el reporte, no después.

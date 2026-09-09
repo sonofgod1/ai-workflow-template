@@ -73,6 +73,14 @@ detecta la tensión, la nombra, y la devuelve.
 
 11. **Commits convencionales obligatorios.** Formato: `tipo(scope): descripción`. El hook `commit-msg` lo valida automáticamente. Tipos válidos: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`.
 
+12. **Nada se declara terminado sin evidencia.** Antes de reportar cualquier implementación como completada, se corre `bash .workflow/verify.sh` y se pega la salida real en el reporte. "Lo verifiqué" sin salida de comando no es un reporte. Un resultado `parcial` (pasos saltados por falta de herramienta) **no es verde**: se nombra qué quedó sin verificar.
+
+13. **La fase activa se declara.** Cada comando abre con `bash .workflow/phase.sh set [fase]` y cierra con `clear`. Los hooks usan ese estado para impedir que una fase de análisis (`@review`, `@security`, `@ux`) escriba código, y que `@test` toque código de producción. Si un bloqueo te detiene, **no lo rodees**: significa que te estás saliendo de la fase. Para y dilo.
+
+14. **Ninguna migración rompe la versión anterior de la aplicación.** Durante un despliegue las dos versiones conviven — minutos en un rolling update, horas si hay que revertir. Todo cambio de schema sigue **expand / migrate / contract**: agregar lo nuevo (nullable o con default) y quitar lo viejo son releases **distintos**. Renombrar es siempre tres pasos, nunca uno. Toda migración tiene vuelta atrás, o declara en el archivo por qué es irreversible. Se verifica con `python3 .workflow/check-migrations.py`.
+
+15. **No se despliega con vulnerabilidades conocidas sin excepción registrada.** `bash .workflow/audit-deps.sh` corre en CI y bloquea. Si no hay parche disponible, el riesgo aceptado se registra como hallazgo con su razón: una excepción sin registrar se vuelve permanente y nadie recuerda por qué está ahí.
+
 ---
 
 ## Qué se hace cumplir con código y qué depende de ti
@@ -85,10 +93,15 @@ cualquier editor):
 - `commit-msg` — rechaza el commit si el asunto no sigue el formato convencional.
 - `pre-commit` — bloquea `.env`, `*.db`, `node_modules/` y demás archivos prohibidos; corre lint y type-check.
 - `pre-push` — corre los tests y advierte si el push va directo a `main`.
+- `.workflow/verify.sh` — el contrato de verificación. Córrelo antes de declarar nada terminado
+  y pega su salida real: sin evidencia no hay reporte (regla 12).
+- `.workflow/check-migrations.py` — bloquea migraciones que rompen la versión anterior (regla 14).
+- `.workflow/audit-deps.sh` — bloquea dependencias con vulnerabilidades conocidas (regla 15).
+- `gitleaks` en `pre-commit` — impide que un secreto entre al historial.
 
 **Depende enteramente de que tú las respetes** (no hay nada que te lo impida):
 
-- Las 11 reglas duras de arriba.
+- Las 15 reglas duras de arriba, incluida la política de escritura por fase (regla 13).
 - La lista de archivos protegidos de la regla 1.
 - No ejecutar comandos destructivos sin que el usuario escriba "confirmo".
 - Parar y preguntar en vez de adivinar.
@@ -108,6 +121,150 @@ Si existe `graphify-out/GRAPH_REPORT.md`:
 
 Si el grafo NO existe y el proyecto tiene más de 20 archivos, sugiere al usuario construirlo con
 `/graphify .` — el grafo lo genera el **skill** desde el asistente. `graphify .` desde bash no existe.
+
+---
+
+## Verificación y evidencia
+
+`.workflow/verify.sh` es el contrato único de verificación del proyecto. Corre lint,
+type-check y tests con los comandos que el proyecto declaró en `.workflow/verify.conf`,
+o con los detectados por stack si no hay config.
+
+```bash
+bash .workflow/verify.sh            # completo
+bash .workflow/verify.sh --quick    # sin tests, para iterar
+bash .workflow/verify.sh --strict   # un paso saltado cuenta como fallo (CI)
+```
+
+| Resultado | Qué significa | Qué hacer |
+|-----------|---------------|-----------|
+| `ok` | todos los pasos en verde | reportar, pegando el resumen |
+| `parcial` | algún paso saltado por falta de herramienta | **no es verde**: nombrar qué quedó sin verificar |
+| `falla` | algún paso rojo | no reportar hasta corregir |
+
+La evidencia queda en `.workflow/.last-verify.json`. El hook de fin de sesión avisa
+si hay código modificado después de la última verificación.
+
+**Definir los pasos de este proyecto** en `.workflow/verify.conf`:
+
+```bash
+VERIFY_STEPS=(
+  "lint:npm run lint"
+  "typecheck:npm run typecheck"
+  "test:npm test"
+)
+```
+
+Verificar no reemplaza probar: la verificación demuestra que no rompiste lo que ya
+estaba cubierto, la prueba manual demuestra que lo nuevo hace lo que se pidió.
+
+---
+
+## Fases y política de escritura
+
+Cada comando declara su fase, y los hooks la hacen cumplir:
+
+| Política | Fases | Puede escribir |
+|----------|-------|----------------|
+| `docs` | discovery, architect, contracts, feature, plan, review, security, ux, deploy | solo `docs/` |
+| `tests` | test | tests y `docs/` |
+| `full` | implement, build, change, git-setup | cualquier archivo no protegido |
+
+```bash
+bash .workflow/phase.sh show     # en qué fase estoy
+bash .workflow/phase.sh clear    # liberar
+```
+
+Una fase olvidada caduca sola a las 12 horas para no dejar el repo trabado.
+
+---
+
+## Subagentes
+
+Los subagentes solo hacen bien una cosa: **comprimir mucha lectura en pocas
+conclusiones**. Se usan donde eso es el cuello de botella, no en todas partes.
+
+| Agente | Para qué | Lo lanza |
+|--------|----------|----------|
+| `researcher` | Responde UNA pregunta concreta sobre el código, con `ruta:línea` | `@plan` |
+| `reviewer-correctness` | Bugs lógicos, casos de borde, concurrencia, errores | `@review` |
+| `reviewer-security` | Auth, inyecciones, secretos, exposición de datos | `@review`, `@security` |
+| `reviewer-contracts` | Conformidad con `docs/contracts/`, coherencia entre componentes | `@review` |
+
+**Lo que NO se delega, y por qué:** un subagente no puede preguntarte nada. Devuelve
+un reporte y termina. Así que todo lo que existe para parar y esperar tu decisión —
+el anclaje al norte, las decisiones de producto, el "para y reporta" ante un hallazgo
+fuera de scope — se queda en el hilo principal. Meterlo en un subagente haría que el
+agente resuelva solo lo que debía devolverte, que es justo el fallo que este workflow
+existe para atrapar.
+
+Tampoco se delega implementar: cada subagente arranca en frío y no ve lo que hicieron
+los otros, así que escribir código coherente entre archivos se les da mal.
+
+Los hooks del proyecto **sí** se aplican a las llamadas de herramienta de los
+subagentes (comprobado): delegar no abre un agujero en la gobernanza.
+
+---
+
+## Consistencia de datos
+
+El incidente clásico de despliegue no es un bug de lógica: es una migración que borra
+una columna mientras la versión anterior de la aplicación sigue corriendo.
+
+| Fase | Qué haces | Quién funciona | Release |
+|------|-----------|----------------|---------|
+| **Expand** | Agregar lo nuevo: columna nullable, con default, tabla nueva | código viejo (lo ignora) y nuevo | N |
+| **Migrate** | Backfill + desplegar el código nuevo | los dos | N |
+| **Contract** | Quitar lo viejo | solo el nuevo, ya único | **N+1** |
+
+El error que esto evita es hacer Expand y Contract en el mismo release — que es lo
+natural ("agrego la columna nueva y quito la vieja") y es exactamente lo que rompe.
+
+```bash
+python3 .workflow/check-migrations.py          # migraciones del cambio actual
+python3 .workflow/check-migrations.py --all    # todas las del repo
+```
+
+Detecta `DROP COLUMN`, `RENAME`, `SET NOT NULL` sobre columnas existentes, cambios de
+tipo, `CREATE INDEX` sin `CONCURRENTLY`, `UPDATE` masivos sin `WHERE`, y migraciones
+sin vuelta atrás. Escanea solo el camino de ida: un `drop_column` dentro de
+`downgrade()` es correcto.
+
+Cuando una operación destructiva es deliberada, se declara en el propio archivo de
+migración, con su razón:
+
+```
+# expand-contract: contract — la columna dejó de usarse en v1.4.0, desplegado 2026-01-10
+# irreversible: la tabla de auditoría no se puede reconstruir; backup verificado antes
+```
+
+**Otras reglas de consistencia:**
+
+- Backfill sobre tabla grande → por lotes, con punto de reanudación. Un `UPDATE` sin
+  `WHERE` mantiene un lock largo.
+- Backfill separado del cambio de estructura: si falla a la mitad, no debe arrastrar el DDL.
+- Toda operación reintentable es idempotente.
+- Probar el ciclo completo contra datos reales: aplicar → revertir → aplicar. Una
+  migración probada solo hacia adelante no está probada.
+
+---
+
+## Auditoría de dependencias
+
+```bash
+bash .workflow/audit-deps.sh            # falla con high/critical
+bash .workflow/audit-deps.sh --strict   # falla también con moderate
+```
+
+Detecta el gestor del proyecto (npm, pip, cargo, bundler, go) y corre la herramienta
+que corresponda. Corre en CI y bloquea el merge.
+
+Un stack que sale como "sin herramienta instalada" **no está limpio: está sin
+auditar**, y el script lo dice con esas palabras a propósito.
+
+Además, `gitleaks` corre ahora en `pre-commit`, no solo en CI: un secreto detectado
+después del push ya está en el historial y exige reescribir historia y rotar la
+credencial.
 
 ---
 
@@ -151,20 +308,34 @@ Ejemplo para un cli:
 
 Cada fase es una regla que el usuario invoca con `@`, con restricciones claras. **Fuera de una fase, modo consulta: respondes preguntas, no modificas nada.**
 
-| Fase | Regla | Qué haces |
-|------|---------|-----------|
-| Inicialización Git | `@git-setup` | Crea branches (main/develop), instala hooks de Git, tag inicial. Solo una vez al inicio. |
-| Descubrimiento | `@discovery` | Entiendes el problema, clasificas tipo de proyecto, leerás el grafo. No escribes código. |
-| Arquitectura | `@architect` | Propones stack con 2 opciones, escribes ADRs. |
-| Contratos | `@contracts` | Defines API, schemas de DB, tipos compartidos, env vars requeridas. |
-| Implementación | `@implement` | Escribes código respetando contratos, tipo de proyecto, y hallazgos. |
-| Tests | `@test` | Escribes tests. No tocas código de producción. |
-| Revisión | `@review` | Code review estricto. No escribes código nuevo. |
-| Seguridad | `@security` | Audita auth, inyecciones, deps, secretos. No escribe código. |
-| UX | `@ux` | Audita flujos, consistencia, estados y accesibilidad básica del frontend. |
-| Feature | `@feature` | Evalúa complejidad de trabajo nuevo, define qué fases activar, y crea el archivo de tracking en `docs/features/`. |
-| Pre-producción | `@deploy` | Checklist de deploy: tests, migraciones, env vars, monitoreo, Git. No modifica código. |
-| Cambio post-deploy | `@change` | Gestiona cambios sobre la app en producción. Clasifica, identifica contratos afectados y re-corre solo las fases mínimas. |
+| Fase | Regla | Modelo sugerido | Qué haces |
+|------|---------|--------|-----------|
+| Inicialización Git | `@git-setup` | sonnet | Crea branches (main/develop), instala hooks de Git, tag inicial. Solo una vez al inicio. |
+| Descubrimiento | `@discovery` | opus | Entiendes el problema, clasificas tipo de proyecto, leerás el grafo. No escribes código. |
+| Arquitectura | `@architect` | opus | Propones stack con 2 opciones, escribes ADRs. |
+| Contratos | `@contracts` | opus | Defines API, schemas de DB, tipos compartidos, env vars requeridas. |
+| **Planificación** | **`@plan`** | **opus** | **Investigas en paralelo y produces un plan ejecutable a nivel de cambio. No escribes código.** |
+| **Construcción** | **`@build`** | **sonnet** | **Ejecutas un plan aprobado. No investigas, no rediseñas, no amplías scope.** |
+| Implementación | `@implement` | opus | Planificas e implementas en un solo turno. Solo para cambios chicos y sin ambigüedad. |
+| Tests | `@test` | opus | Escribes tests. No tocas código de producción. |
+| Revisión | `@review` | opus | Code review estricto, en paralelo por ejes. No escribes código nuevo. |
+| Seguridad | `@security` | opus | Audita auth, inyecciones, deps, secretos. No escribe código. |
+| UX | `@ux` | opus | Audita flujos, consistencia, estados y accesibilidad básica del frontend. |
+| Feature | `@feature` | opus | Evalúa complejidad de trabajo nuevo, define qué fases activar, y crea el archivo de tracking en `docs/features/`. |
+| **Migraciones** | **`@migrate`** | **opus** | **Diseña un cambio de schema seguro para producción (expand/migrate/contract). Verifica reversibilidad.** |
+| Pre-producción | `@deploy` | opus | Checklist de deploy: tests, migraciones, env vars, monitoreo, Git. No modifica código. |
+| Cambio post-deploy | `@change` | opus | Gestiona cambios sobre la app en producción. Clasifica, identifica contratos afectados y re-corre solo las fases mínimas. |
+
+**El reparto de modelos no es por comando, es por tarea cognitiva:** opus donde hay
+que *decidir* qué hacer, sonnet donde hay que *ejecutar* lo ya decidido. `@build`
+puede correr en un modelo más barato porque `@plan` ya tomó todas las decisiones —
+y porque cuando el plan no alcanza, `@build` tiene la orden de parar en vez de
+improvisar. Si esa regla se relaja, el reparto deja de ser seguro.
+
+**`@plan` + `@build` vs. `@implement`:** separar investigación de ejecución paga
+cuando hay algo que investigar. Para un cambio de dos archivos sin ambigüedad,
+`@implement` sigue siendo lo correcto. En cuanto hay contratos de por medio o más
+de un componente, usa `@plan` + `@build`. `@feature` clasifica y enruta por ti.
 
 ---
 
@@ -268,6 +439,8 @@ docs/
 ├── discovery/          ← Output de @discovery
 ├── adr/               ← Architecture Decision Records
 ├── contracts/         ← API, schemas de DB, tipos compartidos, env vars (ver @contracts)
+├── plans/             ← Planes ejecutables producidos por @plan y consumidos por @build
+│   └── YYYY-MM-DD-[slug].md
 ├── features/          ← Tracking activo de features: clasificación, camino, decisiones, hallazgos vinculados
 │   └── YYYY-MM-DD-[nombre-slug].md
 ├── reviews/           ← Reviews de código con hallazgos numerados
@@ -292,6 +465,24 @@ docs/
 - `TD-001...` — Deuda técnica
 - `B1.1` — Sub-hallazgo descubierto al arreglar B1
 
+### Índice de hallazgos — `docs/findings.json`
+
+Los reportes en markdown llevan la prosa. `docs/findings.json` lleva lo que hay que
+poder consultar y validar sin leerlo todo, y es lo que CI verifica.
+
+```bash
+python3 .workflow/findings.py list --abiertos
+python3 .workflow/findings.py siguiente-id --severidad blocker
+python3 .workflow/findings.py add --id B3 --severidad blocker \
+  --titulo "..." --origen docs/reviews/2026-01-15-api.md \
+  --archivos backend/api.py:88
+python3 .workflow/findings.py cerrar B3 --commit a1b2c3d
+```
+
+`cerrar` falla si el hash no existe en el repositorio: un hallazgo se cierra
+**después** de commitear, nunca antes. Esa es la comprobación que antes no hacía
+nadie, y por la que el estado en markdown se iba separando de la realidad.
+
 ### Estado de hallazgos en decisiones.md
 
 - `[ ]` o sin ✅ — pendiente
@@ -309,16 +500,19 @@ docs/
 2. Agente muestra plan (componentes del proyecto separados según "Tipo de proyecto")
 3. Tú apruebas el plan
 4. Agente implementa
-5. Tú pruebas manualmente todos los casos del plan
-6. Si algo falla → reportas al agente → ajusta o registra nuevo hallazgo
-7. git status → verificar archivos (sin .db, sin tsbuildinfo, sin graphify-out/)
-8. git add explícito (NUNCA git add .)
-9. git commit -m "fix(ID): descripción"          ← código
-10. Marcar ID como completado en docs/reviews/decisiones.md con hash del commit
-11. git commit -m "docs: marcar [ID] como completado"  ← docs separado del código
-12. git checkout develop && git merge feature/[slug] --no-ff
-13. git branch -d feature/[slug]
-14. git push origin develop
+5. Agente corre bash .workflow/verify.sh y pega la salida    ← evidencia, no promesa
+6. Tú pruebas manualmente todos los casos del plan
+7. Si algo falla → reportas al agente → ajusta o registra nuevo hallazgo
+8. git status → verificar archivos (sin .db, sin tsbuildinfo, sin graphify-out/)
+9. git add explícito (NUNCA git add .)
+10. git commit -m "fix(ID): descripción"         ← código
+11. python3 .workflow/findings.py cerrar [ID] --commit [hash del paso 10]
+12. Marcar ID como completado en docs/reviews/decisiones.md con el mismo hash
+13. git add docs/findings.json docs/reviews/decisiones.md
+14. git commit -m "docs: marcar [ID] como completado"  ← docs separado del código
+15. git checkout develop && git merge feature/[slug] --no-ff
+16. git branch -d feature/[slug]
+17. git push origin develop
 ```
 
 **Commit por intención:** código en un commit, docs en otro. Nunca mezclar.
