@@ -59,6 +59,7 @@ SYNC_PATHS+=(".workflow/verify.sh" ".workflow/phase.sh")
 SYNC_PATHS+=(".workflow/write-guard.py" ".workflow/findings.py")
 SYNC_PATHS+=(".workflow/audit-deps.sh" ".workflow/check-migrations.py")
 SYNC_PATHS+=(".workflow/danger-scan.py" ".workflow/tests")
+SYNC_PATHS+=(".workflow/check-tools.sh")
 
 if [[ "$EDITOR" == "claude" || "$EDITOR" == "all" ]]; then
     SYNC_PATHS+=(".claude/commands" ".claude/hooks" ".claude/agents" ".claude/settings.json" ".claude/protected.txt")

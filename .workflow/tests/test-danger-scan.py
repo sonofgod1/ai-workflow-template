@@ -62,7 +62,7 @@ CASOS = [
 def corre(cmd):
     payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": cmd}})
     r = subprocess.run([sys.executable, str(SCAN)], input=payload,
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, check=False)
     return r.returncode, r.stderr
 
 

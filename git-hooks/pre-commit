@@ -175,7 +175,10 @@ if [ -n "$GITLEAKS" ]; then
   # `protect --staged` mira solo lo que está en el índice, que es lo que este
   # commit va a escribir. Escanear el repo entero en cada commit sería lento y
   # además fallaría por secretos históricos que este commit no introduce.
-  $GITLEAKS protect --staged --redact --no-banner
+  # --verbose: sin él gitleaks solo imprime el número de hallazgos, y el
+  # mensaje de abajo dice "ver arriba" cuando arriba no hay nada que ver.
+  # --redact oculta el valor del secreto, pero deja el archivo y la línea.
+  $GITLEAKS protect --staged --redact --verbose --no-banner
   LEAK_CODE=$?
   if [ $LEAK_CODE -ne 0 ]; then
     echo "  ❌ gitleaks encontró posibles secretos en los cambios staged (ver arriba)."

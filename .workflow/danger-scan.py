@@ -40,7 +40,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
-    from write_guard import strip_heredocs  # noqa: F401
+    from write_guard import strip_heredocs
 except ImportError:
     # write-guard.py lleva guion, así que no es importable por nombre. Se carga
     # por ruta; si tampoco se puede, se usa una copia mínima equivalente.

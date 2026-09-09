@@ -151,6 +151,23 @@ commit-msg    Valida formato de commits convencionales:
 
 ---
 
+### Paso 3.5 — Comprobar las herramientas del entorno
+
+```bash
+bash .workflow/check-tools.sh
+```
+
+Las barreras de este workflow se degradan **en silencio**: sin `gitleaks` el hook de
+secretos imprime un aviso y deja pasar el commit; sin `ruff` el lint de Python se
+salta. El proyecto parece configurado y no lo está, y eso se descubre el día del
+incidente en vez del primer día.
+
+Muestra la salida al usuario. Si falta algo marcado como crítico, **dilo
+explícitamente** y pregunta si quiere instalarlo ahora o asumir el riesgo por
+escrito. No lo pases por alto en el resumen final.
+
+---
+
 ### Paso 4 — Configurar Git local
 
 ```bash
@@ -378,6 +395,7 @@ REFERENCIA RÁPIDA DE GIT
 
 ```
 Git preparado. Hooks instalados: pre-commit, pre-push, commit-msg.
+> Herramientas del entorno: [resultado de check-tools.sh — nombra lo que falte]
 Los comandos de arriba los ejecutas tú — yo no toco el historial.
 Cuando termines, avísame y verifico. Después, @discovery para empezar el proyecto.
 ```

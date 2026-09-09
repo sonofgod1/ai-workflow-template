@@ -72,6 +72,21 @@ EOF
 
 ---
 
+## Paso 0.7 — Comprobar las herramientas del entorno
+
+```bash
+bash .workflow/check-tools.sh
+```
+
+En un proyecto ya construido esto importa más que en uno nuevo: las barreras pueden
+llevar meses desactivadas sin que nadie lo note, porque su modo de fallo es un aviso
+que se salta, no un error que para.
+
+Incluye el resultado en el documento de descubrimiento, en "Deuda técnica visible".
+Una barrera apagada es deuda, aunque no lo parezca.
+
+---
+
 ## Paso 1 — Clasificar el tipo de proyecto
 
 Esto es lo primero y más importante después del paso 0. Todo lo demás se construye sobre esta clasificación.

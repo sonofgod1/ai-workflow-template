@@ -157,12 +157,13 @@ def revisar_reversibilidad(ruta, texto):
         cuerpo = re.sub(r"#.*|\"\"\".*?\"\"\"|'''.*?'''", "", m.group(1), flags=re.S).strip()
         if not cuerpo or cuerpo in ("pass", "..."):
             return "downgrade() está vacío: la migración no se puede revertir"
-        if "NotImplementedError" in cuerpo or "raise" == cuerpo.split()[0]:
+        if "NotImplementedError" in cuerpo or cuerpo.split()[0] == "raise":
             return "downgrade() lanza una excepción: la migración no se puede revertir"
 
-    if p.endswith(".py") and "migrations.RunPython" in texto:  # django
-        if not re.search(r"RunPython\s*\([^)]*(reverse_code|noop)", texto, re.S):
-            return "RunPython sin reverse_code: la migración de datos no se puede revertir"
+    # django: una migración de datos sin reverse_code no se puede deshacer
+    if (p.endswith(".py") and "migrations.RunPython" in texto
+            and not re.search(r"RunPython\s*\([^)]*(reverse_code|noop)", texto, re.S)):
+        return "RunPython sin reverse_code: la migración de datos no se puede revertir"
 
     if p.endswith(".sql"):
         tiene_down = (
@@ -180,13 +181,13 @@ def revisar_reversibilidad(ruta, texto):
 # ── Recolección de archivos ──────────────────────────────────────────────────
 
 def git(*args):
-    return subprocess.run(["git", *args], capture_output=True, text=True).stdout
+    return subprocess.run(["git", *args], capture_output=True, text=True, check=False).stdout
 
 
 def base_por_defecto():
     for ref in ("origin/develop", "develop", "origin/main", "main"):
         if subprocess.run(["git", "rev-parse", "--verify", ref],
-                          capture_output=True).returncode == 0:
+                          capture_output=True, check=False).returncode == 0:
             return ref
     return None
 

@@ -190,7 +190,7 @@ SHA_RE = re.compile(r"^[0-9a-fA-F]{7,40}$")
 
 def commit_existe(sha):
     r = subprocess.run(["git", "cat-file", "-e", f"{sha}^{{commit}}"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, check=False)
     return r.returncode == 0
 
 
@@ -206,7 +206,7 @@ def resolver_commit(ref):
         return None
     if not commit_existe(ref):
         return None
-    r = subprocess.run(["git", "rev-parse", ref], capture_output=True, text=True)
+    r = subprocess.run(["git", "rev-parse", ref], capture_output=True, text=True, check=False)
     return r.stdout.strip() or None
 
 
