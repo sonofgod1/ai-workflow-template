@@ -11,56 +11,112 @@ echo "🚀 pre-push: verificando antes de push a $REMOTE ($URL)..."
 
 EXIT_CODE=0
 
-# ─── Detectar stack ───────────────────────────────────────────────────────────
+# SIN_VERIFICAR marca "pasó, pero quedaron cosas sin comprobar". Va aparte de
+# EXIT_CODE a propósito: no bloquea el push, pero tiene que cambiar el mensaje
+# final. Cerrar con "✅ OK" después de avisar que nada se verificó es el mismo
+# OK falso que este hook venía a eliminar, solo que una pantalla más abajo.
+SIN_VERIFICAR=0
 
-HAS_NODE=""
-HAS_PYTHON=""
-[ -f "package.json" ] && HAS_NODE="yes"
-[ -f "pyproject.toml" ] && HAS_PYTHON="yes"
-[ -f "setup.py" ] && HAS_PYTHON="yes"
+# ─── Verificar ────────────────────────────────────────────────────────────────
+#
+# Delega en .workflow/verify.sh, que es el contrato único de verificación del
+# proyecto: sabe lo que el proyecto declaró en verify.conf y, si no hay config,
+# autodetecta. La detección por package.json/pyproject.toml que había aquí dejaba
+# sin verificar cualquier proyecto Go, Rust, bash, o Python sin pyproject: el hook
+# imprimía "✅ OK" sin haber corrido un solo test, que es peor que no tenerlo.
 
-# ─── Correr tests ─────────────────────────────────────────────────────────────
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+VERIFY="$ROOT/.workflow/verify.sh"
 
-echo "  Ejecutando tests..."
+if [ -f "$VERIFY" ]; then
+  echo "  Ejecutando la verificación del proyecto..."
+  bash "$VERIFY"
+  VERIFY_CODE=$?
 
-if [ "$HAS_NODE" = "yes" ]; then
-  if grep -q '"test":' package.json 2>/dev/null; then
-    # Sin --silent y sin 2>/dev/null: si los tests fallan hay que poder ver cuál.
-    # Además `npm test --silent` le pasaba la bandera a npm, no al runner.
+  # verify.sh devuelve 0 tanto en 'ok' como en 'parcial'. La diferencia importa
+  # aquí: 'parcial' significa que hay pasos que nadie corrió, y eso no puede
+  # pasar por verde en la última puerta antes del remoto.
+  RESULTADO=""
+  if [ -f "$ROOT/.workflow/.last-verify.json" ] && command -v python3 > /dev/null 2>&1; then
+    RESULTADO=$(python3 -c "
+import json
+try:
+    print(json.load(open('$ROOT/.workflow/.last-verify.json', encoding='utf-8')).get('resultado',''))
+except Exception:
+    print('')
+" 2>/dev/null)
+  fi
+
+  if [ $VERIFY_CODE -ne 0 ]; then
+    echo "  ❌ La verificación falló (ver salida arriba)."
+    EXIT_CODE=$VERIFY_CODE
+  elif [ "$RESULTADO" = "parcial" ]; then
+    echo ""
+    echo "  ⚠️  VERIFICACIÓN PARCIAL: hay pasos que no corrió nadie."
+    echo "     Esto NO es verde. Lo que subas no está verificado del todo."
+    echo "     Revisa arriba qué quedó saltado y por qué (herramienta sin instalar,"
+    echo "     o pasos sin declarar en .workflow/verify.conf)."
+    echo "     Comprueba tu entorno con: bash .workflow/check-tools.sh"
+    echo ""
+    echo "     No se bloquea el push: CI es la barrera que sí lo exige."
+    SIN_VERIFICAR=1
+  elif [ -z "$RESULTADO" ]; then
+    echo "  ⚠️  La verificación no reportó error, pero no pude leer su resultado en"
+    echo "     .workflow/.last-verify.json (¿falta python3?). Como verify.sh sale con 0"
+    echo "     tanto en 'ok' como en 'parcial', no puedo afirmar que no quedara nada saltado."
+    SIN_VERIFICAR=1
+  else
+    echo "  ✓ Verificación OK."
+  fi
+
+else
+  # Respaldo para proyectos que aún no tienen .workflow/ sincronizado.
+  echo "  ⚠️  Sin .workflow/verify.sh. Usando detección básica de stack."
+
+  HAS_NODE=""
+  HAS_PYTHON=""
+  [ -f "package.json" ] && HAS_NODE="yes"
+  [ -f "pyproject.toml" ] && HAS_PYTHON="yes"
+  [ -f "setup.py" ] && HAS_PYTHON="yes"
+
+  # CORRIO_ALGO separa "los tests pasaron" de "no hubo tests que correr", que es
+  # la confusión que hacía verde a un repo sin suite.
+  CORRIO_ALGO=0
+
+  if [ "$HAS_NODE" = "yes" ] && grep -q '"test":' package.json 2>/dev/null; then
     npm test
     TEST_CODE=$?
-    if [ $TEST_CODE -ne 0 ]; then
-      echo "  ❌ Tests fallaron (ver salida arriba). Ejecuta: npm test"
-      EXIT_CODE=$TEST_CODE
-    else
-      echo "  ✓ Tests JS/TS OK."
-    fi
-  else
-    echo "  ⚠️  Sin script 'test' en package.json. Saltando tests."
+    CORRIO_ALGO=1
+    [ $TEST_CODE -ne 0 ] && { echo "  ❌ Tests JS/TS fallaron."; EXIT_CODE=$TEST_CODE; }
+  elif [ "$HAS_NODE" = "yes" ]; then
+    echo "  ⚠️  Sin script 'test' en package.json: no se corrió ningún test JS/TS."
   fi
-fi
 
-if [ "$HAS_PYTHON" = "yes" ]; then
-  if command -v pytest > /dev/null 2>&1; then
+  if [ "$HAS_PYTHON" = "yes" ] && command -v pytest > /dev/null 2>&1; then
     pytest --tb=short
     TEST_CODE=$?
+    # pytest devuelve 5 cuando no recolectó ningún test.
     if [ $TEST_CODE -eq 5 ]; then
-      # pytest devuelve 5 cuando no recolectó ningún test. Bloquear el push por
-      # eso dejaba trabado cualquier proyecto que todavía no tiene suite.
-      echo "  ⚠️  pytest no encontró tests. Saltando."
+      echo "  ⚠️  pytest no encontró tests."
     elif [ $TEST_CODE -ne 0 ]; then
-      echo "  ❌ Tests Python fallaron (ver salida arriba). Ejecuta: pytest"
+      echo "  ❌ Tests Python fallaron."
       EXIT_CODE=$TEST_CODE
+      CORRIO_ALGO=1
     else
-      echo "  ✓ Tests Python OK."
+      CORRIO_ALGO=1
     fi
-  else
-    echo "  ⚠️  pytest no encontrado. Saltando tests Python."
+  elif [ "$HAS_PYTHON" = "yes" ]; then
+    echo "  ⚠️  pytest no está instalado: no se corrió ningún test Python."
   fi
-fi
 
-if [ -z "$HAS_NODE" ] && [ -z "$HAS_PYTHON" ]; then
-  echo "  ⚠️  Stack no detectado automáticamente. Saltando tests."
+  if [ -z "$HAS_NODE" ] && [ -z "$HAS_PYTHON" ]; then
+    echo "  ⚠️  Stack no detectado y sin verify.sh: NADA se verificó antes de este push."
+    echo "     Sincroniza el workflow o declara los pasos en .workflow/verify.conf."
+  fi
+
+  if [ $CORRIO_ALGO -eq 0 ]; then
+    SIN_VERIFICAR=1
+  fi
 fi
 
 # ─── Advertencia si push directo a main ──────────────────────────────────────
@@ -76,8 +132,11 @@ fi
 
 # ─── Resultado ────────────────────────────────────────────────────────────────
 
-if [ $EXIT_CODE -eq 0 ]; then
+if [ $EXIT_CODE -eq 0 ] && [ $SIN_VERIFICAR -eq 0 ]; then
   echo "✅ pre-push: OK."
+elif [ $EXIT_CODE -eq 0 ]; then
+  echo "⚠️  pre-push: pasa, pero con cosas SIN VERIFICAR (ver avisos arriba)."
+  echo "   No es verde. Si esto es un release, arréglalo antes de seguir."
 else
   echo ""
   echo "❌ pre-push falló. Para saltarte el hook excepcionalmente:"
