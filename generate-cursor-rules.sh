@@ -45,6 +45,12 @@ GOB_FILE = OUT_DIR / "00-gobernanza.mdc"
 GOB_SHORT = "`00-gobernanza`"
 GOB_PATH  = "`.cursor/rules/00-gobernanza.mdc`"
 
+# Un proyecto que no usa Cursor no tiene nada que mantener al día, y exigirle 17
+# .mdc que no quiere es una barrera roja por no usar una herramienta opcional.
+if MODE == "check" and not OUT_DIR.is_dir():
+    print("✓ Este proyecto no usa Cursor (.cursor/rules/ no existe).")
+    sys.exit(0)
+
 CMDS = sorted(p.stem for p in SRC_DIR.glob("*.md"))
 SLASH = re.compile(r'(?<![\w/])/(' + "|".join(map(re.escape, CMDS)) + r')\b')
 
@@ -213,32 +219,45 @@ for src in sorted(SRC_DIR.glob("*.md")):
 # ── Generar 00-gobernanza.mdc ────────────────────────────────────────────────
 
 gob = pathlib.Path("CLAUDE.md").read_text(encoding="utf-8")
-gob = SLASH.sub(r'@\1', gob)
-gob = gob.replace(".claude/commands/", ".cursor/rules/")
-for old, new in GOB_OVERRIDES:
-    if old not in gob:
-        die(f"CLAUDE.md: el override esperado ya no aparece.\n   {old[:80]}")
-    gob = gob.replace(old, new)
 
-marker = "\n## Uso del grafo de graphify"
-if marker not in gob:
-    die("CLAUDE.md: no encuentro la sección 'Uso del grafo de graphify' para insertar el bloque de enforcement.")
-gob = gob.replace(marker, "\n" + ENFORCEMENT.strip() + marker, 1)
+# ¿Estamos en la plantilla o en un proyecto? El norte lo llena @discovery, así que
+# "[pendiente]" identifica al CLAUDE.md de la plantilla o a una instalación nueva.
+#
+# La distinción es necesaria porque GOB_OVERRIDES es texto literal de la plantilla:
+# en un proyecto con su propio CLAUDE.md esos anclajes no existen, y morir por eso
+# convertía este script en una barrera roja para cualquiera que lo sincronizara.
+# En la plantilla sí se exige: un anclaje que no aparece significa que CLAUDE.md
+# cambió y la traducción a Cursor quedó obsoleta sin que nadie se enterara.
+m_norte = re.search(r'\*\*Este sistema existe para:\*\*(.*)', gob)
+ES_PLANTILLA = bool(m_norte and "[pendiente" in m_norte.group(1))
 
-gob_out = ("---\n"
-           "description: Gobernanza del proyecto — norte, reglas duras, fases y estrategia de Git. Siempre activa.\n"
-           "globs:\nalwaysApply: true\n---\n\n" + gob.strip() + "\n")
-
-# El norte lo escribe @discovery en el proyecto del usuario. Si ya está lleno,
-# regenerar desde el CLAUDE.md del template lo borraría.
-skip_gob = False
+# El norte lo escribe @discovery en el proyecto del usuario: regenerar
+# 00-gobernanza desde un CLAUDE.md ajeno lo borraría.
+skip_gob = not ES_PLANTILLA and not FORCE
 if GOB_FILE.exists() and not FORCE:
     current = GOB_FILE.read_text(encoding="utf-8")
     m = re.search(r'\*\*Este sistema existe para:\*\*(.*)', current)
     if m and "[pendiente" not in m.group(1):
         skip_gob = True
+
 if not skip_gob:
-    generated[GOB_FILE] = gob_out
+    gob = SLASH.sub(r'@\1', gob)
+    gob = gob.replace(".claude/commands/", ".cursor/rules/")
+    for old, new in GOB_OVERRIDES:
+        if old not in gob:
+            if ES_PLANTILLA:
+                die(f"CLAUDE.md: el override esperado ya no aparece.\n   {old[:80]}")
+            continue
+        gob = gob.replace(old, new)
+
+    marker = "\n## Uso del grafo de graphify"
+    if marker not in gob:
+        die("CLAUDE.md: no encuentro la sección 'Uso del grafo de graphify' para insertar el bloque de enforcement.")
+    gob = gob.replace(marker, "\n" + ENFORCEMENT.strip() + marker, 1)
+
+    generated[GOB_FILE] = ("---\n"
+        "description: Gobernanza del proyecto — norte, reglas duras, fases y estrategia de Git. Siempre activa.\n"
+        "globs:\nalwaysApply: true\n---\n\n" + gob.strip() + "\n")
 
 # ── Verificar ────────────────────────────────────────────────────────────────
 

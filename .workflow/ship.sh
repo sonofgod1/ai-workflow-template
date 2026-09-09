@@ -186,7 +186,9 @@ fi
 [ -f "$ROOT/.workflow/audit-deps.sh" ] && \
   paso "dependencias" bash "$ROOT/.workflow/audit-deps.sh"
 
-[ -f "$ROOT/generate-cursor-rules.sh" ] && \
+# El propio script sale en verde cuando el proyecto no usa Cursor; la condición de
+# aquí solo evita el paso cuando no hay nada que comprobar en absoluto.
+[ -f "$ROOT/generate-cursor-rules.sh" ] && [ -d "$ROOT/.claude/commands" ] && \
   paso "reglas de Cursor al día" bash "$ROOT/generate-cursor-rules.sh" --check
 
 if compgen -G "$ROOT/.workflow/tests/test-*.py" > /dev/null; then
