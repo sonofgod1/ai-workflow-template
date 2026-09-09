@@ -18,10 +18,25 @@
 
 set -uo pipefail
 
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+LIB="$(dirname "${BASH_SOURCE[0]}")/../.claude/hooks/lib-root.sh"
+# shellcheck source=/dev/null
+[ -f "$LIB" ] && . "$LIB"
+if command -v wf_root > /dev/null 2>&1; then
+  ROOT="$(wf_root)"
+else
+  ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+fi
 cd "$ROOT" || exit 1
 
+# La configuración de entrega puede no estar versionada, y entonces un worktree no
+# la tiene: sin este fallback, todo lo que corra dentro de un worktree se comporta
+# como si el proyecto no hubiera autorizado nada. Se busca en el worktree y, si no
+# está, en el checkout principal.
 CONF="$ROOT/.workflow/delivery.conf"
+if [ ! -f "$CONF" ] && command -v wf_main_root > /dev/null 2>&1; then
+  PRINCIPAL="$(wf_main_root)"
+  [ -f "$PRINCIPAL/.workflow/delivery.conf" ] && CONF="$PRINCIPAL/.workflow/delivery.conf"
+fi
 BASE="develop"
 ABRIR="no"
 SOLO_CUERPO="no"

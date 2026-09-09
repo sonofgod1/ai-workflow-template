@@ -58,6 +58,14 @@ build/
 .workflow/.phase.json
 .workflow/.last-verify.json
 
+# Logs y worktrees de batch.sh: son de una corrida, no del proyecto.
+.workflow/.batch-logs/
+.worktrees/
+
+# delivery.conf NO está aquí a propósito: la autorización de entrega es una
+# decisión del proyecto, así que se versiona y se revisa como cualquier otro
+# cambio. Está en .claude/protected.txt para que el agente no pueda escribirla.
+
 # Lista de archivos protegidos específica de esta copia del repo. No se versiona:
 # si se clonara a un proyecto nuevo, le desactivaría protecciones que ahí sí aplican.
 .claude/protected.local.txt
