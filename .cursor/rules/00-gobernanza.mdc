@@ -579,7 +579,57 @@ BASE_POR_DEFECTO=develop
 `delivery.conf` es un archivo protegido de la regla 1: **lo creas tú, a mano.** La
 autorización para pushear no puede ser algo que el agente se conceda a sí mismo
 escribiendo el archivo. En Cursor no hay hook que lo bloquee, así que aquí la regla
-es la única barrera: no lo escribas nunca, ni siquiera si te lo piden de pasada.
+es la única barrera: no lo escribas nunca, ni siquiera si te lo piden de pasada. **Se versiona**, porque es una
+decisión del proyecto y se revisa como cualquier otro cambio.
+
+---
+
+## Paralelismo: un agente por worktree
+
+El estado de fase vive en el worktree, no en el repositorio. Eso es lo que permite
+que dos agentes trabajen a la vez sin pisarse: cada uno tiene su fase, su
+verificación y su branch.
+
+```bash
+claude -w refresh-token      # Claude Code crea el worktree y trabaja ahí
+git worktree add .worktrees/refresh-token -b feature/refresh-token develop
+```
+
+**Dos sesiones en el MISMO checkout siguen compartiendo la fase**, y eso no se
+arregló: se hizo visible. `phase.sh set` avisa si la fase activa la puso otra
+sesión, y `show` dice desde qué worktree. Si ves ese aviso, para: la respuesta es
+un worktree, no insistir.
+
+### Desatendido: `.workflow/batch.sh`
+
+Ejecuta varios planes aprobados en paralelo, uno por worktree, y deja un PR por
+plan.
+
+```bash
+bash .workflow/batch.sh --dry-run docs/plans/*.md     # qué haría, sin autorización
+bash .workflow/batch.sh --paralelo 2 docs/plans/*.md  # de verdad
+```
+
+Es la pieza más peligrosa del repositorio, así que tiene su propio interruptor:
+además de `MODO_ENTREGA=pr` y `AGENTE_PUEDE_PUSHEAR=si` exige `BATCH_HEADLESS=si`.
+Entregar en PRs con alguien mirando y dejar correr N agentes solos no son el mismo
+riesgo y no comparten permiso.
+
+Tres condiciones, y si falta una no se usa:
+
+1. **Los planes están aprobados.** `batch.sh` ejecuta, no decide. Un plan con
+   decisiones sin resolver se convierte en N agentes resolviéndolas solos, mal.
+2. **Un worktree por plan.** Sin aislamiento se pisan los archivos y la fase. Por
+   eso esto vino después de arreglar la fase por worktree, no antes.
+3. **Branch protection con los checks exigidos.** El PR es la entrega y CI es lo
+   único que lo mira antes que un humano.
+
+**Lo lanza el humano, no el agente.** Un agente que puede lanzar agentes
+desatendidos multiplica cualquier error suyo por N.
+
+El tope de paralelismo es 4 a propósito: pasado ese punto el cuello de botella es
+la revisión, y N PRs sin revisar no son progreso. Los worktrees de los planes que
+fallan **se quedan** — borrarlos sería borrar la evidencia de por qué falló.
 
 **El merge sigue siendo humano en los dos modos.** No es una restricción técnica:
 decidir que algo entra a `develop` o a `main` es la decisión, y el resto es

@@ -645,7 +645,40 @@ proyecto, no algo que se herede de la plantilla.
 
 El archivo está en `.claude/protected.txt`, así que **lo escribe el humano**: una
 autorización que el agente pueda concederse a sí mismo escribiendo un archivo no es
-una autorización. El hook lo bloquea.
+una autorización. El hook lo bloquea. Se versiona, porque es una decisión del
+proyecto y se revisa como cualquier otro cambio.
+
+### Paralelismo: un agente por worktree
+
+El estado de fase vive en el worktree, no en el repositorio, así que dos agentes
+pueden trabajar a la vez con su propia fase, su verificación y su branch. Antes no:
+`phase.sh` resolvía la raíz como `CLAUDE_PROJECT_DIR`, que apunta al checkout desde
+el que se lanzó la sesión, y el segundo agente pisaba la fase del primero en
+silencio.
+
+Dos sesiones en el **mismo** checkout siguen compartiendo la fase. Eso no se
+arregló, se hizo visible: `phase.sh set` avisa si la puso otra sesión y `show` dice
+desde qué worktree. La respuesta a ese aviso es un worktree, no insistir.
+
+### `.workflow/batch.sh` — la fábrica, con su interruptor propio
+
+```bash
+bash .workflow/batch.sh --dry-run docs/plans/*.md     # qué haría, sin autorizar nada
+bash .workflow/batch.sh --paralelo 2 docs/plans/*.md  # de verdad
+```
+
+Un worktree por plan, `claude -p "/build <plan>"` en cada uno, la puerta de `ship`
+y un PR. Exige `BATCH_HEADLESS=si` **además** de las dos claves del modo PR: dejar
+correr N agentes solos no es el mismo riesgo que entregar un PR con alguien
+mirando, así que no comparten permiso. `--dry-run` no necesita autorización, que es
+lo que hace revisable el resto.
+
+Tope de paralelismo 4: pasado ese punto el cuello de botella es la revisión humana,
+y N PRs sin revisar no son progreso. Los worktrees de los planes que fallan se
+quedan en `.worktrees/` a propósito — ahí está el estado en el que quedó cada uno.
+
+**Lo lanza el humano.** Un agente que puede lanzar agentes desatendidos multiplica
+cualquier error suyo por N.
 
 **El merge nunca es del agente**, en ningún modo. Decidir que algo entra a `develop`
 o a `main` es la decisión; el resto es ejecución. Un agente que mergea su propio
