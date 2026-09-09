@@ -120,6 +120,37 @@ VERIFY_STEPS=(
 )
 ```
 
+### `CI_SETUP` — preparar el entorno en CI
+
+El runner de CI llega vacío: sin dependencias, sin linters, sin `node_modules`.
+`verify.sh` no puede adivinar cómo prepararlos, así que el proyecto lo declara:
+
+```bash
+# .workflow/verify.conf
+CI_SETUP=(
+  "pip install -q ruff"
+  "pip install -q -r backend/requirements.txt -r backend/requirements-dev.txt"
+  "npm ci --prefix frontend"
+)
+
+VERIFY_STEPS=(
+  "lint-backend:ruff check backend"
+  # El paso tiene que funcionar en tu máquina y en el runner: local usa el venv,
+  # CI usa el python del runner con las dependencias ya instaladas.
+  "test-backend:(cd backend && if [ -x venv/bin/pytest ]; then venv/bin/pytest -q; else python -m pytest -q; fi)"
+)
+```
+
+Solo lo usa el job `verificacion` de CI; en local no corre, para no reinstalar
+dependencias en cada verificación. Sin `CI_SETUP`, un proyecto con dependencias
+veía fallar todos sus pasos en cuatro segundos y el job no significaba nada.
+
+**`--strict` en CI distingue dos clases de saltado:** un paso sin herramienta
+instalada es un fallo, porque nadie decidió que quedara sin verificar. Un paso
+declarado vacío en `verify.conf` no lo es: es una excepción registrada en un
+archivo versionado y revisable, igual que las de dependencias. Las dos dan
+`parcial`; solo la primera tumba el build.
+
 ### El código de `.workflow/` no se lintea aquí
 
 `.workflow/` es código de la plantilla, vendorizado en tu repositorio. Su lint vive
