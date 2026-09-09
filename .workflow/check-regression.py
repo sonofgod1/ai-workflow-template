@@ -27,6 +27,7 @@ Uso:
 """
 
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -70,11 +71,13 @@ def comando_para(ruta, spec):
     if ruta.endswith(".py"):
         binario = "pytest" if shutil.which("pytest") else None
         base = [binario] if binario else [sys.executable, "-m", "pytest"]
-        return base + [spec, "-x", "-q"]
+        return [*base, spec, "-x", "-q"]
     if ruta.endswith((".ts", ".tsx", ".js", ".jsx", ".mjs")):
         return ["npm", "test", "--", ruta]
     if ruta.endswith(".go"):
-        return ["go", "test", "./...", "-run", spec.split("::")[-1]] if "::" in spec else ["go", "test", "./..."]
+        if "::" in spec:
+            return ["go", "test", "./...", "-run", spec.split("::")[-1]]
+        return ["go", "test", "./..."]
     if ruta.endswith(".rs"):
         return ["cargo", "test"] + ([spec.split("::")[-1]] if "::" in spec else [])
     if ruta.endswith((".sh", ".bash")):
@@ -134,10 +137,11 @@ def probar(sha, specs, cmd_extra, timeout, verbose):
             origen, destino = raiz / d, Path(wt) / d
             if origen.exists() and not destino.exists():
                 destino.parent.mkdir(parents=True, exist_ok=True)
-                try:
+                # Un enlace que no se puede crear (permisos, sistema de archivos sin
+                # symlinks) no es fatal: el runner fallará por dependencias y eso se
+                # reporta como 'no-verificada', que es la verdad.
+                with contextlib.suppress(OSError):
                     os.symlink(origen.resolve(), destino)
-                except OSError:
-                    pass
 
         cmd = cmd_extra or comando_para(rutas[0], specs[0])
         if not cmd:

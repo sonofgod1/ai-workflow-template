@@ -14,7 +14,6 @@ sin delivery.conf, --abrir-pr no puede tocar el remoto. Ese caso va primero.
     python3 .workflow/tests/test-ship.py
 """
 
-import os
 import subprocess
 import sys
 import tempfile

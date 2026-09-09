@@ -87,8 +87,8 @@ def correr(repo, sha, test="tests/test-suma.sh", cmd=CMD):
     r = subprocess.run(argv, cwd=repo, capture_output=True, text=True, check=False)
     try:
         return json.loads(r.stdout.strip().splitlines()[-1]), r.returncode
-    except (ValueError, IndexError):
-        raise AssertionError(f"sin JSON. out={r.stdout!r} err={r.stderr!r}")
+    except (ValueError, IndexError) as exc:
+        raise AssertionError(f"sin JSON. out={r.stdout!r} err={r.stderr!r}") from exc
 
 
 # ── Casos ────────────────────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ def caso_test_preexistente_que_ya_pasaba():
     """Test viejo que no cubre el hallazgo: no basta con que exista."""
     with tempfile.TemporaryDirectory() as d:
         sha = montar(d, TEST_INUTIL, test_en_commit_del_arreglo=False)
-        out, code = correr(d, sha)
+        out, _ = correr(d, sha)
         assert out["resultado"] == "no-prueba-nada", out
 
 

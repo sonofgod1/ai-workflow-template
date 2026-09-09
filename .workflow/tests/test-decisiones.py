@@ -14,7 +14,6 @@ del índice no llegue al markdown.
 """
 
 import json
-import re
 import subprocess
 import sys
 import tempfile
@@ -160,7 +159,7 @@ def caso_pipe_en_el_titulo():
         montar(d)
         fnd(d, "add", "--id", "S2", "--severidad", "suggestion",
             "--titulo", "usar a || b en vez de or", "--origen", "docs/reviews/r.md")
-        fila = [l for l in leer(d).splitlines() if l.startswith("| S2 ")][0]
+        fila = next(linea for linea in leer(d).splitlines() if linea.startswith("| S2 "))
         assert fila.count("|") - fila.count("\\|") == 7, f"columnas rotas: {fila}"
 
 

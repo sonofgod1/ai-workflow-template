@@ -206,7 +206,7 @@ def caso_branch_existente_se_salta():
         repo = montar(d)
         autorizar(repo)
         sh("git branch feature/alpha", cwd=repo)
-        salida, code = batch(repo, PLANES)
+        salida, _ = batch(repo, PLANES)
         assert "la branch ya existía" in salida, salida
 
 
