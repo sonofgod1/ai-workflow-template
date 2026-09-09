@@ -198,6 +198,28 @@ jobs:
             python3 .workflow/findings.py validate --exigir-test
           fi
 
+      - name: decisiones.md al día con el índice
+        run: |
+          # decisiones.md es generado. Si alguien lo editó a mano, o commiteó el
+          # índice sin el markdown, aquí se ve: mantenerlos sincronizados a mano
+          # era el paso que se olvidaba.
+          [ -f docs/findings.json ] || exit 0
+          python3 .workflow/findings.py decisiones --check
+
+  # ── Derivados generados ─────────────────────────────────────────────────────
+  # .cursor/rules/ se genera desde .claude/commands/ y CLAUDE.md. Nada comprobaba
+  # que estuvieran al día, así que un cambio en los comandos dejaba a Cursor con
+  # instrucciones viejas sin que nadie se enterara.
+  generados:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reglas de Cursor al día
+        run: |
+          [ -f generate-cursor-rules.sh ] || exit 0
+          bash generate-cursor-rules.sh --check
+
   # ── Tests del propio andamiaje ──────────────────────────────────────────────
   # Los scripts de .workflow/ son la barrera del proyecto, así que sus tests tienen
   # que correr en algún sitio: si no, la regla "todo hallazgo deja un test" no

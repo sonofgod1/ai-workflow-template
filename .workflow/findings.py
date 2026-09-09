@@ -15,6 +15,10 @@ Cerrar exige nombrar un test, o registrar por qué no lo hay. Un hallazgo cerrad
 sin test deja al humano como único arnés de pruebas: la próxima vez que alguien
 rompa eso, nadie se enterará hasta que un humano lo vuelva a probar a mano.
 
+`docs/reviews/decisiones.md` se genera desde aquí en cada cambio, y no se edita a
+mano. Mantenerlo sincronizado era un paso manual del ciclo, y un paso manual que
+duplica un dato es una fuente de drift con fecha de caducidad.
+
 Uso:
     python3 .workflow/findings.py list [--abiertos] [--severidad blocker]
     python3 .workflow/findings.py add --id B1 --severidad blocker \\
@@ -27,7 +31,8 @@ Uso:
     python3 .workflow/findings.py test-exento B1 --razon "..."
     python3 .workflow/findings.py estado B1 --nuevo descartado --nota "..."
     python3 .workflow/findings.py siguiente-id --severidad blocker
-    python3 .workflow/findings.py validate [--sin-bloqueantes]
+    python3 .workflow/findings.py decisiones [--check]
+    python3 .workflow/findings.py validate [--sin-bloqueantes] [--exigir-test]
 """
 
 import argparse
@@ -39,6 +44,7 @@ from datetime import date
 from pathlib import Path
 
 STORE = Path("docs/findings.json")
+DECISIONES = Path("docs/reviews/decisiones.md")
 
 PREFIJOS = {"blocker": "B", "important": "I", "suggestion": "S", "debt": "TD"}
 ESTADOS = ("abierto", "en-progreso", "resuelto", "descartado")
@@ -61,6 +67,153 @@ def cargar():
 def guardar(data):
     STORE.parent.mkdir(parents=True, exist_ok=True)
     STORE.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    # decisiones.md se regenera aquí y no en cada comando: así no existe el estado
+    # en el que el índice ya cambió y el markdown todavía no. Antes eran dos pasos
+    # manuales del ciclo, y el segundo se olvidaba.
+    escribir_decisiones(data)
+
+
+def escribir_decisiones(data):
+    DECISIONES.parent.mkdir(parents=True, exist_ok=True)
+    DECISIONES.write_text(render_decisiones(data), encoding="utf-8")
+
+
+def clave_orden(h):
+    """Orden estable: por severidad, y dentro de ella por número, no por texto.
+
+    Ordenar los ids como cadenas pone B10 antes de B2 y hace que el archivo
+    generado cambie de forma impredecible. Con --check en CI eso sería un fallo
+    intermitente.
+    """
+    orden = {"blocker": 0, "important": 1, "suggestion": 2, "debt": 3}
+    m = ID_RE.match(h.get("id", "").upper())
+    num = int(m.group(2)) if m else 0
+    sub = int(m.group(3)) if m and m.group(3) else 0
+    return (orden.get(h.get("severidad"), 9), num, sub)
+
+
+CABECERA = """<!-- GENERADO por .workflow/findings.py — NO EDITAR A MANO.
+     Cualquier cambio aquí se pierde en el próximo add/cerrar/estado.
+
+     La prosa vive en dos sitios, no en este archivo:
+       - el reporte de review (docs/reviews/*.md): síntoma, por qué importa, sugerencia
+       - la nota del hallazgo: python3 .workflow/findings.py estado I2 \\
+             --nuevo descartado --nota "el caso no puede ocurrir porque ..."
+
+     Regenerar a mano: python3 .workflow/findings.py decisiones
+     Comprobar que está al día (CI): python3 .workflow/findings.py decisiones --check
+-->
+
+# Decisiones de triaje
+
+*Estado de cada hallazgo, generado desde `docs/findings.json`.*
+"""
+
+
+def _tabla(filas, columnas):
+    out = ["| " + " | ".join(columnas) + " |",
+           "|" + "|".join("---" for _ in columnas) + "|"]
+    out += ["| " + " | ".join(f) + " |" for f in filas]
+    return out
+
+
+def _celda(txt):
+    """Neutraliza lo que rompería la tabla: el pipe y los saltos de línea."""
+    if not txt:
+        return "—"
+    return str(txt).replace("|", "\\|").replace("\n", " ").strip() or "—"
+
+
+def _archivos(h):
+    return ", ".join(f"`{a}`" for a in h.get("archivos") or []) or "—"
+
+
+def _origen(h):
+    o = h.get("origen")
+    return f"[reporte]({o})" if o else "—"
+
+
+def _test(h):
+    t = h.get("test") or {}
+    estado = t.get("estado")
+    if estado == "probado":
+        return "✅ probado — " + ", ".join(f"`{r}`" for r in t.get("rutas") or [])
+    if estado == "declarado":
+        return "⚠️ declarado — " + ", ".join(f"`{r}`" for r in t.get("rutas") or [])
+    if estado == "exento":
+        return f"➖ exento: {_celda(t.get('razon'))}"
+    return "❌ sin registrar"
+
+
+SECCIONES = [
+    ("🔴 Arreglar ahora — bloqueantes sin cerrar", "blocker", ("abierto", "en-progreso")),
+    ("🟠 Importantes sin cerrar", "important", ("abierto", "en-progreso")),
+    ("🟡 Sugerencias sin cerrar", "suggestion", ("abierto", "en-progreso")),
+    ("🔧 Deuda técnica sin cerrar", "debt", ("abierto", "en-progreso")),
+]
+
+
+def render_decisiones(data):
+    """Construye decisiones.md desde el índice. Determinista: mismo índice, mismo texto.
+
+    No lleva fecha de generación a propósito. Una fecha de "hoy" haría que --check
+    fallara al día siguiente sin que nadie hubiera cambiado nada.
+    """
+    hallazgos = sorted(data.get("hallazgos", []), key=clave_orden)
+    lineas = [CABECERA]
+
+    abiertos = [h for h in hallazgos if h.get("estado") in ("abierto", "en-progreso")]
+    resueltos = [h for h in hallazgos if h.get("estado") == "resuelto"]
+    descartados = [h for h in hallazgos if h.get("estado") == "descartado"]
+    lineas.append(f"**{len(hallazgos)} hallazgo(s):** {len(abiertos)} sin cerrar, "
+                  f"{len(resueltos)} resuelto(s), {len(descartados)} descartado(s).\n")
+
+    if not hallazgos:
+        lineas.append("Sin hallazgos registrados todavía.\n")
+        return "\n".join(lineas)
+
+    for titulo, sev, estados in SECCIONES:
+        items = [h for h in hallazgos if h.get("severidad") == sev and h.get("estado") in estados]
+        if not items:
+            continue
+        lineas.append(f"\n## {titulo}\n")
+        lineas += _tabla(
+            [(h["id"], _celda(h.get("titulo")), _archivos(h), _celda(h.get("estado")),
+              _origen(h), _celda(h.get("nota"))) for h in items],
+            ("ID", "Título", "Archivo(s)", "Estado", "Origen", "Nota"))
+
+    if resueltos:
+        lineas.append("\n## ✅ Resueltos\n")
+        lineas += _tabla(
+            [(h["id"], _celda(h.get("titulo")), f"`{h['commit'][:7]}`" if h.get("commit") else "—",
+              _test(h), _celda(h.get("resuelto"))) for h in resueltos],
+            ("ID", "Título", "Commit", "Test", "Fecha"))
+
+    if descartados:
+        lineas.append("\n## ⚪ Descartados\n")
+        lineas += _tabla(
+            [(h["id"], _celda(h.get("titulo")), _celda(h.get("nota"))) for h in descartados],
+            ("ID", "Título", "Razón"))
+
+    return "\n".join(lineas) + "\n"
+
+
+def cmd_decisiones(args):
+    data = cargar()
+    esperado = render_decisiones(data)
+    if args.check:
+        actual = DECISIONES.read_text(encoding="utf-8") if DECISIONES.exists() else None
+        if actual == esperado:
+            print(f"✓ {DECISIONES} está al día.")
+            return 0
+        falta = "no existe" if actual is None else "está desactualizado"
+        print(f"❌ {DECISIONES} {falta} respecto a {STORE}.")
+        print("   Es un archivo generado: no se edita a mano, se regenera.")
+        print("   Regenera con: python3 .workflow/findings.py decisiones")
+        return 1
+    escribir_decisiones(data)
+    print(f"✓ {DECISIONES} regenerado desde {STORE}.")
+    return 0
 
 
 def buscar(data, hid):
@@ -463,6 +616,11 @@ def main():
     p = sub.add_parser("siguiente-id", help="siguiente id libre para una severidad")
     p.add_argument("--severidad", required=True, choices=list(PREFIJOS))
     p.set_defaults(func=cmd_siguiente_id)
+
+    p = sub.add_parser("decisiones", help="regenerar docs/reviews/decisiones.md")
+    p.add_argument("--check", action="store_true",
+                   help="no escribir; fallar si el archivo no coincide con el índice (CI)")
+    p.set_defaults(func=cmd_decisiones)
 
     p = sub.add_parser("validate", help="verificar consistencia del índice")
     p.add_argument("--sin-bloqueantes", action="store_true",
