@@ -143,7 +143,11 @@ PY_FILES=$(printf '%s\n' "$STAGED_FILES" | grep -E "\.py$")
 if [ -n "$PY_FILES" ]; then
   if [ "$HAS_RUFF" = "yes" ]; then
     echo "  Lint Python (ruff)..."
-    printf '%s\n' "$PY_FILES" | tr '\n' '\0' | xargs -0 ruff check
+    # --force-exclude: ruff ignora exclude/extend-exclude cuando la ruta se le pasa
+    # explícitamente, y aquí siempre se le pasan los archivos staged uno por uno.
+    # Sin esta bandera, un proyecto que excluye código vendorizado (.workflow/, por
+    # ejemplo) lo ve lintado igual y no puede commitear.
+    printf '%s\n' "$PY_FILES" | tr '\n' '\0' | xargs -0 ruff check --force-exclude
     RUFF_CODE=$?
     if [ $RUFF_CODE -ne 0 ]; then
       echo "  ❌ ruff falló (ver salida arriba). Ejecuta: ruff check --fix"
