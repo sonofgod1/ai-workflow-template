@@ -145,6 +145,17 @@ Solo lo usa el job `verificacion` de CI; en local no corre, para no reinstalar
 dependencias en cada verificación. Sin `CI_SETUP`, un proyecto con dependencias
 veía fallar todos sus pasos en cuatro segundos y el job no significaba nada.
 
+**La versión de Python y Node la fija el proyecto**, con `.python-version` y
+`.nvmrc` en la raíz. Sin ellos, CI usa 3.12 y Node 20. Antes usaba `3.x`, que
+resuelve al intérprete más nuevo publicado: un proyecto probado en 3.11 se
+verificaba contra 3.14 y fallaba por incompatibilidades de sus dependencias con
+un Python que nunca va a usar. Un CI que prueba algo distinto de producción no es
+una barrera, es una fuente de falsos rojos.
+
+```bash
+echo "3.11" > .python-version
+```
+
 **`--strict` en CI distingue dos clases de saltado:** un paso sin herramienta
 instalada es un fallo, porque nadie decidió que quedara sin verificar. Un paso
 declarado vacío en `verify.conf` no lo es: es una excepción registrada en un

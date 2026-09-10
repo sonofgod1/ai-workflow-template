@@ -271,10 +271,36 @@ jobs:
 
       # Estos dos no cuestan nada si el proyecto no los usa, y sin ellos
       # CI_SETUP no tiene con qué instalar dependencias.
+      #
+      # La versión la fija el proyecto, no CI. '3.x' resolvía al Python más nuevo
+      # publicado, así que un proyecto probado en 3.11 se verificaba contra 3.14 y
+      # fallaba por incompatibilidades de sus dependencias con un intérprete que
+      # nunca va a usar. Un CI que prueba otra cosa que producción no es una
+      # barrera: es una fuente de falsos rojos.
+      - name: Versiones que fija el proyecto
+        id: versiones
+        run: |
+          if [ -f .python-version ]; then
+            echo "py_file=.python-version" >> "$GITHUB_OUTPUT"
+          else
+            echo "py=3.12" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -f .nvmrc ]; then
+            echo "node_file=.nvmrc" >> "$GITHUB_OUTPUT"
+          else
+            echo "node=20" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
       - uses: actions/setup-python@v5
-        with: { python-version: '3.x' }
+        with:
+          python-version: ${{ steps.versiones.outputs.py }}
+          python-version-file: ${{ steps.versiones.outputs.py_file }}
+
       - uses: actions/setup-node@v4
-        with: { node-version: '20' }
+        with:
+          node-version: ${{ steps.versiones.outputs.node }}
+          node-version-file: ${{ steps.versiones.outputs.node_file }}
 
       - name: Contrato de verificación
         run: |
