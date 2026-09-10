@@ -21,6 +21,14 @@ jobs:
     outputs:
       node: ${{ steps.check.outputs.node }}
       python: ${{ steps.check.outputs.python }}
+      # Las versiones se resuelven UNA vez y las consumen todos los jobs. Antes
+      # cada uno las fijaba por su cuenta, así que un proyecto con .python-version
+      # se verificaba contra la versión del workflow en unos jobs y contra la suya
+      # en otros. Un CI que prueba dos intérpretes distintos no prueba ninguno.
+      py: ${{ steps.check.outputs.py }}
+      py_file: ${{ steps.check.outputs.py_file }}
+      node_ver: ${{ steps.check.outputs.node_ver }}
+      node_file: ${{ steps.check.outputs.node_file }}
     steps:
       - uses: actions/checkout@v4
       - id: check
@@ -31,6 +39,21 @@ jobs:
           else
             echo "python=no" >> "$GITHUB_OUTPUT"
           fi
+
+          # La versión la fija el proyecto con .python-version y .nvmrc. El
+          # respaldo es una versión estable, nunca 'latest': un proyecto probado
+          # en 3.11 no debería verificarse contra el intérprete más nuevo.
+          if [ -f .python-version ]; then
+            echo "py_file=.python-version" >> "$GITHUB_OUTPUT"
+          else
+            echo "py=3.12" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -f .nvmrc ]; then
+            echo "node_file=.nvmrc" >> "$GITHUB_OUTPUT"
+          else
+            echo "node_ver=20" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
 
   # ── Archivos que nunca deben entrar al repo ─────────────────────────────────
   # Misma lista que git-hooks/pre-commit, pero aquí no hay --no-verify.
@@ -110,7 +133,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ needs.detect.outputs.node_ver }}
+          node-version-file: ${{ needs.detect.outputs.node_file }}
           cache: npm
 
       - run: npm ci
@@ -150,7 +174,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ needs.detect.outputs.py }}
+          python-version-file: ${{ needs.detect.outputs.py_file }}
 
       - name: Instalar dependencias
         run: |
@@ -265,6 +290,7 @@ jobs:
   # tolerable mientras trabajas, pero en la barrera que no se puede saltar tiene
   # que contar como fallo. Si no, "sin linter instalado" pasa por verde.
   verificacion:
+    needs: detect
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -277,30 +303,15 @@ jobs:
       # fallaba por incompatibilidades de sus dependencias con un intérprete que
       # nunca va a usar. Un CI que prueba otra cosa que producción no es una
       # barrera: es una fuente de falsos rojos.
-      - name: Versiones que fija el proyecto
-        id: versiones
-        run: |
-          if [ -f .python-version ]; then
-            echo "py_file=.python-version" >> "$GITHUB_OUTPUT"
-          else
-            echo "py=3.12" >> "$GITHUB_OUTPUT"
-          fi
-          if [ -f .nvmrc ]; then
-            echo "node_file=.nvmrc" >> "$GITHUB_OUTPUT"
-          else
-            echo "node=20" >> "$GITHUB_OUTPUT"
-          fi
-        shell: bash
-
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ steps.versiones.outputs.py }}
-          python-version-file: ${{ steps.versiones.outputs.py_file }}
+          python-version: ${{ needs.detect.outputs.py }}
+          python-version-file: ${{ needs.detect.outputs.py_file }}
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ steps.versiones.outputs.node }}
-          node-version-file: ${{ steps.versiones.outputs.node_file }}
+          node-version: ${{ needs.detect.outputs.node_ver }}
+          node-version-file: ${{ needs.detect.outputs.node_file }}
 
       - name: Contrato de verificación
         run: |
@@ -341,7 +352,8 @@ jobs:
       - uses: actions/setup-node@v4
         if: needs.detect.outputs.node == 'yes'
         with:
-          node-version: '20'
+          node-version: ${{ needs.detect.outputs.node_ver }}
+          node-version-file: ${{ needs.detect.outputs.node_file }}
           cache: npm
 
       - name: Instalar dependencias Node
@@ -353,7 +365,8 @@ jobs:
       - uses: actions/setup-python@v5
         if: needs.detect.outputs.python == 'yes'
         with:
-          python-version: '3.12'
+          python-version: ${{ needs.detect.outputs.py }}
+          python-version-file: ${{ needs.detect.outputs.py_file }}
 
       - name: Instalar pip-audit
         if: needs.detect.outputs.python == 'yes'
