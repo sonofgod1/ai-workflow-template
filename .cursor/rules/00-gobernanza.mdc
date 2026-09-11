@@ -541,6 +541,20 @@ python3 .workflow/findings.py cerrar B3 --commit a1b2c3d \
   --test backend/tests/test_api.py::test_put_es_atomico --probar-regresion
 ```
 
+**Anotar y reclasificar son comandos propios**, no efectos secundarios de otra cosa:
+
+```bash
+python3 .workflow/findings.py nota B3 "se descartó X porque Y"     # sin tocar el estado
+python3 .workflow/findings.py nota B3 "además Z" --agregar          # sin pisar lo anterior
+python3 .workflow/findings.py severidad I3 --nueva suggestion --razon "..."
+```
+
+`severidad` cambia también **el id**, porque el prefijo la codifica: `I3` pasa a ser
+`S<n>` y el viejo queda en `renombrado_de`. Se niega sobre un hallazgo ya resuelto —
+su id está escrito en un mensaje de commit, y renombrarlo dejaría el historial
+apuntando a algo que no existe. `--archivos` acepta rutas separadas por espacios o
+por comas, indistintamente.
+
 `cerrar` falla si el hash no existe en el repositorio: un hallazgo se cierra
 **después** de commitear, nunca antes. Esa es la comprobación que antes no hacía
 nadie, y por la que el estado en markdown se iba separando de la realidad.

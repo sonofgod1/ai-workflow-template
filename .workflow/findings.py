@@ -23,13 +23,15 @@ Uso:
     python3 .workflow/findings.py list [--abiertos] [--severidad blocker]
     python3 .workflow/findings.py add --id B1 --severidad blocker \\
         --titulo "PUT no es atómico" --origen docs/reviews/2026-09-08-api.md \\
-        [--archivos backend/api.py:42 ...] [--feature docs/features/x.md]
+        [--archivos backend/api.py:42 ...] [--feature docs/features/x.md] [--nota "..."]
     python3 .workflow/findings.py cerrar B1 --commit abc1234 \\
         --test tests/test_api.py::test_put_atomico [--probar-regresion]
     python3 .workflow/findings.py cerrar B1 --commit abc1234 \\
         --sin-test --razon "cambio de copy, no hay comportamiento que ejercitar"
     python3 .workflow/findings.py test-exento B1 --razon "..."
-    python3 .workflow/findings.py estado B1 --nuevo descartado --nota "..."
+    python3 .workflow/findings.py nota B1 "por qué se posterga" [--agregar]
+    python3 .workflow/findings.py estado B1 [--nuevo descartado] [--nota "..."]
+    python3 .workflow/findings.py severidad I3 --nueva suggestion --razon "..."
     python3 .workflow/findings.py siguiente-id --severidad blocker
     python3 .workflow/findings.py decisiones [--check]
     python3 .workflow/findings.py validate [--sin-bloqueantes] [--exigir-test]
@@ -236,6 +238,19 @@ ICONO = {"blocker": "🔴", "important": "🟠", "suggestion": "🟡", "debt": "
 MARCA = {"abierto": "[ ]", "en-progreso": "[~]", "resuelto": "[x]", "descartado": "[-]"}
 
 
+def separar(valores):
+    """Acepta rutas separadas por espacios, por comas, o las dos mezcladas.
+
+    La CLI documenta espacios, pero comas es lo que sale escribir, y hasta el
+    2026-09-11 'a.py,b.py' entraba al índice como UNA ruta con una coma adentro —
+    sin error, y nadie lo notaba hasta leer el JSON.
+    """
+    salida = []
+    for valor in valores or []:
+        salida.extend(parte.strip() for parte in valor.split(",") if parte.strip())
+    return salida
+
+
 def cmd_list(args):
     data = cargar()
     items = data["hallazgos"]
@@ -283,12 +298,12 @@ def cmd_add(args):
         "titulo": args.titulo,
         "estado": "abierto",
         "origen": args.origen,
-        "archivos": args.archivos or [],
+        "archivos": separar(args.archivos),
         "feature": args.feature or None,
         "creado": date.today().isoformat(),
         "resuelto": None,
         "commit": None,
-        "nota": None,
+        "nota": args.nota,
         "test": None,
     })
     guardar(data)
@@ -428,15 +443,89 @@ def cmd_estado(args):
     h = buscar(data, args.id)
     if not h:
         sys.exit(f"❌ No existe el hallazgo {args.id}.")
-    if args.nuevo not in ESTADOS:
-        sys.exit(f"❌ Estado inválido. Válidos: {', '.join(ESTADOS)}")
-    if args.nuevo == "resuelto":
-        sys.exit("❌ Para marcar resuelto usa 'cerrar', que exige el hash del commit.")
-    h["estado"] = args.nuevo
+    if not args.nuevo and not args.nota:
+        sys.exit("❌ Nada que cambiar: pasa --nuevo, --nota, o las dos.")
+    if args.nuevo:
+        if args.nuevo not in ESTADOS:
+            sys.exit(f"❌ Estado inválido. Válidos: {', '.join(ESTADOS)}")
+        if args.nuevo == "resuelto":
+            sys.exit("❌ Para marcar resuelto usa 'cerrar', que exige el hash del commit.")
+        h["estado"] = args.nuevo
     if args.nota:
         h["nota"] = args.nota
     guardar(data)
-    print(f"✓ {h['id']} → {args.nuevo}")
+    print(f"✓ {h['id']} → {h['estado']}" + ("  (nota actualizada)" if args.nota else ""))
+    return 0
+
+
+def cmd_nota(args):
+    """Anotar sin tocar el estado.
+
+    Anotar un hallazgo es lo más frecuente que se le hace a uno; cambiarle el estado,
+    lo menos. Hasta el 2026-09-11 solo se podía anotar vía 'estado --nuevo', lo que
+    obligaba a declarar un cambio de estado inexistente (de abierto a abierto) para
+    dejar un porqué. Si anotar cuesta una ceremonia rara, la nota termina solo en el
+    reporte y el índice —que es lo que CI valida y lo que alimenta decisiones.md— se
+    queda sin el porqué.
+    """
+    data = cargar()
+    h = buscar(data, args.id)
+    if not h:
+        sys.exit(f"❌ No existe el hallazgo {args.id}.")
+    if args.agregar and h.get("nota"):
+        h["nota"] = h["nota"].rstrip() + " " + args.texto
+    else:
+        h["nota"] = args.texto
+    guardar(data)
+    print(f"✓ nota de {h['id']} actualizada.")
+    return 0
+
+
+def cmd_severidad(args):
+    """Reclasificar: cambia la severidad Y el id, porque el prefijo la codifica.
+
+    Pasó con I3 en musicos: se registró como important y la prueba manual mostró que
+    era suggestion. La única salida era editar findings.json a mano, y validate pelea
+    con eso — el prefijo del id tiene que coincidir con la severidad.
+
+    Se niega sobre un hallazgo ya resuelto: su id viejo está escrito en un mensaje de
+    commit, y renombrarlo dejaría el historial apuntando a algo que ya no existe.
+    """
+    data = cargar()
+    h = buscar(data, args.id)
+    if not h:
+        sys.exit(f"❌ No existe el hallazgo {args.id}.")
+    if h.get("severidad") == args.nueva:
+        sys.exit(f"❌ {h['id']} ya es '{args.nueva}'.")
+    if h.get("estado") == "resuelto":
+        sys.exit(
+            f"❌ {h['id']} ya está resuelto: su id está en el mensaje del commit "
+            f"{(h.get('commit') or '?')[:7]} y renombrarlo dejaría el historial colgando.\n"
+            "   Si la clasificación importa, registra uno nuevo y enlaza el viejo en la nota.")
+
+    pref = PREFIJOS[args.nueva]
+    usados = []
+    for otro in data["hallazgos"]:
+        m = ID_RE.match(otro["id"].upper())
+        if m and m.group(1) == pref:
+            usados.append(int(m.group(2)))
+    numero = max(usados) + 1 if usados else 1
+    nuevo_id = f"{pref}-{numero:03d}" if pref == "TD" else f"{pref}{numero}"
+
+    viejo_id = h["id"]
+    vieja_sev = h.get("severidad")
+    h["id"] = nuevo_id
+    h["severidad"] = args.nueva
+    # El rastro no se pierde: quien busque el id viejo en el índice lo encuentra.
+    h["renombrado_de"] = viejo_id
+    traza = f"Reclasificado de {viejo_id} ({vieja_sev}) a {nuevo_id} ({args.nueva})."
+    if args.razon:
+        traza += " " + args.razon
+    h["nota"] = (h.get("nota") or "").rstrip()
+    h["nota"] = (h["nota"] + " " + traza).strip()
+    guardar(data)
+    print(f"✓ {viejo_id} → {nuevo_id} ({args.nueva})")
+    print("   El id cambió porque el prefijo codifica la severidad; 'renombrado_de' guarda el viejo.")
     return 0
 
 
@@ -584,8 +673,10 @@ def main():
     p.add_argument("--severidad", required=True, choices=list(PREFIJOS))
     p.add_argument("--titulo", required=True)
     p.add_argument("--origen", required=True, help="ruta del reporte que lo describe")
-    p.add_argument("--archivos", nargs="*")
+    p.add_argument("--archivos", nargs="*",
+                   help="rutas separadas por espacios o por comas, indistintamente")
     p.add_argument("--feature")
+    p.add_argument("--nota", help="por qué importa, o qué se descartó; se puede cambiar luego con 'nota'")
     p.set_defaults(func=cmd_add)
 
     p = sub.add_parser("cerrar", help="marcar resuelto (exige commit real y test)")
@@ -607,11 +698,24 @@ def main():
     p.add_argument("--razon", required=True)
     p.set_defaults(func=cmd_test_exento)
 
-    p = sub.add_parser("estado", help="cambiar estado")
+    p = sub.add_parser("estado", help="cambiar estado y/o nota")
     p.add_argument("id")
-    p.add_argument("--nuevo", required=True, choices=[e for e in ESTADOS if e != "resuelto"])
+    p.add_argument("--nuevo", choices=[e for e in ESTADOS if e != "resuelto"])
     p.add_argument("--nota")
     p.set_defaults(func=cmd_estado)
+
+    p = sub.add_parser("nota", help="anotar sin tocar el estado")
+    p.add_argument("id")
+    p.add_argument("texto")
+    p.add_argument("--agregar", action="store_true",
+                   help="añadir al final de la nota existente en vez de reemplazarla")
+    p.set_defaults(func=cmd_nota)
+
+    p = sub.add_parser("severidad", help="reclasificar (cambia la severidad y el id)")
+    p.add_argument("id")
+    p.add_argument("--nueva", required=True, choices=list(PREFIJOS))
+    p.add_argument("--razon", help="por qué se reclasifica; queda en la nota")
+    p.set_defaults(func=cmd_severidad)
 
     p = sub.add_parser("siguiente-id", help="siguiente id libre para una severidad")
     p.add_argument("--severidad", required=True, choices=list(PREFIJOS))
