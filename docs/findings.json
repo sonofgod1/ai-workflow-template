@@ -131,17 +131,25 @@
       "id": "I3",
       "severidad": "important",
       "titulo": "sync-workflow.sh nunca entra al manifest, así que --commit no puede commitear su propia actualización",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
       "archivos": [
         "sync-workflow.sh"
       ],
       "feature": null,
       "creado": "2026-09-11",
-      "resuelto": null,
-      "commit": null,
-      "nota": "Tercera entrega de I1 → B2 → esto. La rama de auto-update hace continue sin manifest_record.",
-      "test": null
+      "resuelto": "2026-09-11",
+      "commit": "defccac469f81f5079c0d7c34b2d974ae309e072",
+      "nota": "El arreglo va SOLO en la rama else del auto-update (contenido idéntico al remoto: o no cambió, o el usuario ya hizo el mv). La otra rama no se toca: ahí en disco está la versión vieja y anotar el hash nuevo sería mentir.",
+      "test": {
+        "estado": "probado",
+        "rutas": [
+          ".workflow/tests/test-sync-commit.py"
+        ],
+        "razon": null,
+        "regresion": "confirmada",
+        "verificado": "2026-09-11"
+      }
     }
   ]
 }
