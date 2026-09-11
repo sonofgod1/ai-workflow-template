@@ -39,6 +39,21 @@ R=$(bash src/suma.sh 2 2)
 echo ok
 """
 
+# Sale con un código que ningún runner usa para "los tests fallaron". Es lo que hizo
+# vitest (254) al cerrar I3/S1 en musicos, y lo que antes se daba por confirmado.
+TEST_EXIT_RARO = """#!/usr/bin/env bash
+echo "el proceso se cayó de una forma que nadie previó"
+exit 254
+"""
+
+# Falla con el código convencional (1), pero el runner dice que ni cargó el archivo.
+# Es el caso más común de todos: test nuevo sobre una función nueva — sin el arreglo
+# el símbolo no existe y el fallo no demuestra nada sobre el comportamiento viejo.
+TEST_SUITE_ROTA = """#!/usr/bin/env bash
+echo "Error: Cannot find module '../src/formatea'" >&2
+exit 1
+"""
+
 SUMA_CON_BUG = """#!/usr/bin/env bash
 # Bug: ignora el signo del segundo operando.
 echo $(( $1 + ${2#-} ))
@@ -173,6 +188,35 @@ def caso_worktree_limpio():
         assert "regresion-" not in lista, lista
 
 
+def caso_exit_desconocido_no_se_da_por_confirmado():
+    """Un código que no es el de 'tests fallaron' no prueba regresión (B1)."""
+    with tempfile.TemporaryDirectory() as d:
+        sha = montar(d, TEST_EXIT_RARO)
+        out, code = correr(d, sha)
+        assert out["resultado"] == "no-verificada", out
+        assert "exit 254" in out["razon"], out
+        assert code == 2, code
+
+
+def caso_suite_rota_no_se_da_por_confirmada():
+    """Falla con exit 1, pero el runner dice que no cargó el archivo: no es regresión (B1)."""
+    with tempfile.TemporaryDirectory() as d:
+        sha = montar(d, TEST_SUITE_ROTA)
+        out, code = correr(d, sha)
+        assert out["resultado"] == "no-verificada", out
+        assert "Cannot find module" in out["razon"], out
+        assert code == 2, code
+
+
+def caso_fallo_de_comportamiento_sigue_confirmando():
+    """El arreglo de B1 no puede volver inútil al chequeo: un fallo real sigue confirmando."""
+    with tempfile.TemporaryDirectory() as d:
+        sha = montar(d, TEST_BUENO)
+        out, code = correr(d, sha)
+        assert out["resultado"] == "confirmada", out
+        assert code == 0, code
+
+
 CASOS = [
     caso_test_bueno,
     caso_test_inutil,
@@ -182,6 +226,9 @@ CASOS = [
     caso_commit_raiz,
     caso_runner_ausente,
     caso_worktree_limpio,
+    caso_exit_desconocido_no_se_da_por_confirmado,
+    caso_suite_rota_no_se_da_por_confirmada,
+    caso_fallo_de_comportamiento_sigue_confirmando,
 ]
 
 

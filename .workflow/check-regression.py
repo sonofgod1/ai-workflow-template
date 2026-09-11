@@ -48,6 +48,26 @@ NO_PRUEBA = "no-prueba-nada"
 NO_VERIFICADA = "no-verificada"
 NO_APLICABLE = "no-aplicable"
 
+# Diagnósticos con los que un runner dice "no llegué a correr el test": el árbol sin
+# el arreglo no compila, no resuelve un import, o no encontró ningún caso. Eso NO es
+# "el test falló", y confundirlo es el falso verde que este script existe para evitar.
+# Importa sobre todo en el caso más común de todos — un test nuevo sobre una función
+# nueva: sin el arreglo el símbolo no existe y el runner revienta al cargar el archivo.
+# Son cadenas de diagnóstico, no texto de aserción, para no degradar confirmaciones
+# legítimas: un test que imprime "esperaba 3, obtuve 1" no coincide con ninguna.
+SUITE_ROTA = re.compile(
+    r"ModuleNotFoundError|ImportError|ReferenceError|SyntaxError"
+    r"|Cannot find module|Failed to load|Failed to resolve import"
+    r"|does not provide an export|is not exported"
+    r"|error TS\d+|build failed|compilation error"
+    r"|No test files found|no tests? found",
+    re.I,
+)
+
+# Código de salida que cada runner usa para "los tests fallaron", por extensión del
+# archivo de test. Fuera de esta tabla no se afirma nada: ver interpretar().
+FALLO_DE_TEST = {".go": 1, ".rs": 101}
+
 
 def git(*args, cwd=None):
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=False)
@@ -85,21 +105,50 @@ def comando_para(ruta, spec):
     return None
 
 
-def interpretar(ruta, code):
-    """Traduce el código de salida del runner a un resultado, con su razón."""
+def interpretar(ruta, code, salida=""):
+    """Traduce el código de salida del runner a un resultado, con su razón.
+
+    Ante la duda devuelve NO_VERIFICADA, nunca CONFIRMADA. Un 'no-verificada' de más
+    cuesta que el hallazgo cierre como 'declarado' y se note; un 'confirmada' de más
+    certifica una regresión que nadie comprobó, que es justo lo que este script existe
+    para impedir. Hasta 2026-09-11 el default fuera de pytest era CONFIRMADA: cualquier
+    salida distinta de 0 y 127 se daba por buena, admitiendo en el propio mensaje que no
+    se podía distinguir 'test falló' de 'suite rota'. Eso invertía el propósito del
+    chequeo (hallazgo B1, detectado con vitest saliendo 254 en musicos).
+    """
     if code == 0:
         return NO_PRUEBA, "el test pasó sobre el código sin arreglar"
     if code == 127:
         return NO_VERIFICADA, "el runner no está instalado (exit 127)"
+
     if ruta.endswith(".py"):
         # pytest: 1 = tests fallaron, 2/3/4 = error de uso o interrupción, 5 = no recolectó nada.
+        # Su tabla es precisa, así que no se le aplica SUITE_ROTA: un test que legítimamente
+        # afirma que se levanta un ImportError imprimiría esa cadena sin estar rota la suite.
         if code == 1:
             return CONFIRMADA, "el test falló sobre el código sin arreglar"
         if code == 5:
             return NO_VERIFICADA, "pytest no recolectó el test en el árbol sin el arreglo"
         return NO_VERIFICADA, f"pytest terminó con error de ejecución (exit {code})"
-    return CONFIRMADA, (f"el runner falló (exit {code}) sobre el código sin arreglar; "
-                        "este runner no distingue 'test falló' de 'suite rota', revisa la salida")
+
+    # Fuera de pytest el código de salida solo distingue si el runner respeta la
+    # convención. Antes de mirarlo, el veredicto del propio runner sobre sí mismo.
+    roto = SUITE_ROTA.search(salida or "")
+    if roto:
+        return NO_VERIFICADA, (
+            f"el runner no llegó a correr el test en el árbol sin el arreglo "
+            f"(dice '{roto.group(0)}'): sin el arreglo el símbolo bajo prueba no existe "
+            f"y el archivo no carga. Eso no demuestra regresión, demuestra que el test "
+            f"necesita el arreglo para siquiera compilar")
+
+    esperado = next((c for ext, c in FALLO_DE_TEST.items() if ruta.endswith(ext)), 1)
+    if code == esperado:
+        return CONFIRMADA, "el test falló sobre el código sin arreglar"
+    return NO_VERIFICADA, (
+        f"el runner terminó con exit {code}, que no es el código con el que declara "
+        f"'los tests fallaron' (esperado {esperado}): no se puede afirmar que el test "
+        f"haya fallado por comportamiento. Revisa la salida y, si corresponde, "
+        f"comprueba la regresión a mano")
 
 
 def probar(sha, specs, cmd_extra, timeout, verbose):
@@ -158,7 +207,7 @@ def probar(sha, specs, cmd_extra, timeout, verbose):
         salida = (r.stdout or "") + (r.stderr or "")
         if verbose:
             print(salida, file=sys.stderr)
-        resultado, razon = interpretar(rutas[0], r.returncode)
+        resultado, razon = interpretar(rutas[0], r.returncode, salida)
         return resultado, razon, salida[-4000:]
     finally:
         git("worktree", "remove", "--force", wt)
