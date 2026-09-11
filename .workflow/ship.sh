@@ -64,6 +64,23 @@ BASE_POR_DEFECTO=""
 
 BRANCH="$(git branch --show-current 2>/dev/null)"
 
+# delivery.conf se versiona a propósito, y eso lo vuelve contenido de branch: entre
+# que se crea y que se mergea, el modo de entrega del proyecto depende de dónde
+# estés parado. /ship fallaba con "este proyecto no autorizó el modo PR" estando
+# autorizado — en otra rama —, y ese mensaje manda a revisar una decisión cuando lo
+# que falta es un merge. Se busca en la base SOLO para diagnosticar: la autorización
+# vale por el árbol que se entrega, no por lo que diga otra rama.
+CONF_EN_BASE=""
+if [ ! -f "$CONF" ]; then
+  for REF in "$BASE" "origin/$BASE" develop origin/develop main origin/main; do
+    [ -n "$REF" ] || continue
+    if git cat-file -e "$REF:.workflow/delivery.conf" 2>/dev/null; then
+      CONF_EN_BASE="$REF"
+      break
+    fi
+  done
+fi
+
 if [ "$SOLO_CUERPO" = "yes" ]; then
   python3 "$ROOT/.workflow/pr-body.py" --base "$BASE"
   exit $?
@@ -241,6 +258,23 @@ if [ "$ABRIR" != "yes" ]; then
 fi
 
 if [ "$MODO_ENTREGA" != "pr" ] || [ "$AGENTE_PUEDE_PUSHEAR" != "si" ]; then
+  if [ -n "$CONF_EN_BASE" ]; then
+    echo "❌ Esta branch no tiene .workflow/delivery.conf, pero '$CONF_EN_BASE' sí."
+    echo ""
+    echo "   El modo PR está autorizado en el proyecto: lo que falta no es una"
+    echo "   decisión tuya, es traerla a esta branch."
+    echo ""
+    echo "     git merge $CONF_EN_BASE"
+    echo ""
+    echo "   No leo la autorización desde la base a propósito: vale por el árbol que"
+    echo "   se entrega, no por lo que diga otra rama. Si esta branch de verdad no"
+    echo "   debe entregar en PR, el archivo está bien donde está y los comandos"
+    echo "   manuales son:"
+    echo "     git push -u origin $BRANCH"
+    echo "     bash .workflow/ship.sh --cuerpo > /tmp/pr.md"
+    echo "     gh pr create --base $BASE --title \"...\" --body-file /tmp/pr.md"
+    exit 1
+  fi
   echo "❌ Este proyecto no autorizó el modo PR."
   echo ""
   echo "   Por defecto rige la regla dura 3: los commits y los pushes son del"

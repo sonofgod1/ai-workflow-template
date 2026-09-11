@@ -107,6 +107,25 @@ def caso_sin_delivery_conf_no_pushea():
             "insinuó un push antes de decir que no está autorizado"
 
 
+def caso_conf_en_la_base_nombra_el_merge_que_falta():
+    """Autorizado en develop pero no en esta branch: el mensaje apunta al merge."""
+    with tempfile.TemporaryDirectory() as d:
+        montar(d)
+        # La autorización se commitea en la base, que es donde corresponde.
+        sh(d, "git checkout -q develop")
+        escribir(d, ".workflow/delivery.conf",
+                 "MODO_ENTREGA=pr\nAGENTE_PUEDE_PUSHEAR=si\nBASE_POR_DEFECTO=develop\n")
+        sh(d, "git add -f .workflow/delivery.conf && git commit -q -m 'chore: modo PR'")
+        sh(d, "git checkout -q feature/signo")
+        (Path(d) / ".workflow" / "delivery.conf").unlink(missing_ok=True)
+
+        salida, code = ship(d, "--abrir-pr")
+        assert code != 0, "sin el archivo en el árbol no se pushea, aunque la base lo tenga"
+        assert "git merge develop" in salida, salida
+        assert "no autorizó el modo PR" not in salida, \
+            "dio el mensaje genérico en vez de nombrar la causa:\n" + salida
+
+
 def caso_conf_a_medias_no_pushea():
     """MODO_ENTREGA=pr sin AGENTE_PUEDE_PUSHEAR no alcanza: las dos, o ninguna."""
     with tempfile.TemporaryDirectory() as d:
@@ -341,6 +360,7 @@ def caso_cuerpo_marca_el_cierre_exento():
 CASOS = [
     caso_sin_delivery_conf_no_pushea,
     caso_conf_a_medias_no_pushea,
+    caso_conf_en_la_base_nombra_el_merge_que_falta,
     caso_conf_no_afecta_la_puerta,
     caso_arbol_limpio_pasa,
     caso_arbol_sucio_no_pasa,
