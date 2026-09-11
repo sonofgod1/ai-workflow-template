@@ -14,14 +14,8 @@
 
 *Estado de cada hallazgo, generado desde `docs/findings.json`.*
 
-**4 hallazgo(s):** 4 sin cerrar, 0 resuelto(s), 0 descartado(s).
+**4 hallazgo(s):** 3 sin cerrar, 1 resuelto(s), 0 descartado(s).
 
-
-## 🔴 Arreglar ahora — bloqueantes sin cerrar
-
-| ID | Título | Archivo(s) | Estado | Origen | Nota |
-|---|---|---|---|---|---|
-| B1 | check-regression.py falla abierto: cualquier runner que no sea pytest declara CONFIRMADA ante un exit desconocido | `.workflow/check-regression.py:135`, `.workflow/findings.py:347` | abierto | [reporte](docs/reviews/2026-09-11-validacion-modo-pr.md) | — |
 
 ## 🟠 Importantes sin cerrar
 
@@ -35,3 +29,9 @@
 | ID | Título | Archivo(s) | Estado | Origen | Nota |
 |---|---|---|---|---|---|
 | S1 | findings.py no deja agregar una nota sin cambiar también el estado | `.workflow/findings.py` | abierto | [reporte](docs/reviews/2026-09-11-validacion-modo-pr.md) | — |
+
+## ✅ Resueltos
+
+| ID | Título | Commit | Test | Fecha |
+|---|---|---|---|---|
+| B1 | check-regression.py falla abierto: cualquier runner que no sea pytest declara CONFIRMADA ante un exit desconocido | `9725d57` | ✅ probado — `.workflow/tests/test-check-regression.py` | 2026-09-11 |

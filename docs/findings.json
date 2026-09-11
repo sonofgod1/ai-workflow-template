@@ -57,7 +57,7 @@
       "id": "B1",
       "severidad": "blocker",
       "titulo": "check-regression.py falla abierto: cualquier runner que no sea pytest declara CONFIRMADA ante un exit desconocido",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
       "archivos": [
         ".workflow/check-regression.py:135",
@@ -65,10 +65,18 @@
       ],
       "feature": null,
       "creado": "2026-09-11",
-      "resuelto": null,
-      "commit": null,
-      "nota": null,
-      "test": null
+      "resuelto": "2026-09-11",
+      "commit": "9725d5730f11de219391058e649b6cca1b186f6a",
+      "nota": "El árbol sin el arreglo corre los 3 casos nuevos contra el check-regression.py viejo: los 2 de B1 fallan ahí (exit 254 y 'Cannot find module' declarados 'confirmada'), el tercero pasa en ambos árboles a propósito, como guardia contra pasarse de corrección.",
+      "test": {
+        "estado": "probado",
+        "rutas": [
+          ".workflow/tests/test-check-regression.py"
+        ],
+        "razon": null,
+        "regresion": "confirmada",
+        "verificado": "2026-09-11"
+      }
     }
   ]
 }
