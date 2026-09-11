@@ -43,6 +43,12 @@ CASOS = [
     (f"npm test && {RM} /", BLOQUEAR, "segundo segmento de una cadena"),
     (f"echo ok; {RM} /", BLOQUEAR, "tras un punto y coma"),
     (f"echo $({RM} /)", BLOQUEAR, "dentro de una sustitución de comando"),
+    (f"bash <<'EOF'\n{RM} /\nEOF", BLOQUEAR,
+     "el heredoc de un SHELL sí es shell: se escanea entero"),
+    (f"python3 - <<'PY'\nimport os\nos.system(\"{RM} /\")\nPY", BLOQUEAR,
+     "dentro de un cuerpo de Python, os.system abre un shell de verdad"),
+    (f"python3 - <<'PY'\nimport subprocess\nsubprocess.run(\"{RM} /\", shell=True)\nPY",
+     BLOQUEAR, "idem subprocess con una cadena"),
 
     # ── Deben bloquear: auditoría, aunque el DELETE esté acotado ────────────
     #
@@ -67,6 +73,15 @@ CASOS = [
     (f'cat > doc.md <<EOF\nEl hook bloquea {DROP} y git push {FORCE}.\nEOF', PASAR,
      "el caso exacto que abrió I3"),
     ("npm test", PASAR, "comando inocente"),
+    ("python3 - <<'PY'\n"
+     "t = t.replace(viejo, '6. Nunca ejecutes destructivos (`" + RM + "`, `"
+     + DROP + "`, `git reset " + "--hard`, `git push " + FORCE + "`) sin confirmar.')\n"
+     "PY",
+     PASAR, "el reproductor real: markdown con comandos entre backticks en un heredoc de Python"),
+    (f"python3 - <<'PY'\ntexto = \"la regla prohibe {RM} / y git reset \" + \"--hard\"\nPY",
+     PASAR, "el cuerpo de Python es Python: un literal no es posición de comando"),
+    (f"python3 - <<'PY'\n# documentar que {DROP} se bloquea\nprint(1)\nPY",
+     PASAR, "documentar la propia capa de seguridad desde un heredoc de Python"),
     ("git push origin develop", PASAR, "push normal"),
     ("git push --force-with-lease", PASAR, "force-with-lease no es force"),
     ("rm -rf ./build", PASAR, "borrado acotado a una ruta relativa"),

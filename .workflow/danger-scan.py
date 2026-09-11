@@ -126,10 +126,34 @@ SIEMPRE = [
     (re.compile(r">\s*/dev/(sd[a-z]|nvme\d|disk\d)"), "escritura directa sobre un disco"),
 ]
 
-# Verbos que ejecutan lo que reciben por stdin: para ellos el heredoc NO es
-# solo datos, así que no se puede recortar.
+# Un shell ejecuta su heredoc COMO SHELL: ahí el cuerpo no se puede recortar.
+SHELLS = re.compile(r"^(sudo\s+)?(ba|z|k|da|)sh\b")
+
+# Los demás intérpretes también ejecutan su stdin, pero como código de su propio
+# lenguaje. Escanear ese cuerpo con reglas de shell convierte cualquier literal de
+# documentación en "posición de comando" — el mismo falso positivo que este módulo
+# existe para eliminar, por otra puerta. De esos cuerpos se extrae aparte lo que sí
+# abre un shell (ABRE_SHELL, abajo).
 INTERPRETES = re.compile(r"^(sudo\s+)?(ba|z|k|da|)sh\b|^(sudo\s+)?python3?\b|"
                          r"^(sudo\s+)?(perl|ruby|node|php)\b")
+
+# Llamadas que abren un shell desde dentro de otro lenguaje: su argumento es un
+# comando de verdad, aunque esté escrito dentro de un cuerpo de Python.
+ABRE_SHELL = re.compile(
+    r"(?:os\.system|os\.popen"
+    r"|subprocess\.(?:run|call|check_call|check_output|Popen)"
+    r"|exec(?:Sync)?|spawnSync|\bsystem|\bqx)\s*\(\s*"
+    r"(?:'([^']*)'|\"([^\"]*)\")", re.S)
+
+
+def subcomandos_de_codigo(cmd):
+    """Comandos de shell escritos dentro de código de otro lenguaje."""
+    salida = []
+    for m in ABRE_SHELL.finditer(cmd):
+        interno = m.group(1) if m.group(1) is not None else m.group(2)
+        if interno and interno.strip():
+            salida.append(interno)
+    return salida
 
 ASIGNACION = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
@@ -166,12 +190,16 @@ def verbo_de(seg):
 
 
 def preparar(cmd):
-    """Quita los cuerpos de heredoc, salvo cuando el verbo es un intérprete.
+    """Quita los cuerpos de heredoc, salvo cuando el verbo es un shell.
 
-    `python3 - <<'PY'` sí ejecuta el cuerpo: ahí el heredoc no es dato.
+    `bash <<'EOF'` ejecuta el cuerpo como shell: ahí el heredoc no es dato y se
+    escanea entero. `python3 - <<'PY'` también lo ejecuta, pero como Python: ese
+    cuerpo no son segmentos de shell, y tratarlo como tales bloqueaba escribir
+    documentación sobre comandos destructivos. Lo que de ese cuerpo sí abre un
+    shell se recupera en analizar(), vía subcomandos_de_codigo().
     """
     primer = verbo_de(next(iter(segmentos(cmd)), ""))
-    if INTERPRETES.match(primer):
+    if SHELLS.match(primer):
         return cmd
     return strip_heredocs(cmd)
 
@@ -230,6 +258,14 @@ def analizar(cmd, _profundidad=0):
         # comillas, y con ellas el argumento entero de -c.
         interno = argumento_de_c(seg) if _profundidad < 3 else None
         if interno:
+            inv2, men2 = analizar(interno, _profundidad + 1)
+            invocaciones += inv2
+            menciones += men2
+
+    # El cuerpo de un intérprete se recortó arriba, pero lo que ahí abra un shell
+    # sigue siendo un comando: se analiza sobre el texto original.
+    if _profundidad < 3:
+        for interno in subcomandos_de_codigo(cmd):
             inv2, men2 = analizar(interno, _profundidad + 1)
             invocaciones += inv2
             menciones += men2
