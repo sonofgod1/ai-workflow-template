@@ -1,0 +1,30 @@
+# Lista de protegidos LOCAL de este repositorio. Reemplaza a protected.txt y NO
+# se sincroniza (sync-workflow.sh distribuye protected.txt, no este archivo).
+#
+# Por qué existe: ai-workflow-template ES el andamiaje. CLAUDE.md,
+# .claude/protected.txt, .claude/commands/, .cursor/rules/ y .github/workflows/
+# son el PRODUCTO que se entrega a otros proyectos, así que acá se editan como
+# cualquier otro código fuente. Protegerlos en este repo es un error de categoría:
+# la lista sincronizada habla de los proyectos que instalan la plantilla, no de
+# la plantilla.
+#
+# Sin este archivo, cada sesión en este repo choca con sus propios hooks al tocar
+# su propio producto, y la salida es rodearlos — que es peor que no tenerlos.
+#
+# Lo que queda protegido aquí es lo que sigue siendo peligroso aquí.
+
+.env
+.env.*
+*.pem
+*.key
+secrets/**
+.git/**
+!.git/hooks/**
+LICENSE
+
+# La autorización para pushear no se autoconcede, ni siquiera en el repo de la
+# plantilla. Si algún día este repo entrega en PRs, el archivo lo crea el humano.
+.workflow/delivery.conf
+
+# Un ADR no se edita: se escribe otro que lo reemplace. Vale igual acá.
++docs/adr/**

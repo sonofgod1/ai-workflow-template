@@ -66,6 +66,10 @@ build/
 # decisión del proyecto, así que se versiona y se revisa como cualquier otro
 # cambio. Está en .claude/protected.txt para que el agente no pueda escribirla.
 
-# Lista de archivos protegidos específica de esta copia del repo. No se versiona:
-# si se clonara a un proyecto nuevo, le desactivaría protecciones que ahí sí aplican.
-.claude/protected.local.txt
+# Lista de archivos protegidos específica de una copia del repo. En un proyecto que
+# instala la plantilla NO se versiona: si se clonara a otro, le desactivaría
+# protecciones que ahí sí aplican. En ESTE repositorio sí se versiona, y por eso no
+# está ignorada: que la plantilla no se proteja de su propio producto no es la
+# preferencia de un desarrollador, es un hecho del repo, y un clon nuevo lo necesita
+# igual. Este .gitignore no se sincroniza (no está en SYNC_PATHS), así que la
+# excepción no sale de aquí.

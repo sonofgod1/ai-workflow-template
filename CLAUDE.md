@@ -51,7 +51,7 @@ detecta la tensión, la nombra, y la devuelve.
 
 5. **Nunca cambies el stack ni la arquitectura sin un ADR.** Si una decisión amerita un ADR (ver `docs/adr/`), lo escribes primero, lo discutimos, y después implementas.
 
-6. **Nunca ejecutes comandos destructivos** (`rm -rf`, `DROP TABLE`, `git reset --hard`, `git push --force`) sin confirmación textual mía con la palabra "confirmo".
+6. **Nunca ejecutes comandos destructivos** (`rm -rf`, `DROP TABLE`, `git reset --hard`, `git push --force`) sin confirmación textual mía con la palabra "confirmo". Cuenta también **borrar o reescribir filas de una tabla de auditoría** (`impersonation_log`, `audit_log`, `*_history`…) aunque el `DELETE` lleve `WHERE`: un borrado acotado es más difícil de notar que uno total, y un registro de auditoría no se corrige, se anexa. Limpiar tus propios datos de prueba no es excepción — si no podés demostrar que una fila es tuya, no es tuya.
 
 7. **Si no estás seguro, pregunta.** Es mejor una pregunta corta que una hora deshaciendo cambios.
 
