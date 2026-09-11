@@ -14,14 +14,8 @@
 
 *Estado de cada hallazgo, generado desde `docs/findings.json`.*
 
-**4 hallazgo(s):** 2 sin cerrar, 2 resuelto(s), 0 descartado(s).
+**4 hallazgo(s):** 1 sin cerrar, 3 resuelto(s), 0 descartado(s).
 
-
-## 🟠 Importantes sin cerrar
-
-| ID | Título | Archivo(s) | Estado | Origen | Nota |
-|---|---|---|---|---|---|
-| I1 | Una branch de chore no tiene ningún comando que sea dueño de su commit | `CLAUDE.md`, `.workflow/ship.sh`, `sync-workflow.sh` | abierto | [reporte](docs/reviews/2026-09-11-validacion-modo-pr.md) | — |
 
 ## 🟡 Sugerencias sin cerrar
 
@@ -34,4 +28,5 @@
 | ID | Título | Commit | Test | Fecha |
 |---|---|---|---|---|
 | B1 | check-regression.py falla abierto: cualquier runner que no sea pytest declara CONFIRMADA ante un exit desconocido | `9725d57` | ✅ probado — `.workflow/tests/test-check-regression.py` | 2026-09-11 |
+| I1 | Una branch de chore no tiene ningún comando que sea dueño de su commit | `e0d1cbd` | ✅ probado — `.workflow/tests/test-sync-commit.py` | 2026-09-11 |
 | I2 | +docs/contracts/** frena a /build ante un cambio que solo precisa la prosa del contrato | `56cf02b` | ✅ probado — `.workflow/tests/test-check-protected.py` | 2026-09-11 |

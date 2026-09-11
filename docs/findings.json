@@ -5,7 +5,7 @@
       "id": "I1",
       "severidad": "important",
       "titulo": "Una branch de chore no tiene ningún comando que sea dueño de su commit",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
       "archivos": [
         "CLAUDE.md",
@@ -14,10 +14,18 @@
       ],
       "feature": null,
       "creado": "2026-09-11",
-      "resuelto": null,
-      "commit": null,
-      "nota": null,
-      "test": null
+      "resuelto": "2026-09-11",
+      "commit": "e0d1cbd90910f25a08bd62fc3241b95581bdcffe",
+      "nota": "Se eligió el camino 2 del reporte (que sync-workflow.sh cierre su propio commit) sobre el 1 (ampliar la excepción de /ship): pone la autorización en el script que hace el cambio, en vez de ensanchar el permiso de /ship con una condición que habría que mantener. Lo más importante del arreglo no es que commitee, es QUÉ commitea: la lista exacta de archivos escritos, nunca las carpetas de SYNC_PATHS, que también guardan trabajo del proyecto. De paso se cerraron dos huecos que abrió el arreglo de I2: check-plan-paths.sh no se sincronizaba, y el override de Cursor de la regla 1 seguía protegiendo docs/contracts/**.",
+      "test": {
+        "estado": "probado",
+        "rutas": [
+          ".workflow/tests/test-sync-commit.py"
+        ],
+        "razon": null,
+        "regresion": "confirmada",
+        "verificado": "2026-09-11"
+      }
     },
     {
       "id": "I2",
