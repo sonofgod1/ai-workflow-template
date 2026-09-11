@@ -14,20 +14,15 @@
 
 *Estado de cada hallazgo, generado desde `docs/findings.json`.*
 
-**5 hallazgo(s):** 1 sin cerrar, 4 resuelto(s), 0 descartado(s).
+**5 hallazgo(s):** 0 sin cerrar, 5 resuelto(s), 0 descartado(s).
 
-
-## 🔴 Arreglar ahora — bloqueantes sin cerrar
-
-| ID | Título | Archivo(s) | Estado | Origen | Nota |
-|---|---|---|---|---|---|
-| B2 | sync --commit no ve lo que escribió la corrida anterior, que es la del auto-update | `sync-workflow.sh`, `.workflow/tests/test-sync-commit.py` | abierto | [reporte](docs/reviews/2026-09-11-validacion-modo-pr.md) | I1 incompleto. UPDATED_LIST es estado de la invocación; la pregunta correcta es qué escribió el sync y sigue sin commitear, y eso ya lo sabe .claude/.workflow-sync. |
 
 ## ✅ Resueltos
 
 | ID | Título | Commit | Test | Fecha |
 |---|---|---|---|---|
 | B1 | check-regression.py falla abierto: cualquier runner que no sea pytest declara CONFIRMADA ante un exit desconocido | `9725d57` | ✅ probado — `.workflow/tests/test-check-regression.py` | 2026-09-11 |
+| B2 | sync --commit no ve lo que escribió la corrida anterior, que es la del auto-update | `c3707d7` | ✅ probado — `.workflow/tests/test-sync-commit.py` | 2026-09-11 |
 | I1 | Una branch de chore no tiene ningún comando que sea dueño de su commit | `e0d1cbd` | ✅ probado — `.workflow/tests/test-sync-commit.py` | 2026-09-11 |
 | I2 | +docs/contracts/** frena a /build ante un cambio que solo precisa la prosa del contrato | `56cf02b` | ✅ probado — `.workflow/tests/test-check-protected.py` | 2026-09-11 |
 | S1 | findings.py no deja agregar una nota sin cambiar también el estado | `99fea41` | ✅ probado — `.workflow/tests/test-findings-cli.py` | 2026-09-11 |

@@ -106,7 +106,7 @@
       "id": "B2",
       "severidad": "blocker",
       "titulo": "sync --commit no ve lo que escribió la corrida anterior, que es la del auto-update",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
       "archivos": [
         "sync-workflow.sh",
@@ -114,10 +114,18 @@
       ],
       "feature": null,
       "creado": "2026-09-11",
-      "resuelto": null,
-      "commit": null,
-      "nota": "I1 incompleto. UPDATED_LIST es estado de la invocación; la pregunta correcta es qué escribió el sync y sigue sin commitear, y eso ya lo sabe .claude/.workflow-sync.",
-      "test": null
+      "resuelto": "2026-09-11",
+      "commit": "c3707d7c7d85e0baee258b30b18ed4931fdb5d23",
+      "nota": "Dos cortes, no uno: (1) usar el manifest en vez de UPDATED_LIST, y (2) mover la compuerta, que era 'if UPDATED > 0' — la segunda corrida no actualiza nada, así que --commit no llegaba ni a ejecutarse. El segundo lo destapó el test: con solo el primer corte, el caso seguía rojo.",
+      "test": {
+        "estado": "probado",
+        "rutas": [
+          ".workflow/tests/test-sync-commit.py"
+        ],
+        "razon": null,
+        "regresion": "confirmada",
+        "verificado": "2026-09-11"
+      }
     }
   ]
 }
