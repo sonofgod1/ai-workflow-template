@@ -311,6 +311,39 @@ def caso_cuerpo_sin_plan_lo_dice():
         assert "No hay planes en `docs/plans/`" in cuerpo, cuerpo
 
 
+def caso_branch_de_andamiaje_no_exige_plan():
+    """S2: una branch de sync no tiene plan POR DISEÑO; avisar es un falso positivo.
+
+    Peor que el aviso: ofrecía planes de otros cambios como "candidatos" y pedía que
+    alguien nombrara uno, invitando a contestar mal.
+    """
+    with tempfile.TemporaryDirectory() as d:
+        montar(d)  # deja dos planes en docs/plans/ y un hallazgo cerrado
+        sh(d, "git checkout -q develop && git checkout -q -b chore/sync-workflow")
+        escribir(d, ".workflow/verify.sh", "#!/usr/bin/env bash\necho v2\n")
+        escribir(d, "sync-workflow.sh", "#!/usr/bin/env bash\necho sync v2\n")
+        sh(d, "git add -A && git commit -q -m 'chore: sync workflow'")
+        cuerpo, _ = ship(d, "--cuerpo")
+        assert "Sync del andamiaje" in cuerpo, cuerpo
+        assert "No se pudo determinar el plan" not in cuerpo, (
+            "trata como hueco algo que es correcto: " + cuerpo)
+        assert "nómbralo en la descripción" not in cuerpo, (
+            "sigue pidiendo que se nombre un plan que no existe: " + cuerpo)
+
+
+def caso_branch_con_codigo_sigue_exigiendo_plan():
+    """El atajo del andamiaje no puede tapar un cambio de verdad sin plan."""
+    with tempfile.TemporaryDirectory() as d:
+        montar(d)
+        sh(d, "git checkout -q develop && git checkout -q -b chore/mixto")
+        escribir(d, ".workflow/verify.sh", "#!/usr/bin/env bash\necho v2\n")
+        escribir(d, "src.sh", "#!/usr/bin/env bash\necho tocado\n")
+        sh(d, "git add -A && git commit -q -m 'chore: sync y algo más'")
+        cuerpo, _ = ship(d, "--cuerpo")
+        assert "Sync del andamiaje" not in cuerpo, (
+            "un cambio que toca código del proyecto no es un sync: " + cuerpo)
+
+
 # ── Encontrar el plan ────────────────────────────────────────────────────────
 #
 # El fixture de arriba nombra la branch `feature/signo` y el plan
@@ -377,6 +410,8 @@ def caso_cuerpo_marca_el_cierre_exento():
 
 
 CASOS = [
+    caso_branch_de_andamiaje_no_exige_plan,
+    caso_branch_con_codigo_sigue_exigiendo_plan,
     caso_sin_delivery_conf_no_pushea,
     caso_conf_a_medias_no_pushea,
     caso_conf_en_la_base_nombra_el_merge_que_falta,

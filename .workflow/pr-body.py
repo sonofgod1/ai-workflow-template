@@ -210,6 +210,27 @@ def migraciones_tocadas(base, cabeza):
             if re.search(r"(migrations?|alembic|schema)/", a) and a.endswith((".py", ".sql", ".js", ".ts"))]
 
 
+# Rutas que son andamiaje del workflow, no código del proyecto. Una branch que solo
+# las toca viene de sync-workflow.sh, no de un plan — y exigirle uno, o proponerle
+# planes de otros cambios como "candidatos", es ruido que invita a contestar mal.
+ANDAMIAJE = (
+    ".workflow/", ".claude/", ".cursor/", "git-hooks/", ".github/",
+    "sync-workflow.sh", "generate-cursor-rules.sh",
+)
+
+
+def solo_andamiaje(base, cabeza):
+    """True si la branch no toca nada del proyecto. Falso si no tocó nada en absoluto.
+
+    Existe por el hallazgo S2: para una branch de sync no hay plan POR DISEÑO, y
+    tratarlo como un hueco manda al revisor a buscar algo que no existe.
+    """
+    archivos = [a for a in git("diff", "--name-only", f"{base}..{cabeza}").splitlines() if a]
+    if not archivos:
+        return False
+    return all(a.startswith(ANDAMIAJE) for a in archivos)
+
+
 def construir(base, cabeza, branch):
     rango = commits_del_rango(base, cabeza)
     shas = [s for s, _ in rango]
@@ -241,7 +262,21 @@ def construir(base, cabeza, branch):
         # No encontrar el plan y callarlo es el peor fallo posible de este cuerpo: se
         # pierde el "por qué" justo donde el revisor viene a buscarlo, y nada avisa.
         # Si hay planes en el repo, se listan: que el revisor vea qué se descartó.
-        if candidatos:
+        #
+        # Salvo cuando la branch es solo andamiaje: ahí no hay plan porque no debe
+        # haberlo, y el aviso sería un falso positivo que además ofrece planes de
+        # otros cambios como candidatos.
+        if solo_andamiaje(base, cabeza):
+            out.append("**Sync del andamiaje del workflow — sin plan, y es lo correcto.** "
+                       "Esta branch no toca código del proyecto: trae los archivos del "
+                       "workflow desde la plantilla. No nace de un hallazgo, así que no "
+                       "hay plan que enlazar.")
+            out.append("")
+            out.append("Lo que hay que revisar aquí no es el porqué de cada línea —viene de "
+                       "la plantilla— sino que el diff sea efectivamente eso y nada más: "
+                       "ningún archivo del proyecto arrastrado, ninguna personalización tuya "
+                       "pisada.")
+        elif candidatos:
             out.append("⚠️ **No se pudo determinar el plan de esta branch**, así que este "
                        "cuerpo va sin el \"por qué\". Se buscó por los planes que tocó la "
                        "branch, por el ID del hallazgo y por parecido de nombres. "
@@ -256,8 +291,9 @@ def construir(base, cabeza, branch):
         else:
             out.append("_No hay planes en `docs/plans/`. Si el cambio necesitaba uno, eso es "
                        "lo primero que hay que revisar._")
-        print("pr-body: no se pudo determinar el plan de esta branch; el cuerpo va sin "
-              "el \"por qué\".", file=sys.stderr)
+        if not solo_andamiaje(base, cabeza):
+            print("pr-body: no se pudo determinar el plan de esta branch; el cuerpo va sin "
+                  "el \"por qué\".", file=sys.stderr)
     out.append("")
 
     out.append("## Hallazgos cerrados\n")

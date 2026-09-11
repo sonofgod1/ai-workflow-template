@@ -150,6 +150,22 @@
         "regresion": "confirmada",
         "verificado": "2026-09-11"
       }
+    },
+    {
+      "id": "S2",
+      "severidad": "suggestion",
+      "titulo": "el cuerpo del PR exige plan a una branch de andamiaje, que por diseño no lo tiene",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
+      "archivos": [
+        ".workflow/pr-body.py"
+      ],
+      "feature": null,
+      "creado": "2026-09-11",
+      "resuelto": null,
+      "commit": null,
+      "nota": "Detectado en el PR #6 de musicos: ofrecía los planes de B4 y B2 como candidatos de un sync de tooling.",
+      "test": null
     }
   ]
 }

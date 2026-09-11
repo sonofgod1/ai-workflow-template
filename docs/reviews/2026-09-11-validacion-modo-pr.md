@@ -259,3 +259,35 @@ sync sin commitear y lo incluye.
 
 No hace falta tocar la rama que descarga el `.new`: ahí el archivo en disco todavía es el
 viejo, y registrar el hash nuevo sería mentir sobre lo que hay.
+
+---
+
+## S2 — el cuerpo del PR trata como hueco algo que es correcto
+
+**Síntoma.** En el PR #6 de musicos (`chore/sync-b2` → `develop`), la sección "Por qué"
+salió así:
+
+> ⚠️ **No se pudo determinar el plan de esta branch** […] Candidatos en `docs/plans/`:
+> - `2026-09-11-b4-zona-horaria-iglesia.md`
+> - `2026-09-09-b2-datetimes-aware.md`
+>
+> Si alguno es el de este cambio, nómbralo en la descripción del PR.
+
+Ninguno de los dos tiene nada que ver: son los planes de otros cambios. La branch solo
+trae archivos del andamiaje desde la plantilla.
+
+**Por qué importa.** No rompe nada, pero es la segunda vez hoy que el workflow trata una
+branch de chore como si fuera una feature a medias (la primera fue I1). Para un sync **no
+hay plan por diseño**, y el aviso manda al revisor a buscar algo que no existe. Peor: pedir
+que "nombre" uno de los candidatos invita activamente a una respuesta equivocada, y quien
+lo haga deja el PR apuntando a un plan ajeno. Va a aparecer en cada sync de cada proyecto
+que use la plantilla.
+
+**Sugerencia.** La señal ya está a la vista: si el diff **solo** toca rutas de andamiaje
+(`.workflow/`, `.claude/`, `.cursor/`, `git-hooks/`, `.github/`, `sync-workflow.sh`,
+`generate-cursor-rules.sh`), es un sync y no lleva plan. En ese caso el cuerpo debe decirlo
+como lo que es, y aprovechar para orientar la revisión hacia lo que sí importa ahí: que el
+diff sea solo eso, sin arrastrar archivos del proyecto ni pisar personalizaciones.
+
+El atajo tiene que ser estricto —**todos** los archivos dentro de esas rutas—, para que un
+PR que mezcla sync con código de verdad siga exigiendo su plan.

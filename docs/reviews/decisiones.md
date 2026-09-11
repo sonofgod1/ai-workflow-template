@@ -14,8 +14,14 @@
 
 *Estado de cada hallazgo, generado desde `docs/findings.json`.*
 
-**6 hallazgo(s):** 0 sin cerrar, 6 resuelto(s), 0 descartado(s).
+**7 hallazgo(s):** 1 sin cerrar, 6 resuelto(s), 0 descartado(s).
 
+
+## 🟡 Sugerencias sin cerrar
+
+| ID | Título | Archivo(s) | Estado | Origen | Nota |
+|---|---|---|---|---|---|
+| S2 | el cuerpo del PR exige plan a una branch de andamiaje, que por diseño no lo tiene | `.workflow/pr-body.py` | abierto | [reporte](docs/reviews/2026-09-11-validacion-modo-pr.md) | Detectado en el PR #6 de musicos: ofrecía los planes de B4 y B2 como candidatos de un sync de tooling. |
 
 ## ✅ Resueltos
 
