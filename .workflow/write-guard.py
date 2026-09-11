@@ -15,9 +15,11 @@ Modos:
     write-guard.py targets      # stdin: JSON del hook → stdout: rutas escritas
     write-guard.py check        # stdin: JSON del hook → bloquea (exit 2) o pasa
 
-Limitación honesta: esto es una barandilla, no un sandbox. Un intérprete inline
-(`python3 -c "open('CLAUDE.md','w')"`) escapa del análisis. Cubre lo que un
-agente hace por accidente o por atajo, que es el 99% del riesgo real.
+Limitación honesta: esto es una barandilla, no un sandbox. De un intérprete se
+cubren las formas literales de escritura — la ruta en la propia llamada, o en un
+Path()/open() que luego se escribe por su variable. Una ruta calculada en tiempo
+de ejecución sigue escapando. Cubre lo que un agente hace por accidente o por
+atajo, que es el 99% del riesgo real.
 """
 
 import fnmatch
@@ -138,7 +140,89 @@ def _segment_targets(tokens):
     return targets
 
 
+# ── Escrituras desde el cuerpo de un intérprete ───────────────────────────────
+#
+# La limitación que este módulo declaraba abajo era real y se cobró su caso: un
+# `python3 - <<EOF` que abre el archivo desde dentro no tiene redirección que ver,
+# así que pasaba entero. Es el camino más natural para editar un archivo desde
+# Bash, no un rebuscamiento.
+#
+# No se puede analizar Python arbitrario. Sí se pueden cubrir las formas literales,
+# que es lo que se escribe por atajo: la ruta en la propia llamada de escritura, o
+# la ruta en un Path()/open() que luego se escribe por su variable.
+
+INTERPRETE = re.compile(r"(?:^|[;&|]|\$\(|\s)(?:sudo\s+)?(?:python3?|node|ruby|perl|php)\b")
+
+_R = r"""['"]([^'"\n]{1,300})['"]"""
+
+# La ruta va pegada a la escritura: no hace falta seguir ninguna variable.
+ESCRITURA_DIRECTA = [
+    re.compile(r"\bopen\s*\(\s*" + _R + r"\s*,\s*['\"][rbt+]*[wax]"),
+    re.compile(r"\bPath\s*\(\s*" + _R + r"\s*\)\s*\.\s*"
+               r"(?:write_text|write_bytes|unlink|touch|mkdir|rename|replace)"),
+    re.compile(r"\bos\.(?:remove|unlink|rename|replace|truncate)\s*\(\s*" + _R),
+    re.compile(r"\bshutil\.rmtree\s*\(\s*" + _R),
+    re.compile(r"\bshutil\.(?:copy2?|copyfile|move)\s*\([^,)]+,\s*" + _R),
+    re.compile(r"\b(?:write|append|truncate)File(?:Sync)?\s*\(\s*" + _R),
+    re.compile(r"\bFile\.(?:write|delete)\s*\(\s*" + _R),
+]
+
+# La ruta entra en una variable y se escribe por ella. Dos pasos, sin dataflow de
+# verdad: el nombre tiene que ser el mismo literal en los dos sitios.
+ASIGNA_RUTA = re.compile(r"\b([A-Za-z_]\w*)\s*=\s*(?:Path|open)\s*\(\s*" + _R)
+ESCRIBE_VAR = r"\b{}\s*\.\s*(?:write_text|write_bytes|write|writelines|unlink|touch)\b"
+
+
+def rutas_escritas_en_codigo(codigo):
+    """Rutas que este código fuente escribe, por las formas literales conocidas."""
+    encontradas = []
+    for rx in ESCRITURA_DIRECTA:
+        for m in rx.finditer(codigo):
+            encontradas.append(m.group(1))
+    for m in ASIGNA_RUTA.finditer(codigo):
+        var, ruta = m.group(1), m.group(2)
+        if re.search(ESCRIBE_VAR.format(re.escape(var)), codigo):
+            encontradas.append(ruta)
+    return encontradas
+
+
+def cuerpos_de_codigo(text):
+    """Trozos de este comando que un intérprete va a ejecutar como código fuente:
+    cuerpos de heredoc y argumentos de -c / -e."""
+    cuerpos = []
+
+    lineas = text.split("\n")
+    i = 0
+    while i < len(lineas):
+        apertura = lineas[i]
+        found = HEREDOC.search(apertura)
+        i += 1
+        if not found:
+            continue
+        delim = found.group(1)
+        cuerpo = []
+        while i < len(lineas) and lineas[i].strip() != delim:
+            cuerpo.append(lineas[i])
+            i += 1
+        i += 1
+        if INTERPRETE.search(apertura):
+            cuerpos.append("\n".join(cuerpo))
+
+    for pieza in re.split(r"(?:\|\||&&|[;&|\n])+", text):
+        if not INTERPRETE.search(pieza):
+            continue
+        try:
+            tokens = shlex.split(pieza, posix=True)
+        except ValueError:
+            continue
+        for j, tok in enumerate(tokens):
+            if tok in ("-c", "-e") and j + 1 < len(tokens):
+                cuerpos.append(tokens[j + 1])
+    return cuerpos
+
+
 def command_targets(cmd):
+    cmd_original = cmd
     cmd = strip_heredocs(cmd)
     found = []
     for piece in re.split(r"(?:\|\||&&|[;&|\n])+", cmd):
@@ -151,6 +235,9 @@ def command_targets(cmd):
             continue
         if tokens:
             found += _segment_targets(tokens)
+
+    for codigo in cuerpos_de_codigo(cmd_original):
+        found += rutas_escritas_en_codigo(codigo)
 
     out = []
     for raw in found:
