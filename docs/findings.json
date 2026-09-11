@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "hallazgos": [
+    {
+      "id": "I1",
+      "severidad": "important",
+      "titulo": "Una branch de chore no tiene ningún comando que sea dueño de su commit",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
+      "archivos": [
+        "CLAUDE.md",
+        ".workflow/ship.sh",
+        "sync-workflow.sh"
+      ],
+      "feature": null,
+      "creado": "2026-09-11",
+      "resuelto": null,
+      "commit": null,
+      "nota": null,
+      "test": null
+    },
+    {
+      "id": "I2",
+      "severidad": "important",
+      "titulo": "+docs/contracts/** frena a /build ante un cambio que solo precisa la prosa del contrato",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
+      "archivos": [
+        ".claude/protected.txt",
+        ".claude/commands/plan.md",
+        ".claude/commands/build.md"
+      ],
+      "feature": null,
+      "creado": "2026-09-11",
+      "resuelto": null,
+      "commit": null,
+      "nota": "CONFIRMADO en campo 2026-09-11 con el plan de B4 en musicos, y es peor de lo que decía el reporte. (1) El hook NO tiene vía de aprobación: su propio mensaje dice 'Un contrato solo cambia si el usuario lo aprueba' y no existe ni env var ni flag para aprobarlo — /build le ofreció al usuario una salida inejecutable. (2) /contracts tampoco puede: .claude/commands/contracts.md:14 dice 'No modifica contratos existentes SIN NOTIFICAR al usuario', o sea que se cree capaz de enmendar avisando, y el hook lo bloquea igual. El comando y el hook no se hablan. (3) Causa raíz, más nítida que en el reporte: el prefijo '+' le aplica semántica de ADR (inmutable, se reemplaza por otro) a un contrato, que es un documento VIVO que cambia con cada endpoint. Para docs/adr/** el '+' es correcto; para docs/contracts/** deja api.md intocable por cualquier agente para siempre, y /contracts sirve el primer día y nunca más. Salida usada: el humano aplicó las ediciones a mano con un script preparado aparte. Confirmado también que /build obedece la regla 13: paró, lo dijo, y no commiteó nada.",
+      "test": null
+    },
+    {
+      "id": "S1",
+      "severidad": "suggestion",
+      "titulo": "findings.py no deja agregar una nota sin cambiar también el estado",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
+      "archivos": [
+        ".workflow/findings.py"
+      ],
+      "feature": null,
+      "creado": "2026-09-11",
+      "resuelto": null,
+      "commit": null,
+      "nota": null,
+      "test": null
+    },
+    {
+      "id": "B1",
+      "severidad": "blocker",
+      "titulo": "check-regression.py falla abierto: cualquier runner que no sea pytest declara CONFIRMADA ante un exit desconocido",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
+      "archivos": [
+        ".workflow/check-regression.py:135",
+        ".workflow/findings.py:347"
+      ],
+      "feature": null,
+      "creado": "2026-09-11",
+      "resuelto": null,
+      "commit": null,
+      "nota": null,
+      "test": null
+    }
+  ]
+}

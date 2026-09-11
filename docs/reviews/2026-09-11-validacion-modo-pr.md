@@ -1,0 +1,193 @@
+# Review: el modo PR medido contra un proyecto real — 2026-09-11
+
+**Origen:** validación del workflow ejecutando musicos de punta a punta (PRs #2 y #3
+mergeados, plan de B4 aprobado). No es una lectura del código de la plantilla: son dos
+lugares donde el ciclo se frenó de verdad y el humano tuvo que tapar el hueco a mano.
+
+Los dos hallazgos comparten causa: **el modo PR modela el trabajo como "un hallazgo → un
+plan → `/build` → `/ship`", y todo lo que no tiene esa forma se cae del ciclo.** La promesa
+del modo es bajar las acciones humanas por hallazgo de ~10 a 2. Cada vez que un cambio no
+encaja en ese molde, las acciones vuelven a subir sin que nada lo advierta.
+
+---
+
+## I1 — una branch de chore no tiene ningún comando que sea dueño de su commit
+
+**Síntoma.** En musicos, `chore/sync-workflow` traía el andamiaje sincronizado más el port
+de dos reglas duras a `CLAUDE.md`. Al momento de commitear, el agente no tenía con qué
+autorizarse: la excepción de la regla dura 3 nombra a `/build` (commitea código y docs) y a
+`/ship` (pushea y abre el PR), y esa branch nunca pasó por `/plan` → `/build` porque no
+nace de un hallazgo. `/ship` no commitea por diseño — exige árbol limpio. El commit lo
+terminó haciendo el humano a mano.
+
+**Por qué importa.** Es exactamente la acción que el modo PR existe para sacar del medio, y
+reaparece en el único tipo de branch que *todos* los proyectos van a tener: la del sync del
+andamiaje. Peor, no falla ruidosamente: `/ship` simplemente dice "árbol sucio" y el humano
+completa el paso sin registrar que el modo no lo cubrió. Un agujero que se tapa solo es un
+agujero que nadie arregla.
+
+**Sugerencia.** Dos caminos, y hay que elegir uno explícitamente:
+
+1. Ampliar la excepción de la regla dura 3 para que `/ship` pueda commitear un árbol sucio
+   **cuando el diff toca solo rutas de andamiaje** (`.workflow/`, `.claude/`, `git-hooks/`,
+   `CLAUDE.md`) y no hay plan asociado. Acotado y verificable por el propio script.
+2. Darle a `sync-workflow.sh` su propio cierre: que commitee lo que sincronizó, con un
+   mensaje `chore:` derivado de la lista de archivos que tocó. Es el que ya sabe qué cambió
+   y por qué.
+
+La opción 2 es más limpia: pone la autorización en el script que hace el cambio, en vez de
+ensanchar el permiso de `/ship` con una condición que hay que mantener.
+
+**No confundir con:** el commit de `CLAUDE.md` que el clasificador de auto mode bloquea.
+Ese bloqueo es deliberado y se decidió mantener. Este hallazgo es sobre el commit de los
+archivos de andamiaje, que nadie discutió.
+
+---
+
+## I2 — `+docs/contracts/**` bloquea a `/build` ante un cambio que solo precisa la prosa
+
+**Síntoma.** El plan de B4 (`docs/plans/2026-09-11-b4-zona-horaria-iglesia.md`) necesita
+precisar en `docs/contracts/api.md` que "hoy" significa el día de calendario en
+`America/Mexico_City`, y dejar constancia en `env.md` de que la zona **no** es una env var.
+Ningún campo, tipo ni código de estado cambia — el plan concluye, con razón, que no hace
+falta pasar por `/contracts`. Pero `.claude/protected.txt:28` marca `+docs/contracts/**`
+como **solo-creación**, y los dos archivos ya existen: el hook va a frenar a `/build` a
+mitad de ejecución.
+
+**Por qué importa.** La protección discrimina **por archivo**; la decisión que quiere
+proteger es **por tipo de cambio**. Cambiar la forma de un contrato (un campo, un status,
+un tipo) es una decisión de producto y merece la guardia. Precisar la semántica de una
+palabra que el código ya implementa es documentación, y es justo lo que no debería quedar
+sin hacer: el costo de que `/build` se frene ahí es que el contrato queda mintiendo hasta
+que alguien lo retome por separado. La guardia empuja al resultado que menos queremos.
+
+Hay además un modo de falla peor que el bloqueo: `/build` se detiene **después** de haber
+escrito el código, con la branch a medias. El plan y el hook no se hablan — nada avisa al
+aprobar el plan que su lista de archivos incluye uno que el agente no va a poder tocar.
+
+**Sugerencia.** Dos cosas, independientes:
+
+1. **Chequeo temprano:** que `/plan` (o `/build` al arrancar) contraste la lista de archivos
+   del plan contra `protected.txt` y lo declare **antes** de escribir nada. Que el humano
+   sepa al aprobar que el plan incluye dos archivos que va a tener que aplicar él, en vez de
+   descubrirlo a mitad de camino. Esto vale para cualquier ruta protegida, no solo contratos.
+2. **Distinguir los dos tipos de cambio.** Alternativas, en orden de preferencia:
+   - Que el plan declare `contratos: semántica` vs `contratos: forma`, y que solo el segundo
+     exija `/contracts` — el hook lee esa declaración del plan que el humano ya aprobó.
+   - Partir la protección: `docs/contracts/*.md` solo-creación para la sección de esquemas, y
+     una sección de notas que sí sea escribible. Frágil: depende de una convención dentro
+     del archivo.
+   - Dejarlo como está y aceptar que los contratos los edita el humano. Es la salida honesta
+     si no se quiere más maquinaria, pero entonces conviene que el plan lo diga desde el
+     principio, que es el punto 1 igual.
+
+**Medido, no supuesto.** `sed -n '1,32p' .claude/protected.txt` en musicos confirma la
+semántica del prefijo `+` ("el agente puede crear archivos nuevos ahí, pero no modificar los
+que ya existen"), y `docs/contracts/api.md` y `env.md` existen desde `/contracts`.
+
+---
+
+## Confirmación en campo de I2 — 2026-09-11, ejecutando el plan de B4
+
+`/build` corrió el plan completo y **paró en el hook**, tal como se predijo. Obedeció la
+regla dura 13 sin intentar rodearlo, no commiteó nada, y dejó el resto verificado
+(`parcial` solo por `lint-frontend`; 133 tests en verde; `ruff check backend` en 0 con
+`DTZ011`/`DTZ007` ya encendidas). Eso confirma que el modo de falla es el descrito: **código
+escrito, contrato sin escribir, branch a medias, y nada que lo avisara al aprobar el plan.**
+
+Lo que la ejecución agregó, y que el reporte original no tenía:
+
+1. **El hook no tiene vía de aprobación.** Su mensaje dice *"Un contrato solo cambia si el
+   usuario lo aprueba"* y **no existe ningún mecanismo para aprobarlo** — ni variable de
+   entorno, ni flag, ni excepción. `/build`, leyendo ese mensaje, le ofreció al usuario
+   "apruebas ahora que edite directamente" como opción: una salida inejecutable. Un mensaje
+   de error que promete una puerta que no existe manda al agente a proponer imposibles.
+
+2. **`/contracts` tampoco puede.** `.claude/commands/contracts.md:14` dice *"No modifica
+   contratos existentes **sin notificar al usuario**"* — se cree capaz de enmendar avisando.
+   El hook lo bloquea igual. **El comando y el hook no se hablan**, y la salida que el propio
+   flujo documenta como correcta está cerrada.
+
+3. **La causa raíz, más nítida.** El prefijo `+` le aplica a un contrato la semántica de un
+   ADR: inmutable, se reemplaza por otro. Para `docs/adr/**` es correcto y debe quedarse. Un
+   contrato es un documento **vivo** que cambia con cada endpoint; bajo esta regla `api.md`
+   queda intocable por cualquier agente para siempre, y `/contracts` sirve el primer día del
+   proyecto y nunca más.
+
+**Salida que se usó:** el humano aplicó las dos ediciones a mano, con un script preparado
+aparte que falla sin escribir si alguna ancla no coincide. Misma forma que el port de
+`CLAUDE.md`.
+
+**Esto reordena las sugerencias de I2.** El punto 1 (chequeo temprano del plan contra
+`protected.txt`) sigue valiendo tal cual. El punto 2 se simplifica: la corrección mínima es
+**sacar `docs/contracts/**` del prefijo `+`** y protegerlo como cualquier otra ruta —
+requiere confirmación del usuario, no prohibición absoluta — dejando el `+` solo para
+`docs/adr/**`, donde la semántica de inmutabilidad es real. Y separado de eso, el mensaje
+del hook no debe prometer una aprobación que no implementa.
+
+---
+
+## S1 — `findings.py` no deja agregar una nota sin cambiar también el estado
+
+**Síntoma.** Para dejar la confirmación en campo de I2 en el índice hubo que correr
+`findings.py estado I2 --nuevo abierto --nota "..."`: declarar un cambio de estado que no
+existe (de `abierto` a `abierto`) porque `--nuevo` es obligatorio y `add` no acepta `--nota`.
+Anotar un hallazgo es lo más frecuente que se le hace a uno; cambiarle el estado, lo menos.
+
+**Por qué importa.** No rompe nada, pero empuja al camino de menor resistencia equivocado:
+si anotar cuesta una ceremonia rara, la nota termina solo en el reporte y el índice —que es
+lo que CI valida y lo que alimenta `decisiones.md`— se queda sin el porqué. Es la misma
+clase de fricción que el resto de la CLI ya tiene registrada (`add` sin `--nota`,
+`--archivos` separado por espacios y no por comas, sin forma de cambiar la severidad).
+
+**Sugerencia.** Un subcomando `findings.py nota <id> "texto"`, y que `--nuevo` deje de ser
+obligatorio en `estado` cuando venga `--nota`. Conviene resolverlo junto con lo demás de la
+CLI, no suelto.
+
+---
+
+## B1 — `check-regression.py` falla abierto fuera de pytest
+
+**Síntoma.** `interpretar()` (`.workflow/check-regression.py`, última línea) cierra así:
+
+```python
+return CONFIRMADA, (f"el runner falló (exit {code}) sobre el código sin arreglar; "
+                    "este runner no distingue 'test falló' de 'suite rota', revisa la salida")
+```
+
+Para una ruta `.py` un código desconocido cae en `NO_VERIFICADA` — falla **cerrado**, que es
+lo correcto. Para cualquier otra (`.ts`, `.js`, `.go`, `.rs`…), **todo código distinto de 0 y
+127 se declara `CONFIRMADA`**. El mensaje admite que no puede distinguir y devuelve confirmada
+igual.
+
+**Detectado en campo,** cerrando I3 y S1 en musicos el 2026-09-11: `vitest` salió con **254**
+y el cierre quedó registrado como `regresion: "confirmada"`, `test.estado: "probado"`. El
+agente lo verificó a mano por su cuenta y lo reportó; sin esa iniciativa, el índice habría
+afirmado una verificación automática que nunca ocurrió y `validate --exigir-test` habría
+pasado en verde.
+
+**Por qué importa.** `--probar-regresion` es el único mecanismo que impide que un test escrito
+sobre el código ya arreglado se registre como prueba. Toda la regla dura 16 descansa en él.
+Que falle **abierto** invierte su propósito: en vez de atrapar el cierre falso, lo certifica.
+Y es peor para el caso más común de todos — un test nuevo en un archivo nuevo. En el árbol sin
+el arreglo, `check-regression.py` copia los archivos de test pero no el código fuente, así que
+el import no resuelve y el runner revienta al compilar. Eso es *exactamente* "suite rota", y
+es el camino por defecto de cualquier arreglo de frontend.
+
+**Efecto colateral ya en el mundo:** el índice de musicos tiene I3 y S1 como `probado` /
+`confirmada` cuando lo honesto es `declarado`. Hay que corregirlo allá.
+
+**Sugerencia.**
+
+1. **Invertir el default: fallar cerrado.** Fuera de pytest, un código no reconocido es
+   `NO_VERIFICADA`, no `CONFIRMADA`. Es la corrección mínima y sola ya elimina el falso verde.
+2. **Distinguir de verdad, por runner.** `vitest --reporter=json` y `jest --json` separan
+   "assertion failure" de "collection/import error"; `go test -json` también. Donde haya salida
+   estructurada, usarla en vez del código de salida.
+3. **Detectar el caso del archivo nuevo explícitamente.** Si el símbolo bajo prueba no existe
+   en el árbol sin el arreglo, el resultado correcto no es `confirmada` ni `no-verificada`: es
+   que ese test **no puede** demostrar regresión por sí solo, y el hallazgo debería cerrarse
+   como `declarado` con esa razón escrita.
+4. **Que `findings.py` no acepte `confirmada` sin evidencia.** Hoy confía en el JSON
+   (`findings.py:347`, `out.get("resultado", "no-verificada")`). El default ya es seguro; el
+   problema es aguas arriba. Vale igual registrar el porqué en la nota del cierre.
