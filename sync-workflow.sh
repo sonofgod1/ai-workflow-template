@@ -98,6 +98,29 @@ manifest_record() {
   mv "$MANIFEST.tmp" "$MANIFEST"
 }
 
+# Archivos que el sync escribió y todavía no están commiteados, vengan de ESTA
+# corrida o de una anterior. Es la pregunta correcta para --commit: UPDATED_LIST
+# muere con el proceso, y el sync se parte en dos corridas cada vez que el propio
+# script cambia (bash no puede sobreescribirse en marcha). La primera corrida es
+# justo la que mueve más archivos, y es la que no tiene el flag — hallazgo B2.
+#
+# El manifest ya guarda el hash de lo que el sync escribió. Si el archivo en disco
+# coincide con ese hash, es obra del sync; si lo personalizaste, no coincide y queda
+# fuera solo, sin necesidad de listas de exclusión.
+obra_del_sync_sin_commitear() {
+  [ -f "$MANIFEST" ] || return 0
+  while read -r REGISTRADO RUTA; do
+    [ -z "$RUTA" ] && continue
+    [ -f "$RUTA" ] || continue
+    [ "$(sha "$RUTA")" = "$REGISTRADO" ] || continue
+    # Sin cambios frente a HEAD (ya commiteado, o idéntico): nada que hacer.
+    if git diff --quiet HEAD -- "$RUTA" 2>/dev/null && git ls-files --error-unmatch "$RUTA" > /dev/null 2>&1; then
+      continue
+    fi
+    echo "$RUTA"
+  done < "$MANIFEST"
+}
+
 log()  { echo "  $1"; }
 ok()   { echo "  ✓ $1"; }
 warn() { echo "  ⚠️  $1"; }
@@ -350,11 +373,19 @@ else
     echo "       bash sync-workflow.sh --force"
   fi
 
-  if [ $UPDATED -gt 0 ]; then
-    echo "   Nota: Revisa si hay que instalar hooks con /git-setup"
+  # La compuerta NO puede ser "¿actualicé algo en esta corrida?". Cuando el propio
+  # script se auto-actualiza, el sync se parte en dos: la primera corrida escribe
+  # todo y la segunda, la que lleva --commit, no actualiza nada. Con la compuerta
+  # vieja el flag no llegaba ni a ejecutarse y el trabajo quedaba huérfano sin un
+  # solo aviso — hallazgo B2.
+  PENDIENTES=$(obra_del_sync_sin_commitear)
+  NUM=$(echo "$PENDIENTES" | sed '/^$/d' | wc -l | tr -d ' ')
+
+  if [ $UPDATED -gt 0 ] || [ "$NUM" -gt 0 ]; then
+    [ $UPDATED -gt 0 ] && echo "   Nota: Revisa si hay que instalar hooks con /git-setup"
     echo ""
 
-    # ─── Cierre del sync: commitear lo que ESTE script escribió ───────────────
+    # ─── Cierre del sync: commitear lo que el sync escribió ───────────────────
     #
     # Existe por el hallazgo I1. Una branch de sync no nace de un plan, así que
     # ningún comando del workflow es dueño de su commit: /build commitea lo que
@@ -376,16 +407,20 @@ else
         warn "no commiteo en $CURRENT_BRANCH: esa rama solo recibe merges."
         echo "       git checkout -b chore/sync-workflow && bash sync-workflow.sh --commit"
       else
+        # Lo que el sync escribió y sigue sin commitear, de ESTA corrida y de las
+        # anteriores. Ver obra_del_sync_sin_commitear() y el hallazgo B2.
+        A_COMMITEAR="$PENDIENTES"
         # git add con la lista explícita, un archivo por línea, sin glob.
-        echo "$UPDATED_LIST" | sed '/^$/d' | tr '\n' '\0' | xargs -0 git add --
+        echo "$A_COMMITEAR" | sed '/^$/d' | tr '\n' '\0' | xargs -0 git add --
         if git diff --cached --quiet; then
           warn "no hay nada staged: los archivos escritos ya estaban commiteados."
         else
-          COMMIT_MSG="chore: sync workflow desde $WORKFLOW_REPO ($UPDATED archivos)"
-          COMMIT_BODY=$(echo "$UPDATED_LIST" | sed '/^$/d;s/^/- /')
+          COMMIT_MSG="chore: sync workflow desde $WORKFLOW_REPO ($NUM archivos)"
+          COMMIT_BODY=$(echo "$A_COMMITEAR" | sed '/^$/d;s/^/- /')
           if git commit -q -m "$COMMIT_MSG" -m "$COMMIT_BODY"; then
             ok "commiteado en $CURRENT_BRANCH: $(git rev-parse --short HEAD)"
-            echo "       $UPDATED archivo(s), listados en el cuerpo del commit."
+            echo "       $NUM archivo(s), listados en el cuerpo del commit."
+            [ "$NUM" -gt "$UPDATED" ] && echo "       Incluye $((NUM - UPDATED)) de una corrida anterior del sync."
             [ $MODIFIED -gt 0 ] && echo "       Los conservados NO entraron: son tuyos."
           else
             warn "el commit falló — revisa la salida de arriba (¿hook de pre-commit?)."
@@ -397,9 +432,9 @@ else
       echo ""
       echo "       bash sync-workflow.sh --commit"
       echo ""
-      echo "   Commitea exactamente estos $UPDATED archivo(s), no las carpetas enteras:"
-      echo "$UPDATED_LIST" | sed '/^$/d;s/^/       /' | head -12
-      [ "$UPDATED" -gt 12 ] && echo "       … y $((UPDATED - 12)) más"
+      echo "   Commitea exactamente estos $NUM archivo(s), no las carpetas enteras:"
+      echo "$PENDIENTES" | sed '/^$/d;s/^/       /' | head -12
+      [ "$NUM" -gt 12 ] && echo "       … y $((NUM - 12)) más"
     fi
   fi
 fi

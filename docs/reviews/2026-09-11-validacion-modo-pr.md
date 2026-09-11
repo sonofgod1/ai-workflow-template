@@ -191,3 +191,43 @@ es el camino por defecto de cualquier arreglo de frontend.
 4. **Que `findings.py` no acepte `confirmada` sin evidencia.** Hoy confía en el JSON
    (`findings.py:347`, `out.get("resultado", "no-verificada")`). El default ya es seguro; el
    problema es aguas arriba. Vale igual registrar el porqué en la nota del cierre.
+
+---
+
+## B2 — `--commit` no ve lo que escribió la corrida anterior, que es justo la del auto-update
+
+**Síntoma.** Detectado sincronizando musicos con los arreglos de hoy, horas después de
+cerrar I1. `sync-workflow.sh` no se sobreescribe en marcha —bash lee el script por trozos
+mientras lo ejecuta—, así que cuando el propio script cambia hace falta un baile de dos
+corridas: la primera baja `sync-workflow.sh.new`, se mueve a mano, y la segunda ya corre
+con la versión nueva. **Solo la segunda tiene `--commit`**, porque el flag no existía en la
+copia vieja.
+
+Resultado medido: la primera corrida escribió 9 archivos; la segunda escribió 1 —
+`check-plan-paths.sh`, que la copia vieja ni siquiera conocía— y commiteó ese solo. Los 9
+quedaron sin commitear, y el humano los commiteó a mano.
+
+**Por qué importa.** Es I1 reapareciendo en el único caso donde más duele. La corrida que
+mueve muchos archivos es exactamente la del auto-update, y es la única donde el flag no
+puede servir. Un arreglo que funciona salvo cuando hay trabajo de verdad no está hecho.
+
+Peor: falla **en silencio y con aspecto de éxito**. El script dice "commiteado en
+chore/sync-workflow-2" y nombra 1 archivo; nada indica que hay 9 más esperando. Quien no
+mire `git status` se lleva un PR con un tercio del sync.
+
+**Causa.** `UPDATED_LIST` es estado de la invocación: se llena en el bucle de descarga, y
+muere con el proceso. La pregunta correcta no es "¿qué escribí yo?", es "¿qué escribió el
+sync y todavía no está commiteado?".
+
+**Sugerencia — y el dato ya existe.** `.claude/.workflow-sync` registra el hash de lo que
+el sync escribió, archivo por archivo, y se mantiene entre corridas. Entonces: commitear
+todo archivo del manifest cuyo contenido en disco **coincida con su hash registrado** y que
+**difiera de `HEAD`**. Eso es "obra del sync, sin commitear", venga de la corrida que venga.
+
+La coincidencia con el manifest es lo que lo hace seguro: un archivo que el usuario
+personalizó no coincide, y queda fuera sin necesidad de listas de exclusión. Es el mismo
+hash que el script ya usa para decidir si pisa un archivo o lo conserva — no hace falta
+maquinaria nueva, solo preguntarle al dato correcto.
+
+Verificado en musicos antes de proponerlo: los 9 archivos huérfanos coincidían exactamente
+con su hash del manifest.

@@ -14,8 +14,14 @@
 
 *Estado de cada hallazgo, generado desde `docs/findings.json`.*
 
-**4 hallazgo(s):** 0 sin cerrar, 4 resuelto(s), 0 descartado(s).
+**5 hallazgo(s):** 1 sin cerrar, 4 resuelto(s), 0 descartado(s).
 
+
+## 🔴 Arreglar ahora — bloqueantes sin cerrar
+
+| ID | Título | Archivo(s) | Estado | Origen | Nota |
+|---|---|---|---|---|---|
+| B2 | sync --commit no ve lo que escribió la corrida anterior, que es la del auto-update | `sync-workflow.sh`, `.workflow/tests/test-sync-commit.py` | abierto | [reporte](docs/reviews/2026-09-11-validacion-modo-pr.md) | I1 incompleto. UPDATED_LIST es estado de la invocación; la pregunta correcta es qué escribió el sync y sigue sin commitear, y eso ya lo sabe .claude/.workflow-sync. |
 
 ## ✅ Resueltos
 

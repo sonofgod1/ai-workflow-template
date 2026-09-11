@@ -101,6 +101,23 @@
         "regresion": "confirmada",
         "verificado": "2026-09-11"
       }
+    },
+    {
+      "id": "B2",
+      "severidad": "blocker",
+      "titulo": "sync --commit no ve lo que escribió la corrida anterior, que es la del auto-update",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
+      "archivos": [
+        "sync-workflow.sh",
+        ".workflow/tests/test-sync-commit.py"
+      ],
+      "feature": null,
+      "creado": "2026-09-11",
+      "resuelto": null,
+      "commit": null,
+      "nota": "I1 incompleto. UPDATED_LIST es estado de la invocación; la pregunta correcta es qué escribió el sync y sigue sin commitear, y eso ya lo sabe .claude/.workflow-sync.",
+      "test": null
     }
   ]
 }

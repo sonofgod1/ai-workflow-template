@@ -199,6 +199,46 @@ def caso_sugerencia_nombra_archivos_no_carpetas():
             "vuelve a sugerir añadir carpetas enteras: " + salida)
 
 
+def caso_commitea_lo_de_la_corrida_anterior():
+    """B2: el sync se parte en dos corridas al auto-actualizarse, y solo la 2a tiene el flag.
+
+    La 1a corrida —la que mueve más archivos— escribía y no commiteaba, y --commit en la
+    2a solo veía lo suyo. Los demás quedaban huérfanos, en silencio y con aspecto de éxito.
+    """
+    with tempfile.TemporaryDirectory() as d:
+        base = Path(d)
+        montar_remoto(base)
+        proy = montar_proyecto(base)
+        # Primera corrida SIN el flag: escribe los dos archivos, no commitea.
+        correr(base, proy)
+        assert len(commits(proy)) == 1, "la corrida sin flag no debe commitear"
+        # Segunda corrida CON el flag: ya no escribe nada nuevo (todo coincide con
+        # el remoto), pero tiene que recoger lo que dejó la primera.
+        salida = correr(base, proy, "--commit")
+        assert len(commits(proy)) == 2, f"dejó huérfano lo de la corrida anterior. salida={salida}"
+        r = subprocess.run(["git", "log", "-1", "--format=%B"], cwd=proy,
+                           capture_output=True, text=True, check=False)
+        for esperado in (".workflow/verify.sh", ".workflow/phase.sh"):
+            assert esperado in r.stdout, f"{esperado} no entró al commit: {r.stdout}"
+
+
+def caso_no_commitea_lo_que_personalizaste():
+    """Recoger de corridas anteriores no puede barrer lo que tú cambiaste después."""
+    with tempfile.TemporaryDirectory() as d:
+        base = Path(d)
+        montar_remoto(base)
+        proy = montar_proyecto(base)
+        correr(base, proy)
+        # Lo tocas después del sync: deja de coincidir con el manifest.
+        (proy / ".workflow" / "phase.sh").write_text("#!/usr/bin/env bash\necho mio\n",
+                                                     encoding="utf-8")
+        correr(base, proy, "--commit")
+        r = subprocess.run(["git", "status", "--porcelain", "--", ".workflow/phase.sh"],
+                           cwd=proy, capture_output=True, text=True, check=False)
+        assert r.stdout.strip().startswith("??"), (
+            f"se llevó puesto un archivo personalizado: {r.stdout!r}")
+
+
 def caso_check_plan_paths_se_reparte():
     """Se abrió al arreglar I2: build.md invoca un script que no se sincronizaba."""
     contenido = SYNC.read_text(encoding="utf-8")
@@ -214,6 +254,8 @@ CASOS = [
     caso_no_commitea_en_main,
     caso_sin_flag_no_commitea,
     caso_sugerencia_nombra_archivos_no_carpetas,
+    caso_commitea_lo_de_la_corrida_anterior,
+    caso_no_commitea_lo_que_personalizaste,
     caso_check_plan_paths_se_reparte,
 ]
 

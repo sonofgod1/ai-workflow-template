@@ -672,11 +672,18 @@ el humano a mano, que es exactamente la acción que el modo PR existe para quita
 bash sync-workflow.sh --commit    # sincroniza y cierra el sync en un commit
 ```
 
-Commitea **la lista exacta de archivos que escribió**, nunca las carpetas enteras:
-`.workflow/` y `.github/` también guardan trabajo tuyo (`verify.conf`, workflows
-propios), y un `git add .workflow/` se lo llevaría puesto sin avisar. Se niega a
-commitear en `main` o `master`. Los archivos que conservó por estar modificados
-localmente no entran: son tuyos.
+Commitea **lo que el sync escribió y sigue sin commitear**, nunca las carpetas
+enteras: `.workflow/` y `.github/` también guardan trabajo tuyo (`verify.conf`,
+workflows propios), y un `git add .workflow/` se lo llevaría puesto sin avisar. Se
+niega a commitear en `main` o `master`. Los archivos que conservó por estar
+modificados localmente no entran: son tuyos.
+
+Sabe cuáles son suyos por su registro de sincronización, que guarda el hash de
+cada archivo que escribió. Si el contenido en disco coincide, es obra del sync; si lo
+personalizaste después, no coincide y queda fuera solo. **Eso incluye lo que dejó
+una corrida anterior**, que importa porque cuando el propio script se actualiza el
+sync se parte en dos: la primera corrida escribe casi todo y solo la segunda puede
+llevar el flag.
 
 **Lo corre quien sincroniza, no el agente por su cuenta.** Sin `--commit` el script
 deja el árbol sucio y te dice qué commitear, como siempre. La regla dura 3 no cambia:
