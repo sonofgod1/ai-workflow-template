@@ -57,17 +57,25 @@
       "id": "S1",
       "severidad": "suggestion",
       "titulo": "findings.py no deja agregar una nota sin cambiar también el estado",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
       "archivos": [
         ".workflow/findings.py"
       ],
       "feature": null,
       "creado": "2026-09-11",
-      "resuelto": null,
-      "commit": null,
-      "nota": null,
-      "test": null
+      "resuelto": "2026-09-11",
+      "commit": "99fea4117f9076b78bb8db63b67235f0433b5f22",
+      "nota": "Se arregló junto con el resto de la fricción de la CLI que estaba anotada, no suelto: add --nota, --archivos con comas, y el subcomando severidad para reclasificar (que cambia también el id, porque el prefijo lo codifica). Lo que queda sin hacer de esa lista es la detección de referencias colgadas en validate — un ID citado en el código o en verify.conf que nunca se registró — que no es ergonomía sino una comprobación nueva.",
+      "test": {
+        "estado": "probado",
+        "rutas": [
+          ".workflow/tests/test-findings-cli.py"
+        ],
+        "razon": null,
+        "regresion": "confirmada",
+        "verificado": "2026-09-11"
+      }
     },
     {
       "id": "B1",
