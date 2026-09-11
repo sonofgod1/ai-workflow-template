@@ -70,6 +70,17 @@ buscando contexto, no abras archivos "para entender mejor". Todo eso ya se hizo 
 Si al leer el plan hay algo que no entiendes lo bastante para ejecutarlo, ese es un
 defecto del plan: párate y dilo, con la sección concreta que quedó ambigua.
 
+**Antes de escribir una sola línea**, comprueba que puedes tocar lo que el plan manda:
+
+```bash
+bash .workflow/check-plan-paths.sh [todas las rutas de la sección "Cambios" del plan]
+```
+
+Si alguna sale bloqueada y el plan no lo declaraba, **para ahí y repórtalo**, antes de
+implementar nada. Descubrirlo a mitad de camino deja la branch con el código escrito y
+la documentación sin escribir, que es el peor estado posible: ni entregable ni revertible
+de un vistazo. Un hook que te frena no se rodea por otra herramienta.
+
 ---
 
 ## Paso 2 — Crear la branch

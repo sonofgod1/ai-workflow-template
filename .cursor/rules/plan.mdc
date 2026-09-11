@@ -165,7 +165,24 @@ razonable, nómbrala y di por qué. Dos o tres párrafos, no más.]
 
 ## Contratos afectados
 [Qué cambia en `docs/contracts/`, o "ninguno". Si cambia un contrato, el plan debe
-decir si eso requiere pasar por `@contracts` antes de construir.]
+decir si eso requiere pasar por `@contracts` antes de construir. Precisar la prosa de
+un contrato que ya existe **no** lo requiere: eso es documentar lo que el código va a
+hacer, y el diff del PR lo muestra. Cambiar su forma — un campo, un tipo, un código de
+estado — sí, porque es una decisión de producto.]
+
+## Rutas protegidas que toca este plan
+[**Obligatorio.** Antes de presentar el plan, corre:
+
+```bash
+bash .workflow/check-plan-paths.sh [todas las rutas que el plan dice tocar]
+```
+
+Si alguna sale bloqueada, decláralo aquí: qué ruta, por qué está protegida, y quién
+va a aplicar ese pedazo. Si no hay ninguna, escribe "ninguna" y ya.
+
+Existe por el hallazgo I2: sin esto, `@build` escribía el código y recién al llegar al
+archivo protegido descubría que no podía tocarlo, dejando la branch a medias. El usuario
+tiene que saber **al aprobar el plan** qué partes va a tener que aplicar él.]
 
 ## Migraciones
 [Si hay cambio de schema: qué migración, si es reversible, y si es compatible con

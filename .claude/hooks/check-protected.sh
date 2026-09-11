@@ -186,8 +186,10 @@ while IFS= read -r pattern; do
             claude_md_policy && exit 0
             exit 2
         fi
-        echo "🛑 BLOQUEADO: '$REL_PATH' está protegido por .claude/protected.txt (patrón: '$pattern')." >&2
-        echo "Si necesitas tocar este archivo, pide permiso explícito al usuario." >&2
+        echo "🛑 BLOQUEADO: '$REL_PATH' está protegido por ${PROTECTED_FILE#$ROOT/} (patrón: '$pattern')." >&2
+        echo "Este hook no tiene forma de aprobar la escritura: decir que sí no la habilita." >&2
+        echo "Para y repórtalo. Deja el cambio preparado y que el usuario lo aplique él," >&2
+        echo "o que decida quitar la entrada de protected.txt. No lo rodees por otra herramienta." >&2
         exit 2
     fi
 done < "$PROTECTED_FILE"
@@ -196,7 +198,8 @@ if [ -n "$CREATE_ONLY" ]; then
     if [ -e "$FILE_PATH" ]; then
         echo "🛑 BLOQUEADO: '$REL_PATH' ya existe y '$CREATE_ONLY' es de solo-creación." >&2
         echo "Crear archivos nuevos ahí está permitido; modificar uno existente no." >&2
-        echo "Un ADR no se edita: se escribe otro que lo reemplace. Un contrato solo cambia si el usuario lo aprueba." >&2
+        echo "Un ADR no se edita: se escribe OTRO que lo reemplace, con su fecha y su contexto." >&2
+        echo "Ese es el camino, y no necesita aprobación de nadie: escribe el ADR nuevo." >&2
         exit 2
     fi
     exit 0

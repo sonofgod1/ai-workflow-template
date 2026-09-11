@@ -2,9 +2,21 @@
 # Una entrada por línea. Soporta globs.
 #
 # Prefijo '+' = solo-creación: el agente puede crear archivos nuevos ahí, pero no
-# modificar los que ya existen. Es lo que necesitan /architect y /contracts, que
-# tienen que poder escribir un ADR o un contrato nuevo, mientras que cambiar uno
-# ya escrito es una decisión tuya (un ADR no se edita: se reemplaza por otro).
+# modificar los que ya existen. Sirve para documentos que NO se enmiendan nunca:
+# un ADR registra una decisión con su fecha y su contexto, y si la decisión cambia
+# se escribe otro que lo reemplace. Reescribirlo borraría el registro de por qué
+# se decidió lo anterior, que es justamente para lo que existe.
+#
+# No lo uses para documentos VIVOS. 'docs/contracts/**' estuvo aquí hasta el
+# 2026-09-11 y fue un error (hallazgo I2): un contrato de API cambia con cada
+# endpoint, así que bajo solo-creación quedaba intocable por cualquier agente
+# apenas se escribía la primera vez, y /contracts servía el primer día del
+# proyecto y nunca más. La guardia empujaba al peor resultado posible — que el
+# contrato quedara mintiendo, porque corregirlo costaba más que dejarlo.
+#
+# Lo que protege un contrato no es un hook, es la revisión: el plan declara qué
+# contratos toca y tú lo apruebas antes de que se escriba nada, y el diff del PR
+# muestra el cambio. Eso se lee; un archivo que nadie puede tocar, no.
 #
 # Prefijo '!' = excepción: anula la protección para esa ruta aunque un patrón más
 # amplio la cubra. Hace falta porque '.git/**' protege el repositorio entero, y
@@ -25,5 +37,4 @@ CLAUDE.md
 # mismo escribiendo el archivo. La crea el humano, a mano, una vez por proyecto.
 .workflow/delivery.conf
 +docs/adr/**
-+docs/contracts/**
 LICENSE
