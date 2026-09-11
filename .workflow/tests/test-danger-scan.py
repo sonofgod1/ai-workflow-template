@@ -19,6 +19,8 @@ SCAN = Path(__file__).resolve().parent.parent / "danger-scan.py"
 RM = "rm -rf"
 DROP = "DROP" + " TABLE"
 FORCE = "--" + "force"
+DEL = "DELE" + "TE FROM"
+UPD = "UPDA" + "TE"
 
 BLOQUEAR = "bloquear"
 PASAR = "pasar"
@@ -42,6 +44,20 @@ CASOS = [
     (f"echo ok; {RM} /", BLOQUEAR, "tras un punto y coma"),
     (f"echo $({RM} /)", BLOQUEAR, "dentro de una sustitución de comando"),
 
+    # ── Deben bloquear: auditoría, aunque el DELETE esté acotado ────────────
+    #
+    # El patrón general solo miraba DELETE sin WHERE, así que un borrado de dos
+    # filas de un registro de auditoría pasaba limpio. Es el caso peor: acotado
+    # es más difícil de notar que vaciado.
+    (f'sqlite3 app.db "{DEL} impersonation_log where id in (34,35)"', BLOQUEAR,
+     "el caso real: borrado acotado de un registro de impersonaciones"),
+    (f'sqlite3 app.db "{UPD} audit_log SET admin_user_id=2 WHERE id=7"', BLOQUEAR,
+     "un UPDATE reescribe el historial sin borrar nada"),
+    (f"psql -c '{DEL} auditoria WHERE fecha < now()'", BLOQUEAR,
+     "auditoría escrita en español"),
+    (f'sqlite3 app.db "{DEL} user_history where user_id=4"', BLOQUEAR,
+     "history también es historial"),
+
     # ── Deben pasar: solo mención ───────────────────────────────────────────
     (f'echo "{RM} /"', PASAR, "mención en un echo"),
     (f'echo "{DROP} users"', PASAR, "DDL en un echo, sin cliente"),
@@ -56,6 +72,17 @@ CASOS = [
     ("rm -rf ./build", PASAR, "borrado acotado a una ruta relativa"),
     ("rm -rf node_modules", PASAR, "borrado acotado sin barra"),
     (f'python3 -c "print(\'{DROP}\')"', PASAR, "DDL impreso, no ejecutado"),
+
+    # ── Deben pasar: ni toda tabla con 'log' es auditoría, ni reponer es borrar ──
+    ('sqlite3 app.db "insert into impersonation_log (id) values (34)"', PASAR,
+     "reponer una fila borrada no se bloquea: es la salida de quien arregla"),
+    (f'sqlite3 app.db "{DEL} catalog where id=1"', PASAR,
+     "catalog contiene 'log' y no es un registro de auditoría"),
+    (f'sqlite3 app.db "{DEL} blogs where id=1"', PASAR, "blogs tampoco"),
+    (f'sqlite3 app.db "{DEL} events where id=1"', PASAR,
+     "una tabla de dominio con WHERE sigue pasando"),
+    (f'echo "{DEL} impersonation_log where id=34"', PASAR,
+     "mención en un echo: sin cliente de base de datos no borra nada"),
 ]
 
 

@@ -88,6 +88,38 @@ SQL_DESTRUCTIVO = [
     (re.compile(r"\bDELETE\s+FROM\b(?!.*\bWHERE\b)", re.I | re.S), "borra todas las filas de una tabla"),
 ]
 
+# El `WHERE` de arriba es lo que deja pasar el caso peor de todos: un DELETE
+# acotado a dos filas de un registro de auditoría no es menos grave que vaciarlo,
+# es **más difícil de notar**. Pasó de verdad — un agente limpiando sus datos de
+# prueba borró dos filas de `impersonation_log`, una de las cuales no podía
+# demostrar que fuera suya, y nada en la capa de seguridad dijo nada. Lo que sí se
+# bloqueó fue el INSERT que intentaba reponerla: exactamente al revés.
+RE_DELETE_TABLA = re.compile(r"\bDELETE\s+FROM\s+([\w.\"\'`\[\]]+)", re.I)
+RE_UPDATE_TABLA = re.compile(r"\bUPDATE\s+([\w.\"\'`\[\]]+)\s+SET\b", re.I)
+
+# Los componentes van anclados a `_` o al borde del nombre a propósito: sin eso
+# `catalog` cuenta como tabla de log y `blogs` como bitácora.
+COMPONENTES_AUDITORIA = re.compile(
+    r"(?:^|_)(audit\w*|auditoria|logs?|history|historial|trail|journal|ledger)(?:_|$)", re.I)
+
+
+def tablas_de_auditoria_tocadas(seg):
+    """Tablas de auditoría que este segmento borra o reescribe.
+
+    INSERT no entra: reponer una fila no es manipular el pasado, y bloquearlo deja
+    sin salida justo a quien intenta arreglar un borrado.
+
+    Se decide por el nombre, que es lo único que el comando dice. Un proyecto con
+    otra convención extiende COMPONENTES_AUDITORIA.
+    """
+    tocadas = []
+    for rx in (RE_DELETE_TABLA, RE_UPDATE_TABLA):
+        for m in rx.finditer(seg):
+            nombre = re.sub(r"[\"\'`\[\]]", "", m.group(1)).split(".")[-1]
+            if COMPONENTES_AUDITORIA.search(nombre):
+                tocadas.append(nombre)
+    return tocadas
+
 # Inconfundibles: se buscan en todo el texto.
 SIEMPRE = [
     (re.compile(r":\s*\(\s*\)\s*\{.*\|\s*:\s*&.*\}\s*;\s*:"), "fork bomb"),
@@ -187,6 +219,11 @@ def analizar(cmd, _profundidad=0):
             if not m:
                 continue
             (invocaciones if es_cliente else menciones).append((m.group(0)[:60], desc))
+
+        for tabla in tablas_de_auditoria_tocadas(seg):
+            desc = (f"borra o reescribe filas de `{tabla}`, que parece un registro de "
+                    f"auditoría: el historial no se corrige, se anexa")
+            (invocaciones if es_cliente else menciones).append((tabla[:60], desc))
 
         # `sh -c "..."`: el argumento se ejecuta, así que se analiza como comando.
         # Sobre `seg`, no sobre `nucleo`: nucleo pasó por un join que pierde las
