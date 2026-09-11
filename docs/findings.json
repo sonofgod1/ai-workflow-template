@@ -23,7 +23,7 @@
       "id": "I2",
       "severidad": "important",
       "titulo": "+docs/contracts/** frena a /build ante un cambio que solo precisa la prosa del contrato",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
       "archivos": [
         ".claude/protected.txt",
@@ -32,10 +32,18 @@
       ],
       "feature": null,
       "creado": "2026-09-11",
-      "resuelto": null,
-      "commit": null,
-      "nota": "CONFIRMADO en campo 2026-09-11 con el plan de B4 en musicos, y es peor de lo que decía el reporte. (1) El hook NO tiene vía de aprobación: su propio mensaje dice 'Un contrato solo cambia si el usuario lo aprueba' y no existe ni env var ni flag para aprobarlo — /build le ofreció al usuario una salida inejecutable. (2) /contracts tampoco puede: .claude/commands/contracts.md:14 dice 'No modifica contratos existentes SIN NOTIFICAR al usuario', o sea que se cree capaz de enmendar avisando, y el hook lo bloquea igual. El comando y el hook no se hablan. (3) Causa raíz, más nítida que en el reporte: el prefijo '+' le aplica semántica de ADR (inmutable, se reemplaza por otro) a un contrato, que es un documento VIVO que cambia con cada endpoint. Para docs/adr/** el '+' es correcto; para docs/contracts/** deja api.md intocable por cualquier agente para siempre, y /contracts sirve el primer día y nunca más. Salida usada: el humano aplicó las ediciones a mano con un script preparado aparte. Confirmado también que /build obedece la regla 13: paró, lo dijo, y no commiteó nada.",
-      "test": null
+      "resuelto": "2026-09-11",
+      "commit": "56cf02be1e4ae8b5e04dd67669e8ec44de39921d",
+      "nota": "Corrección al plan original: sacar docs/contracts/** del '+' y protegerlo como ruta normal habría sido PEOR — la protección normal bloquea también la creación, así que /contracts no podría escribir un contrato nuevo. Lo correcto era quitarlo de la lista entero. El gate que queda es la revisión (el plan declara qué contratos toca, el usuario aprueba, el PR muestra el diff), que es más fuerte que un hook porque se lee.",
+      "test": {
+        "estado": "probado",
+        "rutas": [
+          ".workflow/tests/test-check-protected.py"
+        ],
+        "razon": null,
+        "regresion": "confirmada",
+        "verificado": "2026-09-11"
+      }
     },
     {
       "id": "S1",
