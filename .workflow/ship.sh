@@ -71,6 +71,7 @@ BRANCH="$(git branch --show-current 2>/dev/null)"
 # que falta es un merge. Se busca en la base SOLO para diagnosticar: la autorización
 # vale por el árbol que se entrega, no por lo que diga otra rama.
 CONF_EN_BASE=""
+CONF_EN_RAMA=""
 if [ ! -f "$CONF" ]; then
   for REF in "$BASE" "origin/$BASE" develop origin/develop main origin/main; do
     [ -n "$REF" ] || continue
@@ -79,6 +80,17 @@ if [ ! -f "$CONF" ]; then
       break
     fi
   done
+  # Si no está en ninguna base, puede estar en una branch sin mergear: es lo que
+  # pasa cuando se crea la autorización mientras se trabaja en una feature. El
+  # proyecto la decidió, pero todavía no la integró, y eso es un diagnóstico
+  # distinto del de "nadie la autorizó nunca".
+  if [ -z "$CONF_EN_BASE" ]; then
+    CONF_EN_RAMA="$(
+      for REF in $(git for-each-ref --format='%(refname:short)' refs/heads refs/remotes 2>/dev/null); do
+        git cat-file -e "$REF:.workflow/delivery.conf" 2>/dev/null && echo "$REF"
+      done | head -1
+    )"
+  fi
 fi
 
 if [ "$SOLO_CUERPO" = "yes" ]; then
@@ -270,6 +282,22 @@ if [ "$MODO_ENTREGA" != "pr" ] || [ "$AGENTE_PUEDE_PUSHEAR" != "si" ]; then
     echo "   se entrega, no por lo que diga otra rama. Si esta branch de verdad no"
     echo "   debe entregar en PR, el archivo está bien donde está y los comandos"
     echo "   manuales son:"
+    echo "     git push -u origin $BRANCH"
+    echo "     bash .workflow/ship.sh --cuerpo > /tmp/pr.md"
+    echo "     gh pr create --base $BASE --title \"...\" --body-file /tmp/pr.md"
+    exit 1
+  fi
+  if [ -n "$CONF_EN_RAMA" ]; then
+    echo "❌ No hay .workflow/delivery.conf en esta branch ni en $BASE."
+    echo ""
+    echo "   Sí existe en '$CONF_EN_RAMA', que no está mergeada. O sea: alguien"
+    echo "   decidió el modo PR, pero el proyecto todavía no lo integró — la"
+    echo "   autorización vive en una rama suelta."
+    echo ""
+    echo "   delivery.conf es una decisión del proyecto: su sitio es $BASE, no una"
+    echo "   feature branch. Mergeá '$CONF_EN_RAMA' y volvé a intentarlo."
+    echo ""
+    echo "   Mientras tanto, los comandos para hacerlo vos:"
     echo "     git push -u origin $BRANCH"
     echo "     bash .workflow/ship.sh --cuerpo > /tmp/pr.md"
     echo "     gh pr create --base $BASE --title \"...\" --body-file /tmp/pr.md"

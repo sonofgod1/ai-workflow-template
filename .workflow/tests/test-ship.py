@@ -126,6 +126,25 @@ def caso_conf_en_la_base_nombra_el_merge_que_falta():
             "dio el mensaje genérico en vez de nombrar la causa:\n" + salida
 
 
+def caso_conf_en_rama_sin_mergear_lo_nombra():
+    """La autorización se creó en una feature branch y nunca llegó a la base."""
+    with tempfile.TemporaryDirectory() as d:
+        montar(d)
+        sh(d, "git checkout -q -b feature/otra develop")
+        escribir(d, ".workflow/delivery.conf",
+                 "MODO_ENTREGA=pr\nAGENTE_PUEDE_PUSHEAR=si\nBASE_POR_DEFECTO=develop\n")
+        sh(d, "git add -f .workflow/delivery.conf && git commit -q -m 'chore: modo PR'")
+        sh(d, "git checkout -q feature/signo")
+        (Path(d) / ".workflow" / "delivery.conf").unlink(missing_ok=True)
+
+        salida, code = ship(d, "--abrir-pr")
+        assert code != 0, salida
+        assert "feature/otra" in salida, \
+            "no nombró la rama donde sí está la autorización:\n" + salida
+        assert "no autorizó el modo PR" not in salida, \
+            "dio el mensaje genérico teniendo el dato:\n" + salida
+
+
 def caso_conf_a_medias_no_pushea():
     """MODO_ENTREGA=pr sin AGENTE_PUEDE_PUSHEAR no alcanza: las dos, o ninguna."""
     with tempfile.TemporaryDirectory() as d:
@@ -361,6 +380,7 @@ CASOS = [
     caso_sin_delivery_conf_no_pushea,
     caso_conf_a_medias_no_pushea,
     caso_conf_en_la_base_nombra_el_merge_que_falta,
+    caso_conf_en_rama_sin_mergear_lo_nombra,
     caso_conf_no_afecta_la_puerta,
     caso_arbol_limpio_pasa,
     caso_arbol_sucio_no_pasa,
