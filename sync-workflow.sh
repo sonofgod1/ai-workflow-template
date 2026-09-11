@@ -265,8 +265,16 @@ while IFS= read -r FILE_PATH; do
       chmod +x "$LOCAL_PATH.new"
       SELF_UPDATE=true
       warn "sync-workflow.sh tiene una versión nueva — descargada como sync-workflow.sh.new"
+      # No se registra en el manifest: en disco todavía está la versión vieja, y
+      # anotar el hash nuevo sería mentir sobre lo que hay.
     else
       rm -f "$LOCAL_PATH.new"
+      # Idéntico al remoto: o no cambió nada, o ya hiciste el 'mv' de la corrida
+      # anterior. En los dos casos el archivo en disco ES lo que el sync habría
+      # escrito, así que se registra como cualquier otro. Sin esto, el único
+      # archivo que --commit nunca podía cerrar era justo el que provoca el baile
+      # de dos corridas — hallazgo I3.
+      [ "$DL" = "200" ] && manifest_record "$FILE_PATH" "$(sha "$LOCAL_PATH")"
     fi
     continue
   fi

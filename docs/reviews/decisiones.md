@@ -14,8 +14,14 @@
 
 *Estado de cada hallazgo, generado desde `docs/findings.json`.*
 
-**5 hallazgo(s):** 0 sin cerrar, 5 resuelto(s), 0 descartado(s).
+**6 hallazgo(s):** 1 sin cerrar, 5 resuelto(s), 0 descartado(s).
 
+
+## 🟠 Importantes sin cerrar
+
+| ID | Título | Archivo(s) | Estado | Origen | Nota |
+|---|---|---|---|---|---|
+| I3 | sync-workflow.sh nunca entra al manifest, así que --commit no puede commitear su propia actualización | `sync-workflow.sh` | abierto | [reporte](docs/reviews/2026-09-11-validacion-modo-pr.md) | Tercera entrega de I1 → B2 → esto. La rama de auto-update hace continue sin manifest_record. |
 
 ## ✅ Resueltos
 

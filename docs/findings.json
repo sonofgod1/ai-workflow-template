@@ -126,6 +126,22 @@
         "regresion": "confirmada",
         "verificado": "2026-09-11"
       }
+    },
+    {
+      "id": "I3",
+      "severidad": "important",
+      "titulo": "sync-workflow.sh nunca entra al manifest, así que --commit no puede commitear su propia actualización",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
+      "archivos": [
+        "sync-workflow.sh"
+      ],
+      "feature": null,
+      "creado": "2026-09-11",
+      "resuelto": null,
+      "commit": null,
+      "nota": "Tercera entrega de I1 → B2 → esto. La rama de auto-update hace continue sin manifest_record.",
+      "test": null
     }
   ]
 }

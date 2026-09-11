@@ -33,6 +33,9 @@ REMOTO = {
     ".workflow/phase.sh": "#!/usr/bin/env bash\necho phase v2\n",
 }
 
+# El remoto sirve además su propio sync-workflow.sh, para ejercitar el auto-update.
+# Es el mismo archivo bajo prueba: se copia tal cual en montar_remoto().
+
 CURL_FALSO = r"""#!/usr/bin/env bash
 # curl de mentira: sirve el árbol y los archivos desde $FAKE_REMOTE.
 DEST=""
@@ -67,7 +70,10 @@ def montar_remoto(base):
         p = remoto / "files" / ruta
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(contenido, encoding="utf-8")
-    tree = {"tree": [{"path": r, "type": "blob"} for r in REMOTO]}
+    # sync-workflow.sh también viaja: sin él no hay auto-update que probar.
+    shutil.copy(SYNC, remoto / "files" / "sync-workflow.sh")
+    rutas = [*REMOTO, "sync-workflow.sh"]
+    tree = {"tree": [{"path": r, "type": "blob"} for r in rutas]}
     (remoto / "tree.json").write_text(json.dumps(tree), encoding="utf-8")
     return remoto
 
@@ -239,6 +245,36 @@ def caso_no_commitea_lo_que_personalizaste():
             f"se llevó puesto un archivo personalizado: {r.stdout!r}")
 
 
+def caso_el_propio_script_se_puede_commitear_tras_el_mv():
+    """I3: la rama de auto-update no registraba el script en el manifest.
+
+    El único archivo que --commit no podía cerrar era justo el que provoca el baile de
+    dos corridas. Aquí el proyecto arranca con un sync-workflow.sh viejo: la 1a corrida
+    baja el .new, se hace el mv a mano, y la 2a tiene que poder commitearlo.
+    """
+    with tempfile.TemporaryDirectory() as d:
+        base = Path(d)
+        montar_remoto(base)
+        proy = montar_proyecto(base)
+        # El proyecto tiene una versión vieja del script, distinta a la del remoto.
+        viejo = SYNC.read_text(encoding="utf-8") + "\n# resto de una versión anterior\n"
+        (proy / "sync-workflow.sh").write_text(viejo, encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=proy, check=True)
+        subprocess.run(["git", "commit", "-qm", "chore: script viejo"], cwd=proy, check=True)
+
+        salida = correr(base, proy)
+        assert (proy / "sync-workflow.sh.new").exists(), f"no bajó el .new: {salida}"
+
+        # El mv lo hace el humano; bash no puede sobreescribirse en marcha.
+        (proy / "sync-workflow.sh.new").replace(proy / "sync-workflow.sh")
+
+        correr(base, proy, "--commit")
+        r = subprocess.run(["git", "status", "--porcelain", "--", "sync-workflow.sh"],
+                           cwd=proy, capture_output=True, text=True, check=False)
+        assert not r.stdout.strip(), (
+            f"sync-workflow.sh quedó sin commitear tras el mv: {r.stdout!r}")
+
+
 def caso_check_plan_paths_se_reparte():
     """Se abrió al arreglar I2: build.md invoca un script que no se sincronizaba."""
     contenido = SYNC.read_text(encoding="utf-8")
@@ -256,6 +292,7 @@ CASOS = [
     caso_sugerencia_nombra_archivos_no_carpetas,
     caso_commitea_lo_de_la_corrida_anterior,
     caso_no_commitea_lo_que_personalizaste,
+    caso_el_propio_script_se_puede_commitear_tras_el_mv,
     caso_check_plan_paths_se_reparte,
 ]
 

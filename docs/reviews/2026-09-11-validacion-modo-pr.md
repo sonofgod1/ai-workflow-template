@@ -231,3 +231,31 @@ maquinaria nueva, solo preguntarle al dato correcto.
 
 Verificado en musicos antes de proponerlo: los 9 archivos huérfanos coincidían exactamente
 con su hash del manifest.
+
+---
+
+## I3 — el único archivo que `--commit` nunca puede commitear es el que causa el problema
+
+**Síntoma.** Medido en musicos al traer el arreglo de B2. `sync-workflow.sh` no está en
+`.claude/.workflow-sync` — cero entradas. La rama de auto-update descarga a
+`sync-workflow.sh.new`, avisa, y hace `continue` **sin llamar a `manifest_record`**. Como
+`obra_del_sync_sin_commitear()` recorre el manifest, el script nunca aparece ahí, y
+`--commit` no puede commitearlo por más que el usuario haya hecho el `mv`.
+
+**Por qué importa.** Es la tercera entrega del mismo agujero (I1 → B2 → esto), y cierra el
+círculo de la forma más irónica posible: el archivo que el flag no puede cerrar es
+exactamente el que provoca el baile de dos corridas. Cada vez que la plantilla mejore su
+propio script de sync —que es cada vez que se arregla algo como esto— el consumidor tiene
+que commitear ese archivo a mano.
+
+Es menos grave que B2: es un archivo, no nueve. Pero la promesa de `--commit` es cerrar el
+sync, y sigue sin cerrarlo del todo justo en el caso que lo motivó.
+
+**Sugerencia.** En la rama de auto-update, la condición `else` significa que el contenido
+descargado es **idéntico** al local: o no cambió nada, o el usuario ya hizo el `mv`. En ese
+punto el archivo en disco ES lo que el sync habría escrito, así que corresponde registrarlo
+en el manifest como cualquier otro. Con eso, la corrida siguiente al `mv` lo ve como obra del
+sync sin commitear y lo incluye.
+
+No hace falta tocar la rama que descarga el `.new`: ahí el archivo en disco todavía es el
+viejo, y registrar el hash nuevo sería mentir sobre lo que hay.
