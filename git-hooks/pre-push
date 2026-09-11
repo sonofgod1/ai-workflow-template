@@ -54,10 +54,33 @@ except Exception:
     echo ""
     echo "  ⚠️  VERIFICACIÓN PARCIAL: hay pasos que no corrió nadie."
     echo "     Esto NO es verde. Lo que subas no está verificado del todo."
-    echo "     Revisa arriba qué quedó saltado y por qué (herramienta sin instalar,"
-    echo "     o pasos sin declarar en .workflow/verify.conf)."
-    echo "     Comprueba tu entorno con: bash .workflow/check-tools.sh"
     echo ""
+    # verify.sh distingue dos clases de saltado y las deja en .last-verify.json.
+    # No son lo mismo y la diferencia decide si este push sigue: una herramienta
+    # sin instalar es un paso que nadie decidió dejar sin verificar; un paso
+    # declarado vacío en verify.conf es una excepción registrada, versionada y
+    # revisable. Este mensaje recitaba las dos causas juntas y borraba justo esa
+    # diferencia, en el momento en que hay que usarla.
+    python3 -c "
+import json, sys
+try:
+    pasos = json.load(open('$ROOT/.workflow/.last-verify.json', encoding='utf-8')).get('pasos', [])
+except Exception:
+    sys.exit(0)
+sin_herramienta = [p['paso'] for p in pasos if p.get('estado') == 'skipped']
+declarados = [p['paso'] for p in pasos if p.get('estado') == 'skipped-declarado']
+if sin_herramienta:
+    print('     Sin herramienta instalada — nadie decidió dejarlos sin verificar:')
+    for n in sin_herramienta:
+        print('       - ' + n)
+    print('     Comprueba tu entorno con: bash .workflow/check-tools.sh')
+    print('')
+if declarados:
+    print('     Declarados sin comando en verify.conf (excepción registrada):')
+    for n in declarados:
+        print('       - ' + n)
+    print('')
+" 2>/dev/null
     echo "     No se bloquea el push: CI es la barrera que sí lo exige."
     SIN_VERIFICAR=1
   elif [ -z "$RESULTADO" ]; then
