@@ -118,6 +118,70 @@ No declares nada terminado sin esta salida (regla dura 12).
 
 ---
 
+## Entrega — antes del reporte
+
+El modo de entrega lo decide el proyecto, no tú:
+
+```bash
+MODO_ENTREGA=local
+[ -f .workflow/delivery.conf ] && . .workflow/delivery.conf
+echo "modo de entrega: $MODO_ENTREGA"
+```
+
+### Si `MODO_ENTREGA=pr`: commiteas tú
+
+Es la excepción de la regla dura 3, y cubre **solo la branch de trabajo**: nunca la
+base, nunca un merge, y nunca el push — el push y el PR son de `/ship`.
+
+1. **Código y tests en un commit**, con `git add` explícito:
+   ```bash
+   git add [archivos reales tocados]        # nunca `git add .`
+   git commit -m "[tipo]([scope]): [descripción]"
+   ```
+
+2. **Cerrar cada hallazgo que este plan resuelve**, con el hash del commit de arriba:
+   ```bash
+   python3 .workflow/findings.py cerrar [ID] --commit $(git rev-parse HEAD) \
+     --test "[ruta::nombre]" --probar-regresion
+   ```
+   Tres casos, y la diferencia importa porque queda registrada:
+   - `--probar-regresion` devuelve **`no-prueba-nada`** → el cierre se rechaza y el
+     hallazgo sigue abierto. El test no sirve. **Paras y lo dices**: no lo cierres
+     por otra vía.
+   - El hallazgo era **falta de cobertura**, no un bug de comportamiento (el código
+     ya hacía lo correcto, solo que nadie lo probaba) → el test pasaría en los dos
+     árboles, así que va **sin** `--probar-regresion`. Cierra como `declarado`, no
+     como `probado`, y eso se nombra en el reporte.
+   - El cambio **no tiene comportamiento que ejercitar** (copy, README, CI) →
+     `--sin-test --razon "..."`.
+
+3. **Hallazgos nuevos que registres**, si necesitan contexto, en dos pasos —
+   `add` no acepta `--nota`:
+   ```bash
+   python3 .workflow/findings.py add --id [ID] --severidad [blocker|important|suggestion] \
+     --titulo "..." --origen [ruta] --archivos ruta:linea otra/ruta:linea
+   python3 .workflow/findings.py estado [ID] --nuevo abierto --nota "por qué, y con qué se arregla"
+   ```
+   `--archivos` va separado por **espacios**, no por comas.
+
+4. **Docs en un commit aparte** — commit por intención, nunca mezclado con el código:
+   ```bash
+   git add docs/findings.json docs/reviews/decisiones.md
+   git commit -m "docs: cerrar [IDs]"
+   ```
+   El mensaje nombra solo lo que de verdad quedó hecho: si un `add` o un `cerrar`
+   falló, el mensaje no lo menciona.
+
+5. **Dejas el árbol limpio** y lo dices en el reporte. `/ship` exige árbol limpio y
+   no commitea: si dejas algo sin commitear, su puerta falla.
+
+### Si `MODO_ENTREGA=local` (o no hay `delivery.conf`): no commiteas nada
+
+Rige la regla dura 3 completa. Los comandos van en el reporte, en "Entrega", para
+que el usuario los corra.
+
+---
+
 ## Reporte al terminar — formato obligatorio
 
 ```
@@ -169,23 +233,36 @@ aquí con su razón: el cierre irá con `--sin-test --razon "..."`.]
 [Copiado del plan, para que el usuario lo recorra: muestreo, no pasada completa —
 el test de arriba es el arnés.]
 
-### Commits sugeridos
+### Entrega
+[En modo PR — lo que YA commiteaste, con los hashes reales:
+
+  - `a1b2c3d` fix([scope]): [descripción]      ← código + tests
+  - `e4f5g6h` docs: cerrar [IDs]
+  - [ID] cerrado como `probado` / `declarado` / `exento` — [por qué, si no es probado]
+
+  Árbol limpio. Siguiente paso: `/ship`.
+
+En modo local — los comandos, para que los corra el usuario:
+
 # Código — git add explícito, nunca `git add .`
 git add [archivos reales tocados]
 git commit -m "[tipo]([scope]): [descripción]"
 
-# Cerrar el hallazgo, con el hash real del commit de arriba y el test que lo cubre
-python3 .workflow/findings.py cerrar [ID] --commit [hash] \
-  --test [ruta::nombre] --probar-regresion
+# Cerrar el hallazgo, con el hash del commit de arriba y el test que lo cubre
+python3 .workflow/findings.py cerrar [ID] --commit $(git rev-parse HEAD) \
+  --test "[ruta::nombre]" --probar-regresion
 # decisiones.md lo regenera findings.py: se agrega, no se edita
 git add docs/findings.json docs/reviews/decisiones.md
 git commit -m "docs: marcar [ID] como completado"
 
 # Mergear
 git checkout develop
-git merge feature/[slug] --no-ff -m "[tipo]([scope]): [descripción]"
-git branch -d feature/[slug]
+git merge [branch de trabajo] --no-ff -m "[tipo]([scope]): [descripción]"
+git branch -d [branch de trabajo]
 git push origin develop
+
+El bloque de merge es SOLO de modo local. En modo PR no va: la base la mergea el
+humano desde el PR, y un `git push origin develop` ahí choca con branch protection.]
 ```
 
 **No declares la feature lista hasta que el usuario confirme que probó y pasó.**
@@ -200,4 +277,5 @@ Si el plan pertenece a una feature con archivo en `docs/features/`:
 2. Agregar los hallazgos nuevos a "Hallazgos vinculados" con estado `[ ]`
 3. Agregar al Historial: `YYYY-MM-DD — /build completada ([plan])`
 
-Hazlo **antes** de sugerir los commits, para que el commit de docs lo incluya.
+Hazlo **antes** de commitear los docs (o de sugerirlos, en modo local), para que
+el commit de docs lo incluya.

@@ -55,7 +55,7 @@ detecta la tensión, la nombra, y la devuelve.
 
 2. **Nunca borres archivos sin confirmación explícita.** "Limpiar el repo" o "reorganizar" no es confirmación.
 
-3. **Nunca hagas commits ni pushes.** Yo hago los commits. Tú me dices qué cambiaste y por qué. **Única excepción:** si este proyecto creó `.workflow/delivery.conf` con `MODO_ENTREGA=pr`, `@ship` puede commitear y pushear **la branch de trabajo** y abrir el PR. Nunca la base, y **el merge nunca** (ver "Modos de entrega").
+3. **Nunca hagas commits ni pushes.** Yo hago los commits. Tú me dices qué cambiaste y por qué. **Única excepción:** si este proyecto creó `.workflow/delivery.conf` con `MODO_ENTREGA=pr`, `@build` puede commitear **la branch de trabajo** (código y tests en un commit, docs en otro) y `@ship` puede pushearla y abrir el PR. Nunca la base, y **el merge nunca** (ver "Modos de entrega").
 
 4. **Nunca instales dependencias sin avisarme.** Si una librería es necesaria, pídela explícitamente y dime el porqué + alternativas que descartaste.
 
@@ -624,7 +624,14 @@ la puerta automática, o cuando no hay remoto.
 
 El agente entrega un PR verde con su contexto; el humano revisa una vez y mergea.
 Las acciones humanas por hallazgo bajan de ~10 a 2: **aprobar el plan** y **revisar
-el PR**. Se activa creando `.workflow/delivery.conf`:
+el PR**.
+
+Para que esos 2 sean de verdad 2, **`@build` commitea**: código y tests en un commit,
+el `cerrar` del hallazgo, y los docs en otro. `@ship` no commitea — exige árbol limpio
+y solo pushea. Si `@build` deja el trabajo sin commitear, el hueco lo tapa el humano a
+mano y el modo PR no ahorra nada: es el reparto que este modo existe para mover.
+
+Se activa creando `.workflow/delivery.conf`:
 
 ```bash
 MODO_ENTREGA=pr           # el agente entrega en PRs, no en tu terminal
@@ -719,7 +726,7 @@ que reconstruir el porqué leyendo commits, vuelve a ser el integrador.
 ```
 0. git checkout develop && git checkout -b feature/[slug]
 1. @plan [ID]  →  2. Tú apruebas el plan          ← acción humana 1
-3. @build docs/plans/[archivo]        (implementa, con su test de regresión)
+3. @build docs/plans/[archivo]        (implementa, su test de regresión, y commitea)
 4. @ship                              (puerta + PR con su cuerpo)
 5. Tú revisas el PR y mergeas          ← acción humana 2
 ```
