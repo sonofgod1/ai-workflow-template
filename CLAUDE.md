@@ -607,6 +607,30 @@ autorización para pushear no puede ser algo que el agente se conceda a sí mism
 escribiendo el archivo, y el hook lo bloquea. **Se versiona**, porque es una
 decisión del proyecto y se revisa como cualquier otro cambio.
 
+### La branch de chore: el sync cierra su propio commit
+
+El ciclo de arriba asume que toda branch nace de un plan. La del sync del andamiaje
+no: no sale de un hallazgo, así que **ningún comando es dueño de su commit** —
+`/build` commitea lo que implementó y `/ship` exige árbol limpio. El hueco lo tapaba
+el humano a mano, que es exactamente la acción que el modo PR existe para quitar.
+
+```bash
+bash sync-workflow.sh --commit    # sincroniza y cierra el sync en un commit
+```
+
+Commitea **la lista exacta de archivos que escribió**, nunca las carpetas enteras:
+`.workflow/` y `.github/` también guardan trabajo tuyo (`verify.conf`, workflows
+propios), y un `git add .workflow/` se lo llevaría puesto sin avisar. Se niega a
+commitear en `main` o `master`. Los archivos que conservó por estar modificados
+localmente no entran: son tuyos.
+
+**Lo corre quien sincroniza, no el agente por su cuenta.** Sin `--commit` el script
+deja el árbol sucio y te dice qué commitear, como siempre. La regla dura 3 no cambia:
+la autorización la da quien ejecuta el comando.
+
+El port de `CLAUDE.md` sigue siendo aparte y manual — `sync-workflow.sh` nunca lo
+sobreescribe, porque ese archivo lleva el norte del proyecto.
+
 ---
 
 ## Paralelismo: un agente por worktree

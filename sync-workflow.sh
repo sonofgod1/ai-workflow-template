@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # sync-workflow.sh
 # Sincroniza el workflow desde el repo master usando GitHub Tree API.
-# Uso: bash sync-workflow.sh [--dry-run] [--force] [--editor claude|cursor|all]
+# Uso: bash sync-workflow.sh [--dry-run] [--force] [--commit] [--editor claude|cursor|all]
 #
 # Los archivos que difieren del template y no coinciden con lo que este script
 # escribió la última vez (.claude/.workflow-sync) se consideran personalizados y
@@ -23,12 +23,14 @@ RAW_BASE="https://raw.githubusercontent.com/$WORKFLOW_REPO/$BRANCH"
 
 DRY_RUN=false
 FORCE=false
+COMMIT=false
 EDITOR="claude" # default para retrocompatibilidad
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --dry-run) DRY_RUN=true ;;
         --force) FORCE=true ;;
+        --commit) COMMIT=true ;;
         --editor) EDITOR="$2"; shift ;;
         *) echo "Parámetro desconocido: $1"; exit 1 ;;
     esac
@@ -61,6 +63,7 @@ SYNC_PATHS+=(".workflow/audit-deps.sh" ".workflow/check-migrations.py")
 SYNC_PATHS+=(".workflow/danger-scan.py" ".workflow/tests")
 SYNC_PATHS+=(".workflow/check-tools.sh" ".workflow/check-regression.py")
 SYNC_PATHS+=(".workflow/ship.sh" ".workflow/pr-body.py" ".workflow/batch.sh")
+SYNC_PATHS+=(".workflow/check-plan-paths.sh")
 # delivery.conf NO va aquí: es la autorización de entrega de cada proyecto, y
 # repartirla desde el template le concedería a otro repo un permiso que su dueño
 # no dio. Es lo contrario de lo que protected.txt protege.
@@ -222,6 +225,7 @@ PRESERVED=0
 MODIFIED=0
 ERRORS=0
 MODIFIED_LIST=""
+UPDATED_LIST=""
 SELF_UPDATE=false
 
 while IFS= read -r FILE_PATH; do
@@ -296,6 +300,7 @@ while IFS= read -r FILE_PATH; do
       chmod +x "$LOCAL_PATH"
     fi
     ok "$FILE_PATH"
+    UPDATED_LIST="$UPDATED_LIST$FILE_PATH"$'\n'
     ((UPDATED++)) || true
   else
     rm -f "$LOCAL_PATH.tmp"
@@ -348,9 +353,54 @@ else
   if [ $UPDATED -gt 0 ]; then
     echo "   Nota: Revisa si hay que instalar hooks con /git-setup"
     echo ""
-    echo "   Commit sugerido:"
-    echo "   git add ${SYNC_PATHS[*]}"
-    echo "   git commit -m \"chore: sync workflow desde $WORKFLOW_REPO\""
+
+    # ─── Cierre del sync: commitear lo que ESTE script escribió ───────────────
+    #
+    # Existe por el hallazgo I1. Una branch de sync no nace de un plan, así que
+    # ningún comando del workflow es dueño de su commit: /build commitea lo que
+    # implementó y /ship exige árbol limpio. El hueco lo terminaba tapando el
+    # humano a mano — justo la acción que el modo PR existe para quitar.
+    #
+    # Lo hace el script, no el agente, y solo si se lo piden con --commit: la
+    # autorización la da quien ejecuta, no quien escribe el archivo. Es el mismo
+    # razonamiento que deja delivery.conf en manos del humano.
+    #
+    # Se commitea la lista exacta de archivos escritos, nunca las carpetas de
+    # SYNC_PATHS: el árbol puede tener trabajo tuyo en .workflow/ o .github/, y
+    # un "git add .workflow/" se lo llevaría puesto sin avisar. Ese era, además,
+    # el defecto del comando que este bloque sugería antes.
+    CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+
+    if $COMMIT; then
+      if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+        warn "no commiteo en $CURRENT_BRANCH: esa rama solo recibe merges."
+        echo "       git checkout -b chore/sync-workflow && bash sync-workflow.sh --commit"
+      else
+        # git add con la lista explícita, un archivo por línea, sin glob.
+        echo "$UPDATED_LIST" | sed '/^$/d' | tr '\n' '\0' | xargs -0 git add --
+        if git diff --cached --quiet; then
+          warn "no hay nada staged: los archivos escritos ya estaban commiteados."
+        else
+          COMMIT_MSG="chore: sync workflow desde $WORKFLOW_REPO ($UPDATED archivos)"
+          COMMIT_BODY=$(echo "$UPDATED_LIST" | sed '/^$/d;s/^/- /')
+          if git commit -q -m "$COMMIT_MSG" -m "$COMMIT_BODY"; then
+            ok "commiteado en $CURRENT_BRANCH: $(git rev-parse --short HEAD)"
+            echo "       $UPDATED archivo(s), listados en el cuerpo del commit."
+            [ $MODIFIED -gt 0 ] && echo "       Los conservados NO entraron: son tuyos."
+          else
+            warn "el commit falló — revisa la salida de arriba (¿hook de pre-commit?)."
+          fi
+        fi
+      fi
+    else
+      echo "   Para cerrar el sync en un commit:"
+      echo ""
+      echo "       bash sync-workflow.sh --commit"
+      echo ""
+      echo "   Commitea exactamente estos $UPDATED archivo(s), no las carpetas enteras:"
+      echo "$UPDATED_LIST" | sed '/^$/d;s/^/       /' | head -12
+      [ "$UPDATED" -gt 12 ] && echo "       … y $((UPDATED - 12)) más"
+    fi
   fi
 fi
 echo "─────────────────────────────────────────────────────────────"

@@ -93,8 +93,10 @@ GOB_OVERRIDES = [
      "pregúntame primero y explica por qué. Archivos protegidos, que nunca tocas sin permiso explícito:\n"
      "   `.env`, `.env.*`, `*.pem`, `*.key`, `secrets/**`, `.git/**`, `.github/workflows/**`,\n"
      "   esta misma regla (" + GOB_SHORT + "), `.workflow/delivery.conf`, `LICENSE`.\n"
-     "   En `docs/adr/**` y `docs/contracts/**` puedes **crear** archivos nuevos, pero no modificar\n"
-     "   los que ya existen: un ADR no se edita, se reemplaza por otro."),
+     "   En `docs/adr/**` puedes **crear** archivos nuevos, pero no modificar los que ya\n"
+     "   existen: un ADR no se edita, se reemplaza por otro que lo supere. Los contratos de\n"
+     "   `docs/contracts/**` NO están protegidos: son documentos vivos y se precisan con el\n"
+     "   código. Lo que los cuida es que el plan declare cuáles toca y tú lo apruebes."),
     ("`delivery.conf` está en `.claude/protected.txt`: **lo creas tú, a mano.** La\n"
      "autorización para pushear no puede ser algo que el agente se conceda a sí mismo\n"
      "escribiendo el archivo, y el hook lo bloquea.",
@@ -106,6 +108,10 @@ GOB_OVERRIDES = [
      'Modificar la sección "Norte del proyecto" requiere mi aprobación explícita, igual que cualquier archivo protegido de la regla 1.'),
     ("Cada fase tiene un slash command con restricciones claras. **Fuera de un comando, modo consulta: respondes preguntas, no modificas nada.**",
      "Cada fase es una regla que el usuario invoca con `@`, con restricciones claras. **Fuera de una fase, modo consulta: respondes preguntas, no modificas nada.**"),
+    ("El port de `CLAUDE.md` sigue siendo aparte y manual — `sync-workflow.sh` nunca lo\n"
+     "sobreescribe, porque ese archivo lleva el norte del proyecto.",
+     "El port de esta regla sigue siendo aparte y manual — `sync-workflow.sh` nunca\n"
+     "sobreescribe el archivo que lleva el norte del proyecto."),
     ("| Fase | Comando | Modelo | Qué haces |", "| Fase | Regla | Modelo sugerido | Qué haces |"),
     ("Los slash commands (especialmente `@implement`) usan", "Las reglas de fase (especialmente `@implement`) usan"),
 ]
