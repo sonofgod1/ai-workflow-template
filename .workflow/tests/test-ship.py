@@ -266,11 +266,68 @@ def caso_cuerpo_traduce_los_estados_de_verify():
 
 
 def caso_cuerpo_sin_plan_lo_dice():
-    """Si no hay plan, el cuerpo lo señala en vez de callarlo."""
+    """Si no hay ningún plan en el repo, el cuerpo lo señala en vez de callarlo."""
     with tempfile.TemporaryDirectory() as d:
         montar(d, con_plan=False)
         cuerpo, _ = ship(d, "--cuerpo")
-        assert "Sin plan en `docs/plans/`" in cuerpo, cuerpo
+        assert "No hay planes en `docs/plans/`" in cuerpo, cuerpo
+
+
+# ── Encontrar el plan ────────────────────────────────────────────────────────
+#
+# El fixture de arriba nombra la branch `feature/signo` y el plan
+# `...-signo.md`: coinciden, y por eso la detección por parecido de nombres
+# pasaba sus tests mientras fallaba en cuanto el humano nombraba las dos cosas
+# por separado. Estos casos rompen esa coincidencia a propósito.
+
+def caso_plan_con_nombre_distinto_a_la_branch():
+    """El nombre del plan no se parece al de la branch, y aun así lo encuentra."""
+    with tempfile.TemporaryDirectory() as d:
+        montar(d, con_plan=False)
+        escribir(d, "docs/plans/2026-09-09-instantes-aware.md", PLAN)
+        sh(d, "git add -A && git commit -q -m 'docs: el plan'")
+        cuerpo, _ = ship(d, "--cuerpo")
+        assert "2026-09-09-instantes-aware.md" in cuerpo, cuerpo
+        assert "lo agregó o lo tocó esta branch" in cuerpo, cuerpo
+        assert "El cálculo mal hecho" in cuerpo, "no trajo el anclaje al norte del plan"
+
+
+def caso_plan_en_la_base_se_encuentra_por_el_id():
+    """Plan que ya estaba en la base: lo ata el ID del hallazgo, no el nombre."""
+    with tempfile.TemporaryDirectory() as d:
+        montar(d, con_plan=False)
+        sh(d, "git checkout -q develop")
+        escribir(d, "docs/plans/2026-09-09-correccion-aritmetica.md", PLAN)
+        sh(d, "git add -A && git commit -q -m 'docs: plan en la base'")
+        sh(d, "git checkout -q feature/signo && git merge -q --no-edit develop")
+        cuerpo, _ = ship(d, "--cuerpo")
+        assert "nombra B1" in cuerpo, cuerpo
+        assert "El cálculo mal hecho" in cuerpo, "no trajo el anclaje al norte del plan"
+
+
+def caso_plan_indeterminado_avisa_y_lista_candidatos():
+    """Sin ninguna señal que lo ate, avisa y lista lo que descartó. Nunca calla."""
+    with tempfile.TemporaryDirectory() as d:
+        montar(d, con_plan=False)
+        sh(d, "git checkout -q develop")
+        escribir(d, "docs/plans/2026-01-01-otra-cosa.md", "# Plan — otra cosa\n")
+        sh(d, "git add -A && git commit -q -m 'docs: plan ajeno'")
+        sh(d, "git checkout -q feature/signo && git merge -q --no-edit develop")
+        cuerpo, _ = ship(d, "--cuerpo")
+        assert "No se pudo determinar el plan" in cuerpo, cuerpo
+        assert "2026-01-01-otra-cosa.md" in cuerpo, "no listó el candidato que descartó"
+
+
+def caso_dos_planes_tocados_no_elige_al_azar():
+    """Dos planes en la misma branch: ambigüedad declarada, no una elegida a dedo."""
+    with tempfile.TemporaryDirectory() as d:
+        montar(d, con_plan=False)
+        escribir(d, "docs/plans/2026-09-09-uno.md", PLAN)
+        escribir(d, "docs/plans/2026-09-09-dos.md", PLAN)
+        sh(d, "git add -A && git commit -q -m 'docs: dos planes'")
+        cuerpo, _ = ship(d, "--cuerpo")
+        assert "No se pudo determinar el plan" in cuerpo, cuerpo
+        assert "2026-09-09-uno.md" in cuerpo and "2026-09-09-dos.md" in cuerpo, cuerpo
 
 
 def caso_cuerpo_marca_el_cierre_exento():
@@ -298,6 +355,10 @@ CASOS = [
     caso_cuerpo_traduce_los_estados_de_verify,
     caso_cuerpo_sin_plan_lo_dice,
     caso_cuerpo_marca_el_cierre_exento,
+    caso_plan_con_nombre_distinto_a_la_branch,
+    caso_plan_en_la_base_se_encuentra_por_el_id,
+    caso_plan_indeterminado_avisa_y_lista_candidatos,
+    caso_dos_planes_tocados_no_elige_al_azar,
 ]
 
 

@@ -52,16 +52,83 @@ def commits_del_rango(base, cabeza):
     return salida
 
 
-def plan_probable(branch):
-    """Busca el plan de esta branch por su slug. Best-effort: el nombre lo pone el humano."""
+ID_EN_ASUNTO = re.compile(r"^[a-z]+\(([A-Za-z]{1,3}-?\d+(?:\.\d+)?)\)")
+
+
+def ids_del_rango(asuntos, cerrados):
+    """IDs de hallazgo que este PR dice tocar: del scope de los commits y de lo cerrado."""
+    ids = {h.get("id") for h in cerrados if h.get("id")}
+    for a in asuntos:
+        m = ID_EN_ASUNTO.match(a)
+        if m:
+            ids.add(m.group(1).upper())
+    return {i for i in ids if i}
+
+
+def _palabras(s):
+    # Se descartan las de 1-2 letras y los números: un "2026" o un "de" compartido
+    # no dice nada, y con el umbral bajo cualquier plan empata con cualquier branch.
+    return {w for w in re.split(r"[^A-Za-z0-9]+", s.lower()) if len(w) > 2 and not w.isdigit()}
+
+
+def plan_probable(branch, base, cabeza, cerrados, asuntos):
+    """Busca el plan de este PR. Devuelve (plan, cómo se encontró, candidatos).
+
+    Tres señales, de la más fiable a la más débil:
+
+    1. Un plan que esta branch agregó o tocó es el plan de esta branch. No depende
+       de ningún nombre, así que es la única que no se rompe cuando el humano nombra
+       la branch y el archivo del plan por separado — que es lo normal.
+    2. El ID del hallazgo, que ya está en el scope del commit (`fix(B2):`) y dentro
+       del plan. Cubre el caso de un plan commiteado en la base antes de ramificar.
+    3. El parecido de nombres. Era lo único que había, y falla en cuanto los nombres
+       no coinciden: `fix/naive-datetimes` contra `2026-09-09-b2-datetimes-aware.md`
+       no matcheaba, y el cuerpo degradaba a "Sin plan" sin decir que había buscado.
+
+    Varias coincidencias se devuelven como ambigüedad (plan None, candidatos con las
+    que empataron): elegir una al azar pondría el "por qué" de otro cambio en este PR,
+    que es peor que no poner ninguno.
+    """
     if not PLANES.is_dir():
-        return None
-    slug = re.sub(r"^(feature|fix|hotfix|chore)/", "", branch)
+        return None, None, []
     candidatos = sorted(PLANES.glob("*.md"), reverse=True)
-    for p in candidatos:
-        if slug and slug in p.name:
-            return p
-    return None
+    if not candidatos:
+        return None, None, []
+
+    tocados = [Path(a) for a in git("diff", "--name-only", f"{base}..{cabeza}").splitlines()
+               if a.startswith(f"{PLANES}/") and a.endswith(".md")]
+    tocados = [q for q in tocados if q.exists()]
+    if len(tocados) == 1:
+        return tocados[0], "lo agregó o lo tocó esta branch", candidatos
+    if len(tocados) > 1:
+        return None, None, tocados
+
+    ids = ids_del_rango(asuntos, cerrados)
+    if ids:
+        por_id = [q for q in candidatos
+                  if any(re.search(rf"\b{re.escape(i)}\b",
+                                   q.read_text(encoding="utf-8", errors="replace"))
+                         for i in ids)]
+        if len(por_id) == 1:
+            return por_id[0], f"nombra {', '.join(sorted(ids))}", candidatos
+        if len(por_id) > 1:
+            return None, None, por_id
+
+    slug = re.sub(r"^(feature|fix|hotfix|chore)/", "", branch)
+    exactos = [q for q in candidatos if slug and slug in q.name]
+    if exactos:
+        return exactos[0], "el nombre de la branch está en el del plan", candidatos
+
+    palabras = _palabras(slug)
+    if palabras:
+        puntuados = sorted(((len(palabras & _palabras(q.stem)), q) for q in candidatos),
+                           key=lambda par: (-par[0], par[1].name))
+        mejor, q = puntuados[0]
+        if mejor and sum(1 for n, _ in puntuados if n == mejor) == 1:
+            comunes = ", ".join(sorted(palabras & _palabras(q.stem)))
+            return q, f"comparte «{comunes}» con el nombre de la branch", candidatos
+
+    return None, None, candidatos
 
 
 def seccion_del_plan(plan, titulo):
@@ -144,10 +211,11 @@ def migraciones_tocadas(base, cabeza):
 
 
 def construir(base, cabeza, branch):
-    shas = [s for s, _ in commits_del_rango(base, cabeza)]
-    asuntos = [a for _, a in commits_del_rango(base, cabeza)]
-    plan = plan_probable(branch)
+    rango = commits_del_rango(base, cabeza)
+    shas = [s for s, _ in rango]
+    asuntos = [a for _, a in rango]
     cerrados = hallazgos_cerrados(shas)
+    plan, como, candidatos = plan_probable(branch, base, cabeza, cerrados, asuntos)
 
     out = []
 
@@ -168,10 +236,28 @@ def construir(base, cabeza, branch):
         out.append(origen)
         out.append("")
     if plan:
-        out.append(f"Plan completo: [`{plan}`]({plan})")
+        out.append(f"Plan completo: [`{plan}`]({plan}) — encontrado porque {como}.")
     elif not anclaje and not origen:
-        out.append("_Sin plan en `docs/plans/` para esta branch. Si el cambio necesitaba "
-                   "uno, eso es lo primero que hay que revisar._")
+        # No encontrar el plan y callarlo es el peor fallo posible de este cuerpo: se
+        # pierde el "por qué" justo donde el revisor viene a buscarlo, y nada avisa.
+        # Si hay planes en el repo, se listan: que el revisor vea qué se descartó.
+        if candidatos:
+            out.append("⚠️ **No se pudo determinar el plan de esta branch**, así que este "
+                       "cuerpo va sin el \"por qué\". Se buscó por los planes que tocó la "
+                       "branch, por el ID del hallazgo y por parecido de nombres. "
+                       "Candidatos en `docs/plans/`:")
+            out.append("")
+            out += [f"- [`{q}`]({q})" for q in candidatos[:8]]
+            if len(candidatos) > 8:
+                out.append(f"- _…y {len(candidatos) - 8} más._")
+            out.append("")
+            out.append("Si alguno es el de este cambio, nómbralo en la descripción del PR: "
+                       "el revisor no debería tener que adivinarlo.")
+        else:
+            out.append("_No hay planes en `docs/plans/`. Si el cambio necesitaba uno, eso es "
+                       "lo primero que hay que revisar._")
+        print("pr-body: no se pudo determinar el plan de esta branch; el cuerpo va sin "
+              "el \"por qué\".", file=sys.stderr)
     out.append("")
 
     out.append("## Hallazgos cerrados\n")
