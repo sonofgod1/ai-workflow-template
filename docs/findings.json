@@ -155,17 +155,25 @@
       "id": "S2",
       "severidad": "suggestion",
       "titulo": "el cuerpo del PR exige plan a una branch de andamiaje, que por diseño no lo tiene",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
       "archivos": [
         ".workflow/pr-body.py"
       ],
       "feature": null,
       "creado": "2026-09-11",
-      "resuelto": null,
-      "commit": null,
-      "nota": "Detectado en el PR #6 de musicos: ofrecía los planes de B4 y B2 como candidatos de un sync de tooling.",
-      "test": null
+      "resuelto": "2026-09-11",
+      "commit": "62426a56094cffa3a234a77b905fe58bcaa8e068",
+      "nota": "El atajo es estricto (TODOS los archivos en rutas de andamiaje) para que un PR mixto siga exigiendo plan; ese segundo caso pasa en ambos árboles, como guardia.",
+      "test": {
+        "estado": "probado",
+        "rutas": [
+          ".workflow/tests/test-ship.py"
+        ],
+        "razon": null,
+        "regresion": "confirmada",
+        "verificado": "2026-09-11"
+      }
     }
   ]
 }
