@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # sync-workflow.sh
 # Sincroniza el workflow desde el repo master usando GitHub Tree API.
-# Uso: bash sync-workflow.sh [--dry-run] [--force] [--commit] [--editor claude|cursor|all]
+# Uso: bash sync-workflow.sh [--dry-run] [--force] [--commit] [--instalar-hooks]
+#                            [--editor claude|cursor|all]
 #
 # Los archivos que difieren del template y no coinciden con lo que este script
 # escribió la última vez (.claude/.workflow-sync) se consideran personalizados y
@@ -24,6 +25,7 @@ RAW_BASE="https://raw.githubusercontent.com/$WORKFLOW_REPO/$BRANCH"
 DRY_RUN=false
 FORCE=false
 COMMIT=false
+INSTALAR_HOOKS=false
 EDITOR="claude" # default para retrocompatibilidad
 
 while [[ "$#" -gt 0 ]]; do
@@ -31,6 +33,7 @@ while [[ "$#" -gt 0 ]]; do
         --dry-run) DRY_RUN=true ;;
         --force) FORCE=true ;;
         --commit) COMMIT=true ;;
+        --instalar-hooks) INSTALAR_HOOKS=true ;;
         --editor) EDITOR="$2"; shift ;;
         *) echo "Parámetro desconocido: $1"; exit 1 ;;
     esac
@@ -119,6 +122,25 @@ obra_del_sync_sin_commitear() {
     fi
     echo "$RUTA"
   done < "$MANIFEST"
+}
+
+# Hooks del repositorio que NO coinciden con la copia instalada en .git/hooks/.
+#
+# El sync escribe git-hooks/, pero git ejecuta .git/hooks/, que /git-setup copió
+# una vez y nadie refresca. Sin esto, todo arreglo a un hook queda inerte en los
+# proyectos que ya instalaron la plantilla, y nada lo dice — hallazgo I5.
+hooks_desactualizados() {
+  local dir_git hook nombre
+  dir_git=$(git rev-parse --git-dir 2>/dev/null) || return 0
+  [ -d "git-hooks" ] || return 0
+  for hook in git-hooks/*; do
+    [ -f "$hook" ] || continue
+    nombre=$(basename "$hook")
+    # Un hook que nunca se instaló no es "desactualizado": es un proyecto sin
+    # /git-setup, y eso ya se avisa aparte.
+    [ -f "$dir_git/hooks/$nombre" ] || continue
+    cmp -s "$hook" "$dir_git/hooks/$nombre" || echo "$nombre"
+  done
 }
 
 log()  { echo "  $1"; }
@@ -390,8 +412,31 @@ else
   NUM=$(echo "$PENDIENTES" | sed '/^$/d' | wc -l | tr -d ' ')
 
   if [ $UPDATED -gt 0 ] || [ "$NUM" -gt 0 ]; then
-    [ $UPDATED -gt 0 ] && echo "   Nota: Revisa si hay que instalar hooks con /git-setup"
-    echo ""
+    # El aviso de hooks va SOLO si alguno quedó desactualizado. Antes salía en cada
+    # corrida que actualizara algo, hubieran cambiado los hooks o no, y un aviso que
+    # aparece siempre se deja de leer — por eso dos arreglos a pre-push llegaron a
+    # musicos y quedaron inertes sin que nadie lo notara (hallazgo I5).
+    DESACTUALIZADOS=$(hooks_desactualizados)
+    if [ -n "$DESACTUALIZADOS" ]; then
+      if $INSTALAR_HOOKS; then
+        DIR_GIT=$(git rev-parse --git-dir)
+        echo "$DESACTUALIZADOS" | while IFS= read -r H; do
+          [ -z "$H" ] && continue
+          cp "git-hooks/$H" "$DIR_GIT/hooks/$H" && chmod +x "$DIR_GIT/hooks/$H"
+          echo "  ✓ hook instalado: $H"
+        done
+        echo ""
+      else
+        warn "estos hooks cambiaron y la copia que git ejecuta sigue siendo la vieja:"
+        echo "$DESACTUALIZADOS" | sed '/^$/d;s/^/       /'
+        echo ""
+        echo "       El sync escribe git-hooks/, pero git corre .git/hooks/. Hasta que se"
+        echo "       copien, el arreglo está en el repositorio y no se ejecuta."
+        echo ""
+        echo "           bash sync-workflow.sh --instalar-hooks"
+        echo ""
+      fi
+    fi
 
     # ─── Cierre del sync: commitear lo que el sync escribió ───────────────────
     #

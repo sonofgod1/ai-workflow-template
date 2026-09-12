@@ -275,6 +275,55 @@ def caso_el_propio_script_se_puede_commitear_tras_el_mv():
             f"sync-workflow.sh quedó sin commitear tras el mv: {r.stdout!r}")
 
 
+def _con_hook(base, proy, instalado, en_repo):
+    """Deja un hook instalado en .git/hooks/ y otro distinto en git-hooks/."""
+    (proy / "git-hooks").mkdir(exist_ok=True)
+    (proy / "git-hooks" / "pre-push").write_text(en_repo, encoding="utf-8")
+    hooks = proy / ".git" / "hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    (hooks / "pre-push").write_text(instalado, encoding="utf-8")
+
+
+def caso_avisa_si_el_hook_instalado_quedo_viejo():
+    """I5: el sync escribe git-hooks/, pero git ejecuta .git/hooks/."""
+    with tempfile.TemporaryDirectory() as d:
+        base = Path(d)
+        montar_remoto(base)
+        proy = montar_proyecto(base)
+        _con_hook(base, proy, instalado="#!/bin/sh\necho viejo\n",
+                  en_repo="#!/bin/sh\necho nuevo\n")
+        salida = correr(base, proy)
+        assert "pre-push" in salida, salida
+        assert "sigue siendo la vieja" in salida, (
+            "no avisa de que el hook instalado quedó atrás: " + salida)
+
+
+def caso_no_avisa_si_los_hooks_coinciden():
+    """Un aviso que sale siempre se deja de leer, y por eso I5 pasó desapercibido."""
+    with tempfile.TemporaryDirectory() as d:
+        base = Path(d)
+        montar_remoto(base)
+        proy = montar_proyecto(base)
+        igual = "#!/bin/sh\necho igual\n"
+        _con_hook(base, proy, instalado=igual, en_repo=igual)
+        salida = correr(base, proy)
+        assert "sigue siendo la vieja" not in salida, (
+            "avisa aunque no haya nada que instalar: " + salida)
+
+
+def caso_instalar_hooks_los_copia():
+    """El arreglo tiene que poder aplicarse sin correr /git-setup entero."""
+    with tempfile.TemporaryDirectory() as d:
+        base = Path(d)
+        montar_remoto(base)
+        proy = montar_proyecto(base)
+        _con_hook(base, proy, instalado="#!/bin/sh\necho viejo\n",
+                  en_repo="#!/bin/sh\necho nuevo\n")
+        correr(base, proy, "--instalar-hooks")
+        instalado = (proy / ".git" / "hooks" / "pre-push").read_text(encoding="utf-8")
+        assert "nuevo" in instalado, f"no copió el hook: {instalado!r}"
+
+
 def caso_check_plan_paths_se_reparte():
     """Se abrió al arreglar I2: build.md invoca un script que no se sincronizaba."""
     contenido = SYNC.read_text(encoding="utf-8")
@@ -293,6 +342,9 @@ CASOS = [
     caso_commitea_lo_de_la_corrida_anterior,
     caso_no_commitea_lo_que_personalizaste,
     caso_el_propio_script_se_puede_commitear_tras_el_mv,
+    caso_avisa_si_el_hook_instalado_quedo_viejo,
+    caso_no_avisa_si_los_hooks_coinciden,
+    caso_instalar_hooks_los_copia,
     caso_check_plan_paths_se_reparte,
 ]
 

@@ -14,8 +14,14 @@
 
 *Estado de cada hallazgo, generado desde `docs/findings.json`.*
 
-**8 hallazgo(s):** 0 sin cerrar, 8 resuelto(s), 0 descartado(s).
+**9 hallazgo(s):** 1 sin cerrar, 8 resuelto(s), 0 descartado(s).
 
+
+## 🟠 Importantes sin cerrar
+
+| ID | Título | Archivo(s) | Estado | Origen | Nota |
+|---|---|---|---|---|---|
+| I5 | un arreglo a un hook nunca llega: el sync escribe git-hooks/, pero corre .git/hooks/ | `sync-workflow.sh` | abierto | [reporte](docs/reviews/2026-09-11-validacion-modo-pr.md) | Hoy pasó dos veces sin que lo notáramos: el arreglo #16 de pre-push y el --reusar de I4 están en el repo de musicos, versionados y revisados, y ninguno corre. |
 
 ## ✅ Resueltos
 

@@ -664,6 +664,19 @@ la autorización la da quien ejecuta el comando.
 El port de `CLAUDE.md` sigue siendo aparte y manual — `sync-workflow.sh` nunca lo
 sobreescribe, porque ese archivo lleva el norte del proyecto.
 
+**Los hooks de Git son el otro caso aparte, y muerde en silencio.** El sync escribe
+`git-hooks/`, pero git ejecuta la copia en `.git/hooks/` que se instaló una vez. Un
+arreglo a un hook llega al repositorio, se revisa en un PR, se mergea… y no corre.
+Por eso el sync ahora **nombra** los hooks que quedaron atrás —solo cuando hay
+alguno, para que el aviso signifique algo— y los instala si se lo pides:
+
+```bash
+bash sync-workflow.sh --instalar-hooks
+```
+
+No es automático a propósito: instalar un hook cambia lo que corre en cada commit
+y push de quien lo ejecute, y eso se decide, no se hereda de pasada.
+
 ---
 
 ## Paralelismo: un agente por worktree

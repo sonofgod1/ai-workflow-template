@@ -323,3 +323,39 @@ está; es la misma regla que B1.
 
 Lo que no puede pasar es que el mensaje mienta: si reusa, tiene que decir que reusa y de
 cuándo, no imprimir un ✓ que se lea como una corrida nueva.
+
+---
+
+## I5 — un arreglo a un hook nunca llega a nadie: el sync escribe `git-hooks/`, pero corre `.git/hooks/`
+
+**Síntoma.** Tras sincronizar musicos con el arreglo de I4, `/ship` reusó la evidencia en la
+puerta (I4 funcionando) pero **volvió a correr pytest entero en el `pre-push`**. La causa:
+`sync-workflow.sh` escribe `git-hooks/pre-push` en el repositorio, y el hook que git ejecuta
+es la copia en `.git/hooks/pre-push`, que `/git-setup` hizo una vez y nadie refresca nunca.
+
+Medido: `git-hooks/pre-push` = `0e7cba5b…`, `.git/hooks/pre-push` = `a1478362…`, y el
+instalado no contiene `--reusar`.
+
+**Por qué importa.** Es un agujero en el mecanismo de distribución, no en un hook concreto.
+**Todo** arreglo a un hook que la plantilla publique queda inerte en los proyectos que ya la
+instalaron, y nada lo dice. Hoy pasó dos veces sin que nos diéramos cuenta: el arreglo #16
+de esta mañana (que `pre-push` nombre las dos clases de saltado) y el `--reusar` de I4. Los
+dos están en el repositorio de musicos, versionados y revisados en un PR, y ninguno corre.
+
+Peor es cómo se presenta. El sync ya imprime *"Nota: Revisa si hay que instalar hooks con
+/git-setup"*, pero **siempre que actualiza algo**, hayan cambiado los hooks o no. Un aviso
+que aparece en cada corrida se deja de leer, así que en la práctica funciona como si no
+existiera. La forma de un aviso importa tanto como su contenido: si no distingue el caso que
+importa, entrena a ignorarlo.
+
+**Sugerencia.**
+
+1. **Hacer el aviso condicional y específico.** Comparar cada `git-hooks/*` que el sync
+   escribió contra su copia en `.git/hooks/` y nombrar **cuáles** quedaron desactualizados.
+   Si ninguno cambió, no decir nada.
+2. **`--instalar-hooks`**, opt-in como `--commit`: copia los que difieren y les pone permiso
+   de ejecución. Es lo mismo que hace `/git-setup` en su paso 5, pero sin obligar a correr
+   una fase entera de inicialización para propagar un cambio de una línea.
+
+No hacerlo automático: instalar un hook cambia lo que corre en cada commit y push de quien
+lo ejecute, y eso se decide, no se hereda de pasada.

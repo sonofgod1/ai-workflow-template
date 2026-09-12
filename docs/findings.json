@@ -199,6 +199,22 @@
         "regresion": "confirmada",
         "verificado": "2026-09-11"
       }
+    },
+    {
+      "id": "I5",
+      "severidad": "important",
+      "titulo": "un arreglo a un hook nunca llega: el sync escribe git-hooks/, pero corre .git/hooks/",
+      "estado": "abierto",
+      "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
+      "archivos": [
+        "sync-workflow.sh"
+      ],
+      "feature": null,
+      "creado": "2026-09-11",
+      "resuelto": null,
+      "commit": null,
+      "nota": "Hoy pasó dos veces sin que lo notáramos: el arreglo #16 de pre-push y el --reusar de I4 están en el repo de musicos, versionados y revisados, y ninguno corre.",
+      "test": null
     }
   ]
 }
