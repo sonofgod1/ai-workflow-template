@@ -291,3 +291,35 @@ diff sea solo eso, sin arrastrar archivos del proyecto ni pisar personalizacione
 
 El atajo tiene que ser estricto —**todos** los archivos dentro de esas rutas—, para que un
 PR que mezcla sync con código de verdad siga exigiendo su plan.
+
+---
+
+## I4 — cada `/ship` corre la suite tres veces
+
+**Síntoma.** Medido en las tres últimas entregas de musicos. Un `/ship` completo corre
+`verify.sh` —y con él pytest entero— **tres veces seguidas sobre el mismo código**:
+
+1. `bash .workflow/ship.sh` — la puerta, para leer el cuerpo antes de publicar.
+2. `bash .workflow/ship.sh --abrir-pr` — la puerta corre incondicionalmente (`ship.sh:177`);
+   `--abrir-pr` solo cambia lo que pasa a partir de la línea 266.
+3. `git push` dentro de `--abrir-pr` dispara `pre-push`, que vuelve a delegar en `verify.sh`.
+
+Y CI la corre una cuarta vez arriba, esa sí legítima: entorno limpio, otra máquina.
+
+**Por qué importa.** No es solo tiempo. El propio `ship.sh` lo argumenta en su comentario de
+la línea 173: hacer la puerta más pesada es *"la forma más rápida de que la gente deje de
+usar la puerta"*. Una barrera que cuesta tres veces lo que debería se termina rodeando con
+`--no-verify`, y entonces no queda ninguna. El riesgo no es la lentitud: es el incentivo.
+
+**Sugerencia — la evidencia ya alcanza para decidirlo.** `.last-verify.json` guarda
+`git_head`, `git_branch`, `working_tree_sucio`, `timestamp` y `resultado`. Si `git_head`
+coincide con `HEAD`, el árbol está limpio y el resultado no es `falla`, esa evidencia
+describe **exactamente** el código que se va a pushear. Reusarla no relaja la puerta: la
+condición es una igualdad, no una heurística.
+
+En cualquier otro caso —commit distinto, árbol sucio, resultado ilegible, sin `python3`—
+se corre como hoy. Fallar hacia correr de más, nunca hacia dar por verificado lo que no lo
+está; es la misma regla que B1.
+
+Lo que no puede pasar es que el mensaje mienta: si reusa, tiene que decir que reusa y de
+cuándo, no imprimir un ✓ que se lea como una corrida nueva.

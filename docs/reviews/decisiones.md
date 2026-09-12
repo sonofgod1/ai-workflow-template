@@ -14,8 +14,14 @@
 
 *Estado de cada hallazgo, generado desde `docs/findings.json`.*
 
-**7 hallazgo(s):** 0 sin cerrar, 7 resuelto(s), 0 descartado(s).
+**8 hallazgo(s):** 1 sin cerrar, 7 resuelto(s), 0 descartado(s).
 
+
+## 🟠 Importantes sin cerrar
+
+| ID | Título | Archivo(s) | Estado | Origen | Nota |
+|---|---|---|---|---|---|
+| I4 | cada /ship corre la suite tres veces sobre el mismo código | `.workflow/ship.sh`, `git-hooks/pre-push` | abierto | [reporte](docs/reviews/2026-09-11-validacion-modo-pr.md) | El riesgo no es la lentitud: es que una puerta cara se rodea con --no-verify. La evidencia de .last-verify.json ya trae git_head y working_tree_sucio, así que la decisión es una igualdad, no una heurística. |
 
 ## ✅ Resueltos
 

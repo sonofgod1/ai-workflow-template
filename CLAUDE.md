@@ -99,7 +99,19 @@ o con los detectados por stack si no hay config.
 bash .workflow/verify.sh            # completo
 bash .workflow/verify.sh --quick    # sin tests, para iterar
 bash .workflow/verify.sh --strict   # un paso saltado cuenta como fallo (CI)
+bash .workflow/verify.sh --reusar   # no repetir si la evidencia ya vale
 ```
+
+`--reusar` lo usan `ship.sh` y el hook `pre-push`, porque una entrega completa
+corría la suite **tres veces sobre el mismo código**: la puerta, `--abrir-pr` otra
+vez, y `pre-push` una tercera. El riesgo de eso no es la lentitud, es el incentivo:
+una puerta cara se termina rodeando con `--no-verify`, y entonces no queda ninguna.
+
+No relaja nada. La condición para reusar es una **igualdad**, no una heurística:
+mismo commit, sin cambios sin commitear, resultado que no sea `falla`, y que no
+haya sido una corrida `--quick` (que salta los tests y también da `parcial`). Si
+falta cualquiera de las cuatro, corre. Y al reusar **no** reescribe la evidencia:
+mover el timestamp haría pasar por nueva una verificación vieja.
 
 | Resultado | Qué significa | Qué hacer |
 |-----------|---------------|-----------|

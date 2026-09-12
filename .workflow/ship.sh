@@ -174,7 +174,10 @@ echo ""
 # la forma más rápida de que la gente deje de usar la puerta. Se lee el resultado
 # real de .last-verify.json y se clasifica: 'parcial' es un aviso, 'falla' es rojo.
 echo "── verificación"
-bash "$ROOT/.workflow/verify.sh"
+# --reusar: la puerta suele correrse dos veces seguidas (una para leer el cuerpo,
+# otra con --abrir-pr) sobre el mismo commit. verify.sh solo reusa si la evidencia
+# describe exactamente este árbol; si no, corre igual. Ver hallazgo I4.
+bash "$ROOT/.workflow/verify.sh" --reusar
 VERIFY_CODE=$?
 RESULTADO=""
 if [ -f "$ROOT/.workflow/.last-verify.json" ] && command -v python3 > /dev/null 2>&1; then

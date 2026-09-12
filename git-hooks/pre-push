@@ -30,7 +30,10 @@ VERIFY="$ROOT/.workflow/verify.sh"
 
 if [ -f "$VERIFY" ]; then
   echo "  Ejecutando la verificación del proyecto..."
-  bash "$VERIFY"
+  # --reusar: ship.sh acaba de correr esto sobre el mismo commit segundos antes.
+  # verify.sh solo reusa si la evidencia es de este commit exacto y el árbol está
+  # limpio — que en un push es lo normal. Si no, corre igual. Ver hallazgo I4.
+  bash "$VERIFY" --reusar
   VERIFY_CODE=$?
 
   # verify.sh devuelve 0 tanto en 'ok' como en 'parcial'. La diferencia importa

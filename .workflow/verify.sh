@@ -12,6 +12,13 @@
 #   bash .workflow/verify.sh              # lint + type-check + tests
 #   bash .workflow/verify.sh --quick      # solo lint + type-check (sin tests)
 #   bash .workflow/verify.sh --strict     # un paso saltado cuenta como fallo (CI)
+#   bash .workflow/verify.sh --reusar     # no repetir si la evidencia ya vale
+#
+# --reusar existe porque un /ship completo corría la suite tres veces sobre el
+# MISMO código: la puerta, --abrir-pr otra vez, y pre-push una tercera (hallazgo
+# I4). No relaja nada: solo reusa cuando la evidencia describe exactamente este
+# árbol — mismo commit, sin cambios sin commitear, y no fue una corrida --quick.
+# Ante cualquier duda corre, nunca da por verificado lo que no lo está.
 #
 # Configuración opcional: .workflow/verify.conf
 #   VERIFY_STEPS=(
@@ -32,16 +39,66 @@ cd "$ROOT" || { echo "❌ No pude entrar a $ROOT" >&2; exit 1; }
 
 QUICK=false
 STRICT=false
+REUSAR=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --quick)  QUICK=true ;;
     --strict) STRICT=true ;;
+    --reusar) REUSAR=true ;;
     -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
     *) echo "❌ Parámetro desconocido: $1" >&2; exit 1 ;;
   esac
   shift
 done
+
+# ─── Reusar la evidencia, si describe exactamente este árbol ──────────────────
+#
+# Un /ship completo corría la suite tres veces sobre el mismo código (hallazgo I4),
+# y una puerta cara se termina rodeando con --no-verify. La decisión de reusar es
+# una IGUALDAD, no una heurística: mismo commit, sin cambios sin commitear, y no
+# fue una corrida --quick. Si falta cualquiera de las tres, se corre.
+#
+# Nunca se reescribe .last-verify.json al reusar: mover el timestamp haría pasar
+# por nueva una verificación vieja, que es justo lo que el archivo sirve para saber.
+if $REUSAR && [ -f ".workflow/.last-verify.json" ] && command -v python3 > /dev/null 2>&1; then
+  VEREDICTO=$(HEAD_ACTUAL="$(git rev-parse HEAD 2>/dev/null || echo '')"               SUCIO="$(git status --porcelain 2>/dev/null | head -c1)"               QUIERE_QUICK="$QUICK" python3 - <<'PYEOF'
+import json, os, sys
+
+try:
+    ev = json.load(open(".workflow/.last-verify.json", encoding="utf-8"))
+except Exception:
+    print("correr	no pude leer la evidencia anterior")
+    sys.exit(0)
+
+head = os.environ.get("HEAD_ACTUAL", "")
+sucio = bool(os.environ.get("SUCIO", ""))
+quiere_quick = os.environ.get("QUIERE_QUICK") == "true"
+
+if not head:
+    print("correr	no estoy en un repositorio git")
+elif ev.get("git_head") != head:
+    print("correr	la evidencia es de otro commit")
+elif sucio or ev.get("working_tree_sucio"):
+    print("correr	hay cambios sin commitear")
+elif ev.get("resultado") == "falla":
+    print("correr	la última verificación falló")
+elif ev.get("quick") and not quiere_quick:
+    print("correr	la evidencia es de una corrida --quick, sin tests")
+else:
+    print("reusar	%s	%s" % (ev.get("resultado", ""), ev.get("timestamp", "")))
+PYEOF
+)
+  if [ "${VEREDICTO%%	*}" = "reusar" ]; then
+    RESTO="${VEREDICTO#*	}"
+    echo "♻️  Verificación reusada — mismo commit ($(git rev-parse --short HEAD)), árbol limpio."
+    echo "   Resultado: ${RESTO%%	*}  ·  verificado: ${RESTO#*	}"
+    echo "   No se corrió de nuevo porque la evidencia describe exactamente este árbol."
+    [ "${RESTO%%	*}" = "parcial" ] && echo "   ⚠️  'parcial' no es verde: hubo pasos que nadie corrió."
+    exit 0
+  fi
+  echo "   (no reuso la evidencia anterior: ${VEREDICTO#*	})"
+fi
 
 RESULTS=$(mktemp)
 LOGDIR=$(mktemp -d)
@@ -195,7 +252,7 @@ else
   OVERALL="ok"
 fi
 
-RESULTS="$RESULTS" OVERALL="$OVERALL" python3 - <<'PYEOF'
+RESULTS="$RESULTS" OVERALL="$OVERALL" QUICK="$QUICK" python3 - <<'PYEOF'
 import json, os, subprocess, datetime, pathlib
 
 def git(*args):
@@ -225,6 +282,10 @@ payload = {
     # Si el working tree está sucio, la evidencia describe código sin commitear:
     # quien la lea después necesita saberlo para no atribuirla al commit.
     "working_tree_sucio": bool(git("status", "--porcelain")),
+    # Sin esto no se puede distinguir una corrida --quick (que salta los tests y
+    # por eso da 'parcial') de un 'parcial' legítimo, y --reusar reusaría una
+    # verificación sin tests creyendo que los corrió.
+    "quick": os.environ.get("QUICK") == "true",
     "resultado": os.environ["OVERALL"],
     "pasos": steps,
 }
