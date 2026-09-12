@@ -179,7 +179,7 @@
       "id": "I4",
       "severidad": "important",
       "titulo": "cada /ship corre la suite tres veces sobre el mismo código",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
       "archivos": [
         ".workflow/ship.sh",
@@ -187,10 +187,18 @@
       ],
       "feature": null,
       "creado": "2026-09-11",
-      "resuelto": null,
-      "commit": null,
-      "nota": "El riesgo no es la lentitud: es que una puerta cara se rodea con --no-verify. La evidencia de .last-verify.json ya trae git_head y working_tree_sucio, así que la decisión es una igualdad, no una heurística.",
-      "test": null
+      "resuelto": "2026-09-11",
+      "commit": "237ab68ce527e6d001b25b7a3ecb955cd576fa96",
+      "nota": "La lógica vive en verify.sh, no duplicada en ship.sh y pre-push: los dos solo pasan el flag. Hizo falta registrar 'quick' en la evidencia, porque --quick salta los tests y da 'parcial', el mismo resultado que un parcial legítimo — sin ese campo se habría reusado una verificación sin tests.",
+      "test": {
+        "estado": "probado",
+        "rutas": [
+          ".workflow/tests/test-verify-reusar.py"
+        ],
+        "razon": null,
+        "regresion": "confirmada",
+        "verificado": "2026-09-11"
+      }
     }
   ]
 }

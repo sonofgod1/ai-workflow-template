@@ -14,14 +14,8 @@
 
 *Estado de cada hallazgo, generado desde `docs/findings.json`.*
 
-**8 hallazgo(s):** 1 sin cerrar, 7 resuelto(s), 0 descartado(s).
+**8 hallazgo(s):** 0 sin cerrar, 8 resuelto(s), 0 descartado(s).
 
-
-## 🟠 Importantes sin cerrar
-
-| ID | Título | Archivo(s) | Estado | Origen | Nota |
-|---|---|---|---|---|---|
-| I4 | cada /ship corre la suite tres veces sobre el mismo código | `.workflow/ship.sh`, `git-hooks/pre-push` | abierto | [reporte](docs/reviews/2026-09-11-validacion-modo-pr.md) | El riesgo no es la lentitud: es que una puerta cara se rodea con --no-verify. La evidencia de .last-verify.json ya trae git_head y working_tree_sucio, así que la decisión es una igualdad, no una heurística. |
 
 ## ✅ Resueltos
 
@@ -32,5 +26,6 @@
 | I1 | Una branch de chore no tiene ningún comando que sea dueño de su commit | `e0d1cbd` | ✅ probado — `.workflow/tests/test-sync-commit.py` | 2026-09-11 |
 | I2 | +docs/contracts/** frena a /build ante un cambio que solo precisa la prosa del contrato | `56cf02b` | ✅ probado — `.workflow/tests/test-check-protected.py` | 2026-09-11 |
 | I3 | sync-workflow.sh nunca entra al manifest, así que --commit no puede commitear su propia actualización | `defccac` | ✅ probado — `.workflow/tests/test-sync-commit.py` | 2026-09-11 |
+| I4 | cada /ship corre la suite tres veces sobre el mismo código | `237ab68` | ✅ probado — `.workflow/tests/test-verify-reusar.py` | 2026-09-11 |
 | S1 | findings.py no deja agregar una nota sin cambiar también el estado | `99fea41` | ✅ probado — `.workflow/tests/test-findings-cli.py` | 2026-09-11 |
 | S2 | el cuerpo del PR exige plan a una branch de andamiaje, que por diseño no lo tiene | `62426a5` | ✅ probado — `.workflow/tests/test-ship.py` | 2026-09-11 |
