@@ -204,17 +204,25 @@
       "id": "I5",
       "severidad": "important",
       "titulo": "un arreglo a un hook nunca llega: el sync escribe git-hooks/, pero corre .git/hooks/",
-      "estado": "abierto",
+      "estado": "resuelto",
       "origen": "docs/reviews/2026-09-11-validacion-modo-pr.md",
       "archivos": [
         "sync-workflow.sh"
       ],
       "feature": null,
       "creado": "2026-09-11",
-      "resuelto": null,
-      "commit": null,
-      "nota": "Hoy pasó dos veces sin que lo notáramos: el arreglo #16 de pre-push y el --reusar de I4 están en el repo de musicos, versionados y revisados, y ninguno corre.",
-      "test": null
+      "resuelto": "2026-09-11",
+      "commit": "1c3c1a6303c589918b67320916499b3c6b7362cf",
+      "nota": "El tercer caso de test —que NO avise cuando los hooks coinciden— es el que protege la señal de volver a ser ruido. El aviso viejo salía en cada corrida, y por eso dos arreglos a pre-push pasaron desapercibidos el mismo día.",
+      "test": {
+        "estado": "probado",
+        "rutas": [
+          ".workflow/tests/test-sync-commit.py"
+        ],
+        "razon": null,
+        "regresion": "confirmada",
+        "verificado": "2026-09-11"
+      }
     }
   ]
 }
