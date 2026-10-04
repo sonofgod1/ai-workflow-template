@@ -1,292 +1,125 @@
 ---
-description: Ejecuta un plan ya aprobado. No investiga, no rediseña, no amplía el scope.
-argument-hint: [ruta del plan en docs/plans/]
+description: Ejecuta la spec (siguiente §T) o un plan ya aprobado. No rediseña, no amplía el scope.
+argument-hint: "[--next | §T.n | ruta de un plan en docs/plans/]"
 model: sonnet
 ---
 
-Estás en **fase de construcción**. Tu rol: ejecutar un plan que ya tomó las decisiones.
+Estás en **fase de construcción**. Tu rol: ejecutar lo ya decidido.
 
-Plan a ejecutar: **$ARGUMENTS**
+Pedido: **$ARGUMENTS**
 
 **Restricciones:**
-- ❌ No rediseñas: las decisiones ya están tomadas en el plan
-- ❌ No amplías el scope, ni siquiera "de paso"
-- ❌ No investigas el código más allá de lo que el plan te dice que toques
-- ✅ Implementas exactamente lo que dice el plan, y lo verificas
+- ❌ No rediseñás. Las decisiones están en SPEC.md (o en el plan nombrado)
+- ❌ No ampliás el scope
+- ❌ No enmendás la spec salvo el status de §T **y** el fold de §D citada al marcar `x`
+- ❌ No invocás `/check` ni `/review` (ni `/security` `/ux`). Este hilo construye, no certifica.
+- ✅ Implementás, testeás, verificás (`verify.sh`)
 
 ---
 
-## Fase activa — antes de cualquier otra cosa
+## Fase activa
 
 ```bash
 bash .workflow/phase.sh set build
 ```
 
-Esto declara la fase y activa su política de escritura: en `/build` los hooks
-no restringen la escritura más allá de los archivos protegidos.
+Al terminar: `bash .workflow/phase.sh clear`
 
-Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
-que esta fase puede hacer. Para, dilo, y espera instrucción.
-
-Al terminar, libera la fase: `bash .workflow/phase.sh clear`
+Si un bloqueo te detiene, no lo rodees.
 
 ---
 
-## La regla que hace segura esta fase
+## DISPATCH
 
-**Si el plan y la realidad no coinciden, paras.**
-
-El plan se escribió con investigación completa en `/plan`. Si al abrir un archivo
-encuentras algo que el plan no anticipó — la función tiene otra firma, el archivo no
-existe, hay un consumidor que el plan no menciona — eso **no** es algo que resuelvas
-tú improvisando. Significa que la investigación se quedó corta, y eso se arregla en
-`/plan`, no aquí.
-
-```
-🛑 El plan no coincide con el código
-
-- Plan dice: [cita la línea del plan]
-- Realidad: [qué encontraste, con ruta:línea]
-- Qué haría falta decidir: [la decisión concreta que no está en el plan]
-- No sigo hasta que me digas: ¿ajusto el plan con /plan, o me das la decisión aquí?
-```
-
-Esta es la única razón por la que esta fase puede correr en un modelo más barato:
-no se le pide criterio de diseño, y cuando hace falta criterio, para.
+1. El argumento es una ruta `docs/plans/*.md` → **PLAN** (camino production / tarea enorme)
+2. El argumento es `§T.n` / `T<n>` → esa tarea
+3. El argumento es `--next`, `--all`, o está vacío → **SPEC**
+4. No hay SPEC.md ni plan → pará: "no hay spec. `/spec` o `/explore`."
 
 ---
 
-## Paso 1 — Leer el plan, y solo el plan
+## Camino SPEC (default)
 
-Lee `$ARGUMENTS` completo. Además, únicamente:
+Leé `SPEC.md` y `FORMAT.md`. No leas el repo entero.
 
-- Los contratos en `docs/contracts/` que el plan nombre
-- Los archivos que el plan dice que vas a tocar
+Elegí tareas:
+- `§T.n` → esa
+- `--next` o vacío → la de id más bajo con status `.` o `~`
+- `--all` → todas las `.` en orden
 
-**No hagas exploración general del repositorio.** No leas el grafo, no hagas grep
-buscando contexto, no abras archivos "para entender mejor". Todo eso ya se hizo en
-`/plan`, y volver a hacerlo aquí solo llena el contexto de material que no necesitas.
+### Plan nativo (en el chat, no un archivo)
 
-Si al leer el plan hay algo que no entiendes lo bastante para ejecutarlo, ese es un
-defecto del plan: párate y dilo, con la sección concreta que quedó ambigua.
+Para la(s) tarea(s):
 
-**Antes de escribir una sola línea**, comprueba que puedes tocar lo que el plan manda:
+1. Citá cada §V **live** que aplica. El plan las respeta.
+2. Citá cada fila §D que esta T folda (`cites` = esta T). Eso es lo que implementás si el cambio aún no es live.
+3. Citá cada §I live que se preserva (no REMOVED en el delta).
+4. Archivos a crear / editar.
+5. Tests a agregar o actualizar (uno por invariante tocada, live o ADDED).
+6. Comando de verificación (`verify.sh` o el test puntual).
+
+Si la tarea es chica (< 3 archivos, sin decisión de producto), plan + código en el mismo turno.
+Si hay una decisión de producto no resuelta en la spec, **pará** y no inventes: `/spec amend`.
+
+### Ejecutar
+
+Por cada tarea, en orden:
+
+1. Flip §T status `.` → `~` (edit de SPEC.md: status y, al cerrar, fold).
+2. Escribí el código y los tests. Durante `~`, el código puede coincidir con el **delta**, no con §I/§V live. No pares por eso.
+3. Corré la verificación.
+4. **Pass** → foldá las filas §D cuyo `cites` es esta T (ADDED/MODIFIED/REMOVED a **un** ítem; no reescribas la sección). Si `change` tiene `?`, no foldes y no marques `x`. Borrá las filas foldadas. Recién ahí `~` → `x`.
+5. **Fail** → no reintentar a ciegas. Clasificá:
+   - (a) bug de tu código → arreglá y re-corrê
+   - (b) spec mal / (c) borde no especificado → pará y pedí `/spec bug: <causa>`
+6. Al cierre de la tanda: `bash .workflow/verify.sh` y pegá la salida.
+   No invoques `/check` ni `/review` en este hilo.
+
+```
+Listo el build. Evidencia: [salida de verify.sh]
+Certificación: chat nuevo → /check T<n>
+(En Cursor: nueva sesión, modelo fuerte, @check T<n>)
+Hito (antes de /ship, o cada varias T): /check --all
+```
+
+Si al abrir un archivo la realidad no coincide ni con lo live ni con el §D de esta T:
+
+```
+🛑 La spec no coincide con el código
+- Spec: [§ live o §D y cita]
+- Realidad: [ruta:línea]
+- No sigo. ¿ /spec amend, o me das la decisión acá?
+```
+
+No improvises diseño. Esta fase puede ser barata porque no decide.
+
+---
+
+## Camino PLAN (si nombraron un archivo)
+
+Leé **solo** ese plan, los contratos que nombre, y los archivos que dice tocar.
+No explodés el repo.
+
+Antes de escribir:
 
 ```bash
-bash .workflow/check-plan-paths.sh [todas las rutas de la sección "Cambios" del plan]
+bash .workflow/check-plan-paths.sh [rutas de la sección Cambios]
 ```
 
-Si alguna sale bloqueada y el plan no lo declaraba, **para ahí y repórtalo**, antes de
-implementar nada. Descubrirlo a mitad de camino deja la branch con el código escrito y
-la documentación sin escribir, que es el peor estado posible: ni entregable ni revertible
-de un vistazo. Un hook que te frena no se rodea por otra herramienta.
+Si una ruta protegida no estaba declarada, pará antes de implementar.
+
+La regla sigue siendo: si el plan y la realidad no coinciden, paras. No rediseñás.
+El plan se arregla con `/plan`, no acá.
+
+Verificación igual: `bash .workflow/verify.sh` y pegar la salida.
+No invoques `/check` ni `/review` acá: chat nuevo.
+
+Si el proyecto está en modo PR (`delivery.conf`), commití código+tests en un commit
+y docs en otro, en la branch de trabajo. Nunca `main`. Nunca merge.
 
 ---
 
-## Paso 2 — Crear la branch
+## Tests
 
-```bash
-git checkout develop
-git checkout -b [feature|fix]/[slug del plan]
-```
-
-Si no existe `develop`, para y avisa: el proyecto necesita `/git-setup` primero
-(regla dura 10).
-
----
-
-## Paso 3 — Implementar
-
-Archivo por archivo, en el orden del plan. Si el plan toca más de 5 archivos,
-implementa en bloques y avisa al terminar cada bloque.
-
-Por cada archivo, sigue la sección del plan al pie de la letra: la firma que dice,
-el comportamiento que dice, los casos de borde que nombra.
-
-**Convenciones del proyecto** (de `CLAUDE.md`): nombres descriptivos sin abreviar;
-comentarios solo del "por qué"; funciones de menos de 30 líneas; errores nunca
-silenciados; logs estructurados, nunca `print()`.
-
-**Escribe también los tests** que el plan lista en "Tests que deben existir al
-terminar". Un plan ejecutado sin sus tests no está ejecutado.
-
----
-
-## Paso 4 — Verificar hasta verde
-
-```bash
-bash .workflow/verify.sh
-```
-
-- `falla` → corrige y vuelve a correr. Repite hasta verde. Si el fallo es
-  preexistente y ajeno a tu cambio, **no lo arregles de paso**: repórtalo como
-  hallazgo y dilo explícitamente en el reporte.
-- `parcial` → hay pasos saltados por falta de herramienta. **No es verde.** Nombra
-  qué quedó sin verificar.
-- `ok` → sigue al reporte.
-
-No declares nada terminado sin esta salida (regla dura 12).
-
----
-
-## Entrega — antes del reporte
-
-El modo de entrega lo decide el proyecto, no tú:
-
-```bash
-MODO_ENTREGA=local
-[ -f .workflow/delivery.conf ] && . .workflow/delivery.conf
-echo "modo de entrega: $MODO_ENTREGA"
-```
-
-### Si `MODO_ENTREGA=pr`: commiteas tú
-
-Es la excepción de la regla dura 3, y cubre **solo la branch de trabajo**: nunca la
-base, nunca un merge, y nunca el push — el push y el PR son de `/ship`.
-
-1. **Código y tests en un commit**, con `git add` explícito:
-   ```bash
-   git add [archivos reales tocados]        # nunca `git add .`
-   git commit -m "[tipo]([scope]): [descripción]"
-   ```
-
-2. **Cerrar cada hallazgo que este plan resuelve**, con el hash del commit de arriba:
-   ```bash
-   python3 .workflow/findings.py cerrar [ID] --commit $(git rev-parse HEAD) \
-     --test "[ruta::nombre]" --probar-regresion
-   ```
-   Tres casos, y la diferencia importa porque queda registrada:
-   - `--probar-regresion` devuelve **`no-prueba-nada`** → el cierre se rechaza y el
-     hallazgo sigue abierto. El test no sirve. **Paras y lo dices**: no lo cierres
-     por otra vía.
-   - El hallazgo era **falta de cobertura**, no un bug de comportamiento (el código
-     ya hacía lo correcto, solo que nadie lo probaba) → el test pasaría en los dos
-     árboles, así que va **sin** `--probar-regresion`. Cierra como `declarado`, no
-     como `probado`, y eso se nombra en el reporte.
-   - El cambio **no tiene comportamiento que ejercitar** (copy, README, CI) →
-     `--sin-test --razon "..."`.
-
-3. **Hallazgos nuevos que registres**, si necesitan contexto, en dos pasos —
-   `add` no acepta `--nota`:
-   ```bash
-   python3 .workflow/findings.py add --id [ID] --severidad [blocker|important|suggestion] \
-     --titulo "..." --origen [ruta] --archivos ruta:linea otra/ruta:linea
-   python3 .workflow/findings.py estado [ID] --nuevo abierto --nota "por qué, y con qué se arregla"
-   ```
-   `--archivos` va separado por **espacios**, no por comas.
-
-4. **Docs en un commit aparte** — commit por intención, nunca mezclado con el código:
-   ```bash
-   git add docs/findings.json docs/reviews/decisiones.md
-   git commit -m "docs: cerrar [IDs]"
-   ```
-   El mensaje nombra solo lo que de verdad quedó hecho: si un `add` o un `cerrar`
-   falló, el mensaje no lo menciona.
-
-5. **Dejas el árbol limpio** y lo dices en el reporte. `/ship` exige árbol limpio y
-   no commitea: si dejas algo sin commitear, su puerta falla.
-
-### Si `MODO_ENTREGA=local` (o no hay `delivery.conf`): no commiteas nada
-
-Rige la regla dura 3 completa. Los comandos van en el reporte, en "Entrega", para
-que el usuario los corra.
-
----
-
-## Reporte al terminar — formato obligatorio
-
-```
-## Construido: [título del plan]
-
-### Plan ejecutado
-docs/plans/[archivo] — [N de N] secciones completadas
-
-### Archivos tocados
-[Una sección por componente del proyecto, según "Tipo de proyecto" en CLAUDE.md]
-
-[COMPONENTE]:
-- `ruta` — [qué cambió en una línea]
-
-### Verificación — salida real, no descrita
-[Pega el bloque literal del resumen de verify.sh:
-
-  ════════════════════════════════════════════════════
-    Verificación: ok — 4 ok, 0 fallando, 0 saltados
-    Commit: a1b2c3d  Branch: feature/slug
-    2026-01-15 11:04:22
-  ════════════════════════════════════════════════════
-
-Si fue `parcial`, di qué quedó sin verificar. Si fue `falla` y aun así reportas,
-di cuál falla y por qué es preexistente.]
-
-### Tests agregados
-- `ruta/test_x.py::test_caso` — [qué prueba]
-
-### Desviaciones del plan
-[Cualquier punto donde tuviste que apartarte, y por qué. Si el plan se cumplió
-tal cual: "ninguna".]
-
-### Hallazgos encontrados
-[Cosas rotas fuera del scope que NO arreglaste. Regístralas:
-  python3 .workflow/findings.py add --id [ID] --severidad [blocker|important|suggestion] \
-    --titulo "..." --origen [ruta del reporte o del plan]
-O "ninguno".]
-
-### Test de regresión
-[Ruta::nombre del test que el plan pidió, y si falla sin el arreglo. Si el plan no
-pedía ninguno y el cambio tiene comportamiento observable, dilo: es un hueco del
-plan, no algo que resuelvas por tu cuenta ampliando el scope.
-
-Si el cambio no tiene comportamiento que ejercitar (copy, README, CI), nómbralo
-aquí con su razón: el cierre irá con `--sin-test --razon "..."`.]
-
-### Plan de prueba manual
-[Copiado del plan, para que el usuario lo recorra: muestreo, no pasada completa —
-el test de arriba es el arnés.]
-
-### Entrega
-[En modo PR — lo que YA commiteaste, con los hashes reales:
-
-  - `a1b2c3d` fix([scope]): [descripción]      ← código + tests
-  - `e4f5g6h` docs: cerrar [IDs]
-  - [ID] cerrado como `probado` / `declarado` / `exento` — [por qué, si no es probado]
-
-  Árbol limpio. Siguiente paso: `/ship`.
-
-En modo local — los comandos, para que los corra el usuario:
-
-# Código — git add explícito, nunca `git add .`
-git add [archivos reales tocados]
-git commit -m "[tipo]([scope]): [descripción]"
-
-# Cerrar el hallazgo, con el hash del commit de arriba y el test que lo cubre
-python3 .workflow/findings.py cerrar [ID] --commit $(git rev-parse HEAD) \
-  --test "[ruta::nombre]" --probar-regresion
-# decisiones.md lo regenera findings.py: se agrega, no se edita
-git add docs/findings.json docs/reviews/decisiones.md
-git commit -m "docs: marcar [ID] como completado"
-
-# Mergear
-git checkout develop
-git merge [branch de trabajo] --no-ff -m "[tipo]([scope]): [descripción]"
-git branch -d [branch de trabajo]
-git push origin develop
-
-El bloque de merge es SOLO de modo local. En modo PR no va: la base la mergea el
-humano desde el PR, y un `git push origin develop` ahí choca con branch protection.]
-```
-
-**No declares la feature lista hasta que el usuario confirme que probó y pasó.**
-
----
-
-## Actualizar tracking — si aplica
-
-Si el plan pertenece a una feature con archivo en `docs/features/`:
-
-1. Marcar `/build` como `[x]` en "Camino acordado"
-2. Agregar los hallazgos nuevos a "Hallazgos vinculados" con estado `[ ]`
-3. Agregar al Historial: `YYYY-MM-DD — /build completada ([plan])`
-
-Hazlo **antes** de commitear los docs (o de sugerirlos, en modo local), para que
-el commit de docs lo incluya.
+Cada invariante tocada (live o ADDED en §D) deja un test que lo nombra (`test_v2_token_expiry` o
+equivalente). Un `x` en §T sin test de las §V citadas, o con su §D todavía abierta, no está terminado.

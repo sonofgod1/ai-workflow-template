@@ -1,287 +1,151 @@
 # AI Workflow Template
 
-Plantilla para desarrollar aplicaciones con **Claude Code o Cursor** de forma disciplinada: cada fase del SDLC tiene su comando, sus restricciones, y hooks que impiden que la IA se salga del scope.
+Plantilla **spec-driven** para Claude Code y Cursor. Una spec viva (`SPEC.md`) manda.
+El loop de todos los días es corto. El SDLC de producción es opt-in.
 
-El mismo flujo funciona en los dos editores. Lo que cambia es cuánto se puede hacer cumplir con código — ver [Claude Code y Cursor](#claude-code-y-cursor).
+```
+/spec → /build → (chat nuevo) /check T<n>
+```
 
-Incluye estrategia de Git profesional (branches, hooks de calidad, commits convencionales), gestión de cambios post-deploy, y contratos entre componentes que `/implement` no puede ignorar.
+Un bug no se "arregla y se olvida": vuelve a la spec como invariante (`/spec bug:`).
 
-**Esto es un punto de partida, no un framework cerrado.** Modifica los archivos en `.claude/` o `.cursor/` para adaptarlo a tu forma de trabajar.
+**El que construye no certifica.** `/build` corre `verify.sh`. `/check` y `/review` son otro chat, y no escriben.
+
+**Fuera de un comando el agente puede escribir código** si se lo pediste. Los
+comandos acotan una fase; no son un ticket system.
+
+El mismo flujo corre en los dos editores. Lo que cambia es cuánto se hace cumplir
+con código — ver [Claude Code y Cursor](#claude-code-y-cursor). Detalle de
+producción (findings, batch, Git Flow) en [`docs/workflow.md`](docs/workflow.md).
+
+**Esto es un punto de partida.** Adaptá `.claude/` o `.cursor/`.
 
 ---
 
 ## Trabajar EN la plantilla, no con ella
 
 Este repositorio se gobierna a sí mismo: los hooks de `.claude/` están activos aquí y
-`CLAUDE.md` se carga como instrucciones del proyecto. Eso es deliberado — es
-dogfooding, y es como se encontraron varios bugs reales de la propia capa de
-protección. Pero crea una confusión que hay que nombrar explícitamente:
+`CLAUDE.md` se carga como instrucciones. Eso es dogfooding. Pero:
 
-> **Aquí, `CLAUDE.md`, `.claude/commands/`, `.claude/protected.txt` y
-> `.github/workflows/ci.yml` son el producto que se entrega, no reglas que gobiernen
-> este repositorio.**
+> **Aquí, `CLAUDE.md`, `SPEC.md`, `.claude/commands/` y `.github/workflows/ci.yml`
+> son el producto que se entrega, no reglas que gobiernen este repositorio.**
 
-Tratarlos como archivos protegidos, o exigir aquí `/git-setup`, la rama `develop` y
-un "Norte del proyecto" definido, es un error de categoría: son cosas que la plantilla
-le pide a los proyectos que la consumen, no a sí misma.
+Exigir aquí un norte vacío o la rama `develop` es un error de categoría.
 
 ### `.claude/protected.local.txt`
 
-Para eso existe. Si ese archivo está presente, **reemplaza** a `protected.txt`:
-
-```
-.claude/protected.txt         ← la lista que se entrega a los proyectos
-.claude/protected.local.txt   ← la lista real de ESTA copia del repo, si difiere
-```
-
-En este repositorio protege solo lo que es secreto en cualquier repo (`.env`, claves,
-`.git/`) y deja fuera los archivos que aquí son código fuente.
-
-**No se versiona ni se sincroniza**, a propósito: si se colara a un proyecto nuevo, le
-desactivaría protecciones que ahí sí aplican. Si clonas este repo para trabajar en la
-plantilla, créalo a mano.
-
-Un proyecto normal también puede usarlo, para el caso contrario: **añadir**
-protecciones propias sin tocar la lista que sincroniza el template.
+Si está presente, **reemplaza** a `protected.txt`. No se versiona ni se sincroniza.
+En este repo deja fuera los archivos que acá son código fuente.
 
 ### Lo que sí aplica aquí
 
 - No commitear sin que el usuario lo pida (regla dura 3).
-- `bash .workflow/verify.sh` antes de dar nada por terminado (regla dura 12).
-- Los hallazgos van a `docs/findings.json`, igual que en cualquier proyecto.
+- `bash .workflow/verify.sh` antes de dar nada por terminado.
+- El norte de *esta* plantilla vive en `SPEC.md` §G.
 
 ---
 
 ## Cómo usar
 
-### Para un proyecto nuevo
+### Proyecto nuevo
 
 ```bash
-# 1. Crea repo desde la plantilla
 gh repo create mi-proyecto --template tu-usuario/ai-workflow-template --private
 cd mi-proyecto
-
-# 2. Instala graphify (mapea el repo en un grafo para Claude)
-uv tool install graphifyy && graphify install
-
-# 3. Abre tu editor en este folder
-claude          # Claude Code
-# o simplemente abre la carpeta en Cursor
-
-# 4. Configura Git primero
-/git-setup      # en Cursor: @git-setup
-
-# 5. Empieza el flujo
-/discovery      # en Cursor: @discovery
+# Abrí Claude Code o Cursor
+/git-setup          # hooks, CODEOWNERS, protección de main
+/spec               # o /discovery si todavía no está claro el propósito
+/build --next       # ejecuta la siguiente §T; pega verify.sh
+# chat nuevo:
+/check T<n>         # ¿esta tarea sigue la spec? No en el hilo del build.
+                    # --all es hito (antes de /ship, o cada varias T).
 ```
 
-La plantilla trae los dos juegos de reglas (`.claude/` y `.cursor/`). Si solo usas uno, puedes borrar el otro — o dejarlos, no estorban.
+Graphify es **opcional** (repos grandes). No es el paso 0.
 
-### Para un proyecto existente
+### Proyecto existente (workflow viejo → SDD)
+
+Desde **este** clone de la plantilla (tiene `/spec`, `FORMAT.md`), no desde GitHub `main`:
 
 ```bash
-cd mi-proyecto-existente
-# Copia git-hooks/ y, según tu editor:
-#   Claude Code → .claude/ + CLAUDE.md
-#   Cursor      → .cursor/
-#   los dos     → todo lo anterior
-
-graphify install                  # registra el skill
-claude                            # o abre la carpeta en Cursor
-/git-setup                        # configura branches y hooks
-/discovery                        # entender qué tienes
+bash apply-sdd.sh /ruta/al/otro-proyecto
+# ver qué haría:  bash apply-sdd.sh /ruta/al/otro-proyecto --dry-run
 ```
+
+Copia comandos, `.workflow/` (sin `verify.conf`/`delivery.conf`), `FORMAT.md`,
+`CLAUDE.md` slim, reinstala hooks, arma un `SPEC.md` stub con el norte del
+`CLAUDE.md` viejo. **No commitea.** Distill de §I/§V lo hace el agente:
+
+```
+# en Claude Code, abierto el otro proyecto:
+# pegá .claude/sdd-distill-prompt.txt  →  /spec distill
+# chat nuevo: /check --all   ← hito: acabás de destilar la spec entera
+```
+
+`--claude` lanza `claude -p` con ese prompt si tenés la CLI. `/check` nunca
+corre en el mismo paso: el que construye no certifica. Tras cada `/build`
+después de eso: `/check T<n>`, no `--all`.
 
 ---
 
-## El flujo completo
+## El loop (esto es spec-driven development)
 
-```
-/git-setup          Configura main/develop, instala hooks de Git. Solo al inicio.
-     ↓
-/discovery          Clasifica el proyecto, entiende el problema, fija el norte.
-     ↓
-/architect          Propone 2 opciones de stack, escribe ADRs.
-     ↓
-/contracts          Define API, schemas de DB, tipos compartidos, env vars.
-     ↓
-/plan               Investiga en paralelo y produce un plan ejecutable.   [opus]
-     ↓              ── tú apruebas el plan ──
-/build              Ejecuta el plan aprobado y verifica hasta verde.    [sonnet]
-     ↓
-                    (para cambios chicos y sin ambigüedad: /implement, que
-                     planifica e implementa en un solo turno)
-     ↓
-/test               Suite de tests: unitarios, integración, API y E2E.
-/review             Code review estricto con hallazgos numerados.
-/security           Audita auth, inyecciones, deps y secretos.
-/ux                 Audita flujos y consistencia del frontend (si aplica).
-     ↓
-/migrate            Cambios de schema seguros: expand/migrate/contract.    [opus]
-     ↓
-/ship               Puerta local + PR con su cuerpo generado. No mergea.  [sonnet]
-     ↓
-/deploy             Checklist pre-producción: tests, migraciones, env vars, monitoreo.
-     ↓
-     ⟲ /change      Modificaciones post-deploy. Clasifica el cambio, identifica
-                    contratos afectados, re-corre solo las fases mínimas necesarias.
-```
+`SPEC.md` en la raíz. Formato: [`FORMAT.md`](FORMAT.md). Secciones fijas:
+**§G** objetivo (el norte), **§M** modo, **§C** constraints, **§I** interfaces,
+**§V** invariantes testeables, **§T** tareas, **§B** bugs + invariante que evita
+la recurrencia, **§D** delta (lo propuesto; no es la verdad actual).
 
-Para trabajo nuevo o cambios significativos, `/feature` evalúa la complejidad y define qué fases del flujo activar.
+`/spec` y `/feature` escriben en §D un cambio que todavía no es verdad
+(`ADDED` / `MODIFIED` / `REMOVED`). `/build` lo folda a lo live al marcar la
+§T `x`. `/check` puntúa lo actual: un `ADDED` abierto no es MISSING.
 
-Cada fase tiene un comando, un rol, y restricciones claras. Fuera de un comando, el agente está en **modo consulta**: responde preguntas pero no modifica nada.
+| Comando | Qué hace |
+|---------|----------|
+| `/spec` `@spec` | Crea, enmienda o registra un bug. Cambio no-actual → §D. |
+| `/build` `@build` | Ejecuta la siguiente §T. Folda §D. `verify.sh`. No certifica. |
+| `/check` `@check` | Drift spec↔código. `T<n>` acota a esa tarea. `--all` es hito. Otro chat. Si este hilo implementó, para. |
+| `/explore` `@explore` | Spike sin spec. Al final, destilar o tirar. |
 
-En Cursor los mismos comandos se invocan con `@`: `@discovery`, `@implement`, `@review`.
+Tres modos (`SPEC.md` §M):
 
-| Fase | Comando | Restricciones clave |
-|------|---------|---------------------|
-| Init Git | `/git-setup` | Solo una vez al inicio. No toca código. |
-| Descubrimiento | `/discovery` | No escribe código, no propone stack. |
-| Arquitectura | `/architect` | No escribe código de aplicación. |
-| Contratos | `/contracts` | Solo interfaces y especificaciones, sin implementación. |
-| Planificación | `/plan <ID o feature>` | No escribe código. Investiga en paralelo y deja el plan en `docs/plans/`. |
-| Construcción | `/build <ruta del plan>` | No investiga, no rediseña, no amplía scope. Si el plan no coincide con el código, para. |
-| Implementación | `/implement <ID o feature>` | Solo para cambios chicos. No commitea, no instala deps sin avisar. Muestra plan antes de tocar código. |
-| Tests | `/test <target>` | No toca código de producción. |
-| Revisión | `/review <target>` | Solo analiza y reporta, no reescribe. |
-| Seguridad | `/security` | Solo analiza y reporta, no reescribe. |
-| UX | `/ux <flujo>` | Solo audita flujos de frontend, no reescribe. |
-| Feature | `/feature <descripción>` | Evalúa antes de actuar. Ancla al norte del proyecto. |
-| Migraciones | `/migrate <cambio>` | Clasifica la fase (expand/migrate/contract) y exige reversibilidad. |
-| Entrega | `/ship [base]` | Corre la puerta local, abre el PR con su contexto. **No mergea.** |
-| Pre-producción | `/deploy` | Solo verifica y documenta. No modifica código. |
-| Cambio post-deploy | `/change <descripción>` | Proporcional al tamaño del cambio. |
+| Modo | Cuándo |
+|------|--------|
+| `explore` | bosquejar |
+| `spec` | default: construir contra la spec |
+| `production` | hay usuarios o datos reales: + review/security/migrate/ship |
+
+`/feature` enmienda la spec, no activa 15 fases. `/plan` es opt-in (tarea enorme).
+`/implement` es un atajo a `/build --next`. `/architect` y `/contracts` existen
+para cuando §C o §I no caben en un archivo.
+
+Production: `/review` `/security` `/ux` `/migrate` `/ship` `/deploy` `/change`.
+Ver `docs/workflow.md`.
 
 ---
 
 ## Estrategia de Git
 
-```
-main              ← producción, siempre deployable, tag semver en cada release
-  └── develop     ← integración continua
-        ├── feature/[slug]  ← una branch por feature o cambio significativo
-        ├── fix/[slug]      ← corrección de bug no urgente
-        └── hotfix/[slug]   ← arreglo urgente, se crea desde main directamente
-```
-
-### Commits convencionales
-
-El hook `commit-msg` valida el formato automáticamente:
+**Default: GitHub Flow.**
 
 ```
-feat(usuarios): agregar endpoint de registro con validación de email
-fix(B3): corregir error de autenticación en refresh token expirado
-docs: contratos de API actualizados
-chore: workflow inicializado
-refactor(auth): extraer lógica de JWT a módulo propio
-perf(queries): agregar índice en tabla de eventos
+main              ← producción, siempre deployable, tag semver
+ └── feature/*    ← PR a main
+     fix/*        ← PR a main
+     hotfix/*     ← emergencia, PR a main
 ```
 
-### Tags semver
+`develop` es opt-in: `BASE_POR_DEFECTO=develop` en `.workflow/delivery.conf`
+(lo crea el humano). `ship.sh` detecta `main` o `develop` solo.
 
-```
-v0.0.1      ← /git-setup (workflow inicializado)
-v1.0.0      ← /deploy (primer deploy a producción)
-v1.1.0      ← nueva funcionalidad significativa
-v1.1.1      ← bugfix o ajuste menor
-```
+Commits: `tipo(scope): descripción`. Citar § cuando aplique (`feat(T3): …`).
 
-### Ciclo completo: feature → develop → main
-
-```bash
-# 1. Crear branch desde develop
-git checkout develop && git checkout -b feature/[slug]
-
-# 2. Trabajar... commits convencionales...
-
-# 3. Mergear a develop
-git checkout develop
-git merge feature/[slug] --no-ff -m "feat([scope]): descripción"
-git branch -d feature/[slug] && git push origin develop
-
-# 4. Release a producción
-git checkout main
-git merge develop --no-ff -m "release: descripción"
-git tag -a v[X.Y.Z] -m "release: descripción"
-git push origin main --follow-tags
-
-# 5. Sincronizar develop
-git checkout develop && git merge main && git push origin develop
-```
-
----
-
-## Sistema de hallazgos
-
-Los hallazgos se numeran con IDs fijos para poder referenciarlos en commits, docs y conversaciones:
-
-| Prefijo | Significado | Cuándo se arregla |
-|---------|-------------|-------------------|
-| `B1, B2...` | Bloqueante — impide el flujo principal | Antes de mergear |
-| `I1, I2...` | Importante — debe arreglarse, no urgente | En el próximo ciclo |
-| `S1, S2...` | Sugerencia — mejora opcional | Si hay tiempo |
-| `TD-001...` | Deuda técnica — anotada, no urgente | Al inicio del siguiente sprint |
-| `B1.1` | Sub-hallazgo descubierto al arreglar B1 | Junto con el padre |
-
-Los hallazgos viven en `docs/reviews/`. El estado de cada ID está en
-`docs/reviews/decisiones.md`, que **se genera** desde `docs/findings.json`: no se
-edita a mano y CI comprueba que esté al día.
-
----
-
-## Ciclo completo por hallazgo
-
-```
-0.  Estar en branch correcta: git checkout develop && git checkout -b fix/[slug]
-1.  /implement [ID]
-2.  Claude muestra plan estructurado por componentes del proyecto
-3.  Tú apruebas el plan
-4.  Claude implementa
-5.  Tú pruebas manualmente todos los casos del plan
-6.  Si algo falla → reportas → Claude ajusta o registra nuevo hallazgo
-7.  git status → verificar que no haya archivos inesperados
-8.  git add explícito (NUNCA git add .)
-9.  git commit -m "fix(ID): descripción"           ← código
-10. git commit -m "docs: marcar [ID] como completado"  ← docs separado
-11. git checkout develop && git merge fix/[slug] --no-ff
-12. git branch -d fix/[slug] && git push origin develop
-```
-
-**Un commit por intención:** código en un commit, docs en otro. Nunca mezclar.
-
----
-
-## Cambios post-deploy
-
-Cuando la aplicación ya está en producción, `/change` es el punto de entrada para cualquier modificación.
-
-**Principio: proporcionalidad.** Un bugfix puntual no re-corre `/security` completo. Un nuevo endpoint no re-corre `/architect`. `/change` clasifica el cambio, identifica qué contratos toca, y re-corre solo lo necesario.
-
-### Clasificación de cambios
-
-| Categoría | Ejemplo |
-|-----------|---------|
-| Configuración | Cambiar env var, feature flag, timeout |
-| Funcionalidad | Nuevo endpoint, nueva lógica de negocio |
-| Schema/Migración | Agregar columna, nueva tabla, cambiar tipo |
-| Bug | Algo que debería funcionar y no funciona |
-| Arquitectura | Nuevo servicio, cambio de patrón estructural |
-
-### Branch según el cambio
-
-| Situación | Branch |
-|-----------|--------|
-| Bug urgente en producción | `hotfix/[slug]` desde `main` |
-| Bug no urgente / config / ajuste | `fix/[slug]` desde `develop` |
-| Funcionalidad nueva / schema | `feature/[slug]` desde `develop` |
-
-Cada cambio queda registrado en `docs/changes/YYYY-MM-DD-[slug].md`.
+El merge del PR lo hace el humano. Siempre.
 
 ---
 
 ## Claude Code y Cursor
 
-Los 12 comandos son **idénticos palabra por palabra** en los dos editores. Lo que cambia es cómo se
+Los comandos son **idénticos palabra por palabra** en los dos editores. Lo que cambia es cómo se
 invocan y cuánto se puede hacer cumplir con código.
 
 | | Claude Code | Cursor |
@@ -318,11 +182,11 @@ corren en el servidor. Ver [Capas de protección](#capas-de-protección).
 
 ### La regla `00-gobernanza`
 
-Es el equivalente de `CLAUDE.md`: norte del proyecto, las 11 reglas duras, tipo de proyecto, tabla de
-fases, estrategia de Git y convenciones. Se aplica siempre.
+Es el equivalente de `CLAUDE.md`: constitución slim (~140 líneas). El norte y el
+tipo de proyecto viven en `SPEC.md`. Se aplica siempre.
 
-Es **tuya, no de la plantilla**: `@discovery` le escribe el norte y el tipo de proyecto, `@architect`
-el stack. Igual que `CLAUDE.md`, `sync-workflow.sh` nunca la sobrescribe si ya existe.
+Es **tuya, no de la plantilla** en el sentido de que `sync-workflow.sh` no la
+pisa si ya tiene un norte. El norte nuevo se escribe en SPEC.md §G, no acá.
 
 ### Las reglas de Cursor se generan, no se editan
 
@@ -781,7 +645,9 @@ de razón.
 
 ```
 mi-proyecto/
-├── CLAUDE.md                          ← Reglas, norte del proyecto, estrategia de Git
+├── SPEC.md                            ← Spec viva (§G norte, §V invariantes, §T cola, §D delta)
+├── FORMAT.md                          ← Cómo se escribe SPEC.md
+├── CLAUDE.md                          ← Constitución slim (always-on). El norte está en SPEC.md §G
 ├── .github/
 │   ├── workflows/ci.yml               ← La barrera del servidor (no se salta)
 │   └── CODEOWNERS                     ← Quién aprueba qué (rellenar @TU-USUARIO)
@@ -797,19 +663,12 @@ mi-proyecto/
 │   ├── agents/                        ← Subagentes: researcher y los 3 revisores
 │   ├── settings.json                  ← Hooks de Claude Code (PreToolUse / PostToolUse / Stop)
 │   ├── protected.txt                  ← Archivos que Claude no puede modificar
-│   ├── commands/                      ← Slash commands (uno por fase del SDLC)
-│   │   ├── git-setup.md              ← /git-setup
-│   │   ├── discovery.md              ← /discovery
-│   │   ├── architect.md              ← /architect
-│   │   ├── contracts.md              ← /contracts
-│   │   ├── implement.md              ← /implement
-│   │   ├── test.md                   ← /test
-│   │   ├── review.md                 ← /review
-│   │   ├── security.md               ← /security
-│   │   ├── ux.md                     ← /ux
-│   │   ├── feature.md                ← /feature
-│   │   ├── deploy.md                 ← /deploy
-│   │   └── change.md                 ← /change
+│   ├── commands/                      ← Slash commands (spec/build/check + production)
+│   │   ├── spec.md                   ← /spec
+│   │   ├── build.md                  ← /build
+│   │   ├── check.md                  ← /check
+│   │   ├── explore.md                ← /explore
+│   │   └── …                         ← git-setup, review, ship, etc.
 │   └── hooks/                         ← Scripts de Claude Code
 │       ├── check-protected.sh
 │       ├── check-branch.sh
@@ -1014,10 +873,9 @@ se conserva, se lista al final, y solo `--force` lo sobreescribe.
 | `all` | todo lo anterior |
 
 **Qué nunca toca:**
-- `CLAUDE.md` — tiene el norte del proyecto, stack y configuración específica
-- `.cursor/rules/00-gobernanza.mdc` — lo mismo, para Cursor. Si ya existe se preserva y el script
-  lo reporta; solo se descarga en una instalación nueva, con sus `[pendiente]` sin llenar
-- `.github/CODEOWNERS` — lleva tu usuario real de GitHub; se preserva igual que el anterior
+- `CLAUDE.md`, `SPEC.md`, `FORMAT.md` — norte y spec del proyecto
+- `.cursor/rules/00-gobernanza.mdc` — derivado de CLAUDE.md; se preserva si ya tiene norte
+- `.github/CODEOWNERS` — lleva tu usuario real de GitHub
 - `README.md`, `docs/`, ni ningún código del proyecto
 
 Si los git-hooks cambiaron, el script avisa. Reinstálalos con `/git-setup`.
