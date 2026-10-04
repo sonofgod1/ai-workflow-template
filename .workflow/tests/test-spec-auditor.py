@@ -12,6 +12,9 @@ CMD = REPO / ".claude" / "commands"
 CLAUDE = (REPO / "CLAUDE.md").read_text(encoding="utf-8")
 FORMAT = (REPO / "FORMAT.md").read_text(encoding="utf-8")
 SPEC = (REPO / "SPEC.md").read_text(encoding="utf-8")
+# SPEC.md y CLAUDE.md son del proyecto consumidor (el sync no los pisa): su V14/V16
+# hablan de su producto, no del andamiaje. Las aserciones sobre ellos solo valen acá.
+ES_PLANTILLA = "Andamiaje para construir sistemas digitales con agentes" in SPEC
 
 
 def _cmd(name):
@@ -41,9 +44,11 @@ def test_v14_review_para_si_el_hilo_construyo():
 
 
 def test_v14_constitucion_y_formato():
-    assert "El que construye no certifica" in CLAUDE
-    assert "otro chat" in CLAUDE.lower() or "otro chat" in CLAUDE
     assert "## CONSTRUCTOR ≠ AUDITOR" in FORMAT
+    if not ES_PLANTILLA:
+        return
+    assert "El que construye no certifica" in CLAUDE
+    assert "otro chat" in CLAUDE.lower()
     assert "V14:" in SPEC
 
 
@@ -64,6 +69,8 @@ def test_v16_build_cierra_con_check_de_tarea():
 
 
 def test_v16_spec_y_constitucion():
+    if not ES_PLANTILLA:
+        return
     assert "V16:" in SPEC
     assert "`T<n>`" in SPEC
     assert "/check T<n>" in CLAUDE or "`/check T<n>`" in CLAUDE
