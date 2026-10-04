@@ -5,7 +5,7 @@ model: opus
 
 Estás en **fase de arquitectura**. Tu rol: arquitecto de software senior.
 
-**Pre-requisito:** debe existir `docs/discovery/` con al menos un archivo. Si no existe, detente y di: *"Falta descubrimiento. Ejecuta `/discovery` primero."*
+**Pre-requisito:** debe existir `SPEC.md` con §G distinto de `[pendiente]`. Si no, detente y di: *"Falta spec. Ejecuta `/spec` o `/discovery` primero."* `docs/discovery/` es opcional.
 
 **Restricciones:**
 - ❌ No escribes código de aplicación todavía
@@ -22,7 +22,7 @@ bash .workflow/phase.sh set architect
 ```
 
 Esto declara la fase y activa su política de escritura: en `/architect` los hooks
-bloquean cualquier escritura fuera de `docs/`.
+permiten SPEC.md, FORMAT.md y docs/ (política `spec`).
 
 Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
 que esta fase puede hacer. Para, dilo, y espera instrucción.
@@ -31,22 +31,15 @@ Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ---
 
-## Paso 0 — Verificar graphify
+## Paso 0 — Contexto
 
-Si no existe `graphify-out/GRAPH_REPORT.md` y el proyecto ya tiene código (proyecto existente):
-
-> ¿Quieres correr graphify antes de definir la arquitectura? Para proyectos existentes el grafo detecta el stack actual automáticamente y ahorra tiempo.
->
-> - Sí → instrucciones en `/discovery` paso 0
-> - No → continúo sin grafo
-
-Si el grafo existe, léelo antes de proponer cualquier cosa.
+Leé SPEC.md (§G, §C, §M). Si existe `docs/discovery/`, leelo. Graphify es opt-in: si el grafo existe, usalo; si no, no lo pidas como requisito.
 
 ---
 
 ## Tu trabajo
 
-1. **Lee todo lo que hay en `docs/discovery/`** antes de hablar. 
+1. **Leé §G y el descubrimiento (si hay)** antes de hablar. 
    - Analiza el levantamiento para determinar la **escala real** del proyecto: ¿Es un MVP rápido, una herramienta interna pequeña, o un sistema de misión crítica/escala empresarial?
    - Si hay ambigüedades en los requerimientos o falta contexto, haz las **preguntas necesarias** al usuario antes de diseñar nada.
 
@@ -96,13 +89,9 @@ Si el grafo existe, léelo antes de proponer cualquier cosa.
 
 4. **Define la estructura de carpetas** en `docs/architecture.md`. Justifica brevemente cada directorio.
 
-5. **Actualiza `CLAUDE.md`** — solo las secciones "Stack del proyecto" y "Comandos del proyecto".
+5. **Enmendá SPEC.md §C** con el stack elegido y los comandos para correr/testear. No copies el stack a CLAUDE.md.
 
-6. **Sugerencia de Adaptación del Workflow (Meta-ajuste):** 
-   Dependiendo de la escala del proyecto (MVP vs Enterprise) que definiste en el paso 1, evalúa si los comandos actuales de este repositorio (`.claude/commands/*.md`) son adecuados o si deben ajustarse.
-   - *Ejemplo MVP:* Sugiere relajar el comando `/implement` para no exigir TDD estricto y priorizar velocidad.
-   - *Ejemplo Enterprise:* Sugiere endurecer `/test` o `/security` para exigir 90% de cobertura y escaneos de vulnerabilidades.
-   Pregunta al usuario si desea que modifiques las reglas de la IA para que se ajusten a esta escala.
+6. **Modo.** Si es un MVP, §M se queda en `spec`. Si es producción con datos reales, proponé `production` — el usuario lo confirma. No actives 15 fases por la escala del stack.
 
 ---
 
@@ -110,6 +99,6 @@ Si el grafo existe, léelo antes de proponer cualquier cosa.
 
 Di exactamente esto:
 
-> Arquitectura lista. ADRs en `docs/adr/`, estructura en `docs/architecture.md`.
+> Arquitectura lista. ADRs en `docs/adr/`, stack en SPEC.md §C.
 >
-> Cuando quieras, ejecuta `/contracts` para definir interfaces antes de implementar. También podemos adaptar las reglas de los comandos a la escala del proyecto si lo aprobaste.
+> Siguiente: `/spec` para §I/§V/§T si faltan, o `/build --next`. `/contracts` solo si un §I no cabe en la spec.

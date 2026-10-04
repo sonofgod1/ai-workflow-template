@@ -2,8 +2,8 @@ name: CI
 
 # La barrera que no se puede saltar. Los git hooks locales dan feedback rápido,
 # pero `--no-verify` los anula; esto corre en el servidor y es lo que debe estar
-# en verde para poder mergear. Configura branch protection en main y develop
-# para exigirlo (ver /git-setup, paso 6).
+# en verde para poder mergear. Branch protection en `main` (y `develop` solo
+# si el proyecto optó por Git Flow). Ver /git-setup, paso 6.
 
 on:
   pull_request:

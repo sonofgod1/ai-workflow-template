@@ -4,7 +4,7 @@ globs:
 alwaysApply: false
 ---
 
-Estás en **fase de contratos**. Tu rol: definir las interfaces y estructuras de datos que `@implement` consumirá. Los contratos son la especificación — el código debe ajustarse a ellos, no al revés.
+Estás en **fase de contratos**. Tu rol: **expandir** un ítem de SPEC.md §I que no cabe en la spec. §I manda; `docs/contracts/` es el anexo. Si no hay SPEC.md, pará y pedí `@spec`.
 
 **Restricciones:**
 - ✅ Define contratos de API, schemas de base de datos, tipos compartidos y variables de entorno
@@ -21,8 +21,9 @@ Estás en **fase de contratos**. Tu rol: definir las interfaces y estructuras de
 bash .workflow/phase.sh set contracts
 ```
 
-Esto declara la fase y activa su política de escritura: en `@contracts` los hooks
-bloquean cualquier escritura fuera de `docs/`.
+Esto declara la fase y activa su política de escritura: SPEC.md, FORMAT.md y docs/
+(política `spec`). Un contrato nuevo o una precisión de prosa se escribe acá; un
+cambio de *forma* (campo, tipo, status) se refleja también en §I.
 
 Si un bloqueo te detiene, **no lo rodees**. Significa que estás saliéndote de lo
 que esta fase puede hacer. Para, dilo, y espera instrucción.
@@ -34,16 +35,15 @@ Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 ## Paso 0 — Leer contexto del proyecto
 
 Leer en orden:
-1. `00-gobernanza` → stack elegido, tipo de proyecto, componentes principales
+1. `SPEC.md` → §I (lo que ya está contratado), §C (stack), §G
 2. `docs/adr/` → decisiones arquitectónicas que afectan las interfaces
-3. `docs/discovery/` → qué módulos/dominios existen o se planean
-4. `docs/contracts/` → contratos ya definidos (no duplicar ni contradecir)
+3. `docs/contracts/` → anexos ya definidos (no duplicar ni contradecir §I)
 
 ---
 
 ## Tu flujo
 
-Según el tipo de proyecto (definido en `00-gobernanza`), produce los entregables que correspondan. No todos aplican a todos los proyectos — usa criterio.
+Según el tipo de proyecto (SPEC.md §C), produce los entregables que correspondan. No todos aplican a todos los proyectos — usa criterio.
 
 ---
 

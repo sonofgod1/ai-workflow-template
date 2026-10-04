@@ -41,7 +41,7 @@ if [ ! -f "$CONF" ] && command -v wf_main_root > /dev/null 2>&1; then
   PRINCIPAL="$(wf_main_root)"
   [ -f "$PRINCIPAL/.workflow/delivery.conf" ] && CONF="$PRINCIPAL/.workflow/delivery.conf"
 fi
-BASE="develop"
+BASE=""
 PARALELO=2
 DRY="no"
 MODELO=""
@@ -50,7 +50,7 @@ PLANES=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --base)     BASE="${2:-develop}"; shift ;;
+    --base)     BASE="${2:-}"; shift ;;
     --paralelo) PARALELO="${2:-2}"; shift ;;
     --modelo)   MODELO="${2:-}"; shift ;;
     --timeout)  TIMEOUT_MIN="${2:-30}"; shift ;;
@@ -76,6 +76,18 @@ AGENTE_PUEDE_PUSHEAR="no"
 BATCH_HEADLESS="no"
 # shellcheck source=/dev/null
 [ -f "$CONF" ] && . "$CONF"
+
+if [ -z "$BASE" ]; then
+  if [ -n "${BASE_POR_DEFECTO:-}" ]; then
+    BASE="$BASE_POR_DEFECTO"
+  elif git rev-parse --verify --quiet main >/dev/null; then
+    BASE=main
+  elif git rev-parse --verify --quiet develop >/dev/null; then
+    BASE=develop
+  else
+    BASE=main
+  fi
+fi
 
 if [ "$DRY" != "yes" ]; then
   if [ "$MODO_ENTREGA" != "pr" ] || [ "$AGENTE_PUEDE_PUSHEAR" != "si" ] || [ "$BATCH_HEADLESS" != "si" ]; then

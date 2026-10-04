@@ -214,9 +214,62 @@ def migraciones_tocadas(base, cabeza):
 # las toca viene de sync-workflow.sh, no de un plan — y exigirle uno, o proponerle
 # planes de otros cambios como "candidatos", es ruido que invita a contestar mal.
 ANDAMIAJE = (
-    ".workflow/", ".claude/", ".cursor/", "git-hooks/", ".github/",
-    "sync-workflow.sh", "generate-cursor-rules.sh",
+    ".workflow/",
+    ".claude/",
+    ".cursor/",
+    "git-hooks/",
+    ".github/",
+    "sync-workflow.sh",
+    "generate-cursor-rules.sh",
+    "apply-sdd.sh",
 )
+
+
+def spec_goal():
+    p = Path("SPEC.md")
+    if not p.exists():
+        return None
+    text = p.read_text(encoding="utf-8")
+    m = re.search(r"^## §G GOAL\s*\n(.+?)(?=\n## |\Z)", text, re.S | re.M)
+    if not m:
+        return None
+    goal = m.group(1).strip()
+    if not goal or "[pendiente" in goal:
+        return None
+    return goal
+
+
+_DELTA_ROW = re.compile(
+    r"^(D\d+)\s*\|\s*(ADDED|MODIFIED|REMOVED)\s*\|\s*([^|]+)\s*\|\s*(.*?)\s*\|\s*([^|]+)\s*$"
+)
+
+
+def spec_delta_rows(text=None):
+    """Filas abiertas de SPEC.md §D. Vacío o placeholder → []."""
+    if text is None:
+        p = Path("SPEC.md")
+        if not p.exists():
+            return []
+        text = p.read_text(encoding="utf-8")
+    m = re.search(r"^## §D DELTA\s*\n(.+?)(?=\n## |\Z)", text, re.S | re.M)
+    if not m:
+        return []
+    rows = []
+    for line in m.group(1).splitlines():
+        mm = _DELTA_ROW.match(line.strip())
+        if not mm:
+            continue
+        ident, op, target, change, cites = mm.groups()
+        rows.append(
+            {
+                "id": ident,
+                "op": op,
+                "target": target.strip(),
+                "change": change.strip(),
+                "cites": cites.strip(),
+            }
+        )
+    return rows
 
 
 def solo_andamiaje(base, cabeza):
@@ -247,17 +300,37 @@ def construir(base, cabeza, branch):
         out.append("_Sin commits sobre la base. Este PR está vacío._")
     out.append("")
 
+    deltas = spec_delta_rows()
+    if deltas:
+        out.append("## Spec delta\n")
+        out.append("Propuesto, todavía no live. `/check` no lo trata como drift.\n")
+        for d in deltas:
+            out.append(f"- `{d['id']}` {d['op']} {d['target']}: {d['change']} → {d['cites']}")
+        out.append("")
+
     out.append("## Por qué\n")
     anclaje = seccion_del_plan(plan, "Anclaje al norte")
     origen = seccion_del_plan(plan, "Origen")
+    norte_spec = spec_goal()
     if anclaje:
         out.append(anclaje)
+        out.append("")
+    elif norte_spec:
+        out.append(norte_spec)
+        out.append("")
+        out.append("Norte: `SPEC.md` §G.")
         out.append("")
     if origen:
         out.append(origen)
         out.append("")
     if plan:
         out.append(f"Plan completo: [`{plan}`]({plan}) — encontrado porque {como}.")
+    elif norte_spec and not plan:
+        out.append(
+            "Trabajo contra `SPEC.md` (loop spec → build → check). "
+            "No hay plan en `docs/plans/` y no hace falta."
+        )
+        out.append("")
     elif not anclaje and not origen:
         # No encontrar el plan y callarlo es el peor fallo posible de este cuerpo: se
         # pierde el "por qué" justo donde el revisor viene a buscarlo, y nada avisa.
@@ -340,7 +413,9 @@ def construir(base, cabeza, branch):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--base", default="develop", help="branch base del PR (por defecto: develop)")
+    ap.add_argument(
+        "--base", default="main", help="branch base del PR (por defecto: main; ship.sh pasa la base resuelta)"
+    )
     ap.add_argument("--cabeza", default="HEAD")
     ap.add_argument("--salida", help="archivo donde escribir; por defecto stdout")
     args = ap.parse_args()

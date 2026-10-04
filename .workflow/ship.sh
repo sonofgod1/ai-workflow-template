@@ -13,7 +13,7 @@
 # Uso:
 #   bash .workflow/ship.sh                 # solo la puerta
 #   bash .workflow/ship.sh --abrir-pr      # + push + gh pr create
-#   bash .workflow/ship.sh --base main     # base distinta de develop
+#   bash .workflow/ship.sh --base develop  # base distinta de main (Git Flow opt-in)
 #   bash .workflow/ship.sh --cuerpo        # imprime el cuerpo del PR y sale
 
 set -uo pipefail
@@ -37,7 +37,7 @@ if [ ! -f "$CONF" ] && command -v wf_main_root > /dev/null 2>&1; then
   PRINCIPAL="$(wf_main_root)"
   [ -f "$PRINCIPAL/.workflow/delivery.conf" ] && CONF="$PRINCIPAL/.workflow/delivery.conf"
 fi
-BASE="develop"
+BASE=""
 ABRIR="no"
 SOLO_CUERPO="no"
 
@@ -45,7 +45,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --abrir-pr) ABRIR="yes" ;;
     --cuerpo)   SOLO_CUERPO="yes" ;;
-    --base)     BASE="${2:-develop}"; shift ;;
+    --base)     BASE="${2:-}"; shift ;;
     -h|--help)  sed -n '2,22p' "$0"; exit 0 ;;
     *) echo "❌ Parámetro desconocido: $1" >&2; exit 1 ;;
   esac
@@ -60,7 +60,17 @@ AGENTE_PUEDE_PUSHEAR="no"
 BASE_POR_DEFECTO=""
 # shellcheck source=/dev/null
 [ -f "$CONF" ] && source "$CONF"
-[ -n "$BASE_POR_DEFECTO" ] && [ "$BASE" = "develop" ] && BASE="$BASE_POR_DEFECTO"
+if [ -z "$BASE" ]; then
+  if [ -n "$BASE_POR_DEFECTO" ]; then
+    BASE="$BASE_POR_DEFECTO"
+  elif git rev-parse --verify --quiet main >/dev/null; then
+    BASE=main
+  elif git rev-parse --verify --quiet develop >/dev/null; then
+    BASE=develop
+  else
+    BASE=main
+  fi
+fi
 
 BRANCH="$(git branch --show-current 2>/dev/null)"
 

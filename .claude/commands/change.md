@@ -8,6 +8,10 @@ Estás en **fase de cambio post-deploy**. Tu rol: recibir una solicitud de cambi
 
 **$ARGUMENTS**
 
+GitHub Flow: branches desde `main`, PR a `main`. Si el proyecto usa `develop`
+(`BASE_POR_DEFECTO` en delivery.conf), las tablas de abajo que dicen `develop`
+siguen valiendo.
+
 **Restricciones:**
 - ✅ Clasifica el cambio antes de tocar nada
 - ✅ Identifica qué contratos afecta (API, schema, tipos, env vars)
@@ -40,7 +44,7 @@ Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 Solo lo necesario para clasificar:
 
-1. `CLAUDE.md` → norte del proyecto, stack, tipo de proyecto
+1. `SPEC.md` — §G (norte), §C (stack y tipo), §I (contratos)
 2. `docs/contracts/api.md` → si el cambio toca endpoints o respuestas
 3. `docs/contracts/schema.md` → si el cambio toca la base de datos
 4. `docs/contracts/env.md` → si el cambio toca variables de entorno

@@ -30,23 +30,25 @@ cd "$ROOT" || exit 1
 
 STATE=".workflow/.phase.json"
 
-# Política de escritura por fase. La fuente de verdad la lee check-phase.sh.
-#   docs  — solo docs/. Fases que analizan y reportan, no modifican.
+# Política de escritura por fase. La fuente de verdad la lee write-guard.py.
+#   spec  — SPEC.md, FORMAT.md, docs/. Fases que especifican, no implementan.
+#   docs  — solo docs/. Fases que analizan y reportan.
 #   tests — docs/ + archivos de test. /test no toca código de producción.
 #   full  — cualquier archivo no protegido.
 phase_policy() {
   case "$1" in
-    discovery|architect|contracts|feature|plan|review|security|ux|deploy|ship) echo "docs" ;;
-    test)                                                                 echo "tests" ;;
-    implement|build|change|migrate|git-setup)                             echo "full" ;;
-    *)                                                                    echo "" ;;
+    spec|discovery|architect|contracts|feature)                       echo "spec" ;;
+    plan|review|security|ux|deploy|ship|check)                        echo "docs" ;;
+    test)                                                             echo "tests" ;;
+    explore|implement|build|change|migrate|git-setup)                 echo "full" ;;
+    *)                                                                echo "" ;;
   esac
 }
 
 usage() {
   sed -n '2,15p' "$0"
   echo ""
-  echo "Fases válidas: discovery architect contracts feature plan implement build test review security ux deploy change migrate git-setup ship"
+  echo "Fases válidas: spec check explore discovery architect contracts feature plan implement build test review security ux deploy change migrate git-setup ship"
 }
 
 ACTION="${1:-show}"
@@ -104,6 +106,7 @@ pathlib.Path(".workflow/.phase.json").write_text(
 PYEOF
     echo "📍 Fase: $PHASE (escritura: $POLICY)${TARGET:+ — target: $TARGET}"
     case "$POLICY" in
+      spec)  echo "   Se puede escribir SPEC.md, FORMAT.md y docs/. El código de aplicación se bloquea." ;;
       docs)  echo "   Solo se puede escribir bajo docs/. Los intentos de tocar código se bloquean." ;;
       tests) echo "   Solo se pueden escribir tests y docs/. El código de producción se bloquea." ;;
       full)  echo "   Escritura libre (respetando .claude/protected.txt)." ;;

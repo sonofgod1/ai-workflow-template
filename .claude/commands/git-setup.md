@@ -57,8 +57,8 @@ git rev-parse HEAD       > /dev/null 2>&1 && echo "TIENE_COMMITS" || echo "SIN_C
 solo los que existan — nunca `git add .`, y no todos los proyectos instalan lo mismo:
 
 ```bash
-for p in CLAUDE.md .claude .github git-hooks docs .gitignore .graphifyignore \
-         sync-workflow.sh generate-cursor-rules.sh graphify-out/.gitkeep; do
+for p in CLAUDE.md SPEC.md FORMAT.md .claude .github git-hooks docs .gitignore \
+         .graphifyignore sync-workflow.sh generate-cursor-rules.sh apply-sdd.sh graphify-out/.gitkeep; do
   [ -e "$p" ] && git add "$p"
 done
 git status --short
@@ -80,39 +80,29 @@ exista al menos un commit**. Si el repo está vacío, no se puede: salta al paso
 deja los comandos de branches en el bloque del paso 5.
 
 ```bash
-# Asegurarse de estar en main (o master)
-git checkout main 2>/dev/null || git checkout master 2>/dev/null || true
-
-# Crear branch develop
-git checkout -b develop 2>/dev/null || git checkout develop
+# Asegurarse de estar en main (o master). GitHub Flow: no se crea develop.
 git checkout main 2>/dev/null || git checkout master 2>/dev/null || true
 ```
 
-Explicar la estrategia al usuario:
+Explicar la estrategia al usuario. **Default: GitHub Flow.** `develop` es opt-in
+(si el equipo ya lo usa, `BASE_POR_DEFECTO=develop` en `delivery.conf`).
 
 ```
-ESTRATEGIA DE BRANCHES
+ESTRATEGIA DE BRANCHES (GitHub Flow)
 ─────────────────────────────────────────────────────────────
-main            Solo código listo para producción.
-                Nunca se trabaja aquí directamente.
-                Recibe merges desde develop (releases) o hotfix/* (emergencias).
-                Cada merge genera un tag semver (v1.0.0, v1.1.0, etc.)
+main            Producción. Siempre deployable. Nunca se trabaja aquí.
+                Recibe PRs desde feature/*, fix/*, hotfix/*.
+                Tag semver en cada release.
 
-develop         Branch de integración continua.
-                Aquí se mergean las features terminadas.
-                Siempre debe estar en estado funcional (tests pasan).
+feature/[slug]  Una branch por cambio. Se crea desde main. PR a main.
+                → git checkout main && git checkout -b feature/mi-feature
 
-feature/[slug]  Una branch por feature o cambio significativo.
-                Se crea desde develop, se mergea a develop con --no-ff.
-                → git checkout develop && git checkout -b feature/mi-feature
+fix/[slug]      Bug no urgente. Igual: desde main, PR a main.
 
-fix/[slug]      Corrección de bug no urgente.
-                Se crea desde develop, se mergea a develop.
-
-hotfix/[slug]   Arreglo urgente en producción.
-                Se crea desde main, se mergea a main Y a develop.
-                → git checkout main && git checkout -b hotfix/mi-arreglo
+hotfix/[slug]   Emergencia. Desde main, PR a main.
 ─────────────────────────────────────────────────────────────
+Git Flow (main + develop) no se instala por defecto. Si lo querés, lo decís
+y se documenta en delivery.conf. Ver docs/workflow.md.
 ```
 
 ---
@@ -184,7 +174,6 @@ Si no hay remote todavía, recordar al usuario que deberá agregarlo:
 # Cuando tengas el repo en GitHub/GitLab:
 git remote add origin https://github.com/usuario/proyecto.git
 git push -u origin main
-git push -u origin develop
 ```
 
 ---
@@ -198,8 +187,6 @@ Si el repo no tenía commits (todo quedó en staging en el paso 1):
 
 ```bash
 git commit -m "chore: workflow inicializado"
-git checkout -b develop
-git checkout main
 git tag -a v0.0.1 -m "chore: workflow inicializado"
 ```
 
@@ -231,7 +218,7 @@ sed -i '' 's/@TU-USUARIO/@tu-usuario-real/g' .github/CODEOWNERS   # macOS
 sed -i    's/@TU-USUARIO/@tu-usuario-real/g' .github/CODEOWNERS   # Linux
 ```
 
-**b) Activar branch protection en `main` y `develop`.**
+**b) Activar branch protection en `main`.** (`develop` solo si el proyecto optó por Git Flow.)
 
 Requiere que el repo ya exista en GitHub y que `gh` esté autenticado. Mostrar estos comandos al
 usuario para que los ejecute — no los ejecutes tú sin confirmación, porque cambian la configuración
@@ -268,7 +255,7 @@ no tener barrera.
 # null de verdad: con -f devuelve 422 ("true" is not a boolean). Va como JSON.
 REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
 
-for BRANCH in main develop; do
+for BRANCH in main; do
   gh api -X PUT "repos/$REPO/branches/$BRANCH/protection" \
     -H "Accept: application/vnd.github+json" --input - <<JSON
 {
@@ -295,7 +282,7 @@ done
 # null de verdad: con -f devuelve 422 ("true" is not a boolean). Va como JSON.
 REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
 
-for BRANCH in main develop; do
+for BRANCH in main; do
   gh api -X PUT "repos/$REPO/branches/$BRANCH/protection" \
     -H "Accept: application/vnd.github+json" --input - <<JSON
 {
@@ -342,7 +329,7 @@ que los hooks locales vuelven a ser la única barrera — con `--no-verify` esqu
 ```
 PROTECCIÓN DEL SERVIDOR
 ─────────────────────────────────────────────────────────────
-CI (.github/workflows/ci.yml)   Corre en cada PR a main y develop:
+CI (.github/workflows/ci.yml)   Corre en cada PR a main (y develop si existe):
                                 • archivos prohibidos versionados
                                 • formato convencional de TODOS los commits
                                 • secretos (gitleaks)
@@ -351,8 +338,7 @@ CI (.github/workflows/ci.yml)   Corre en cada PR a main y develop:
 CODEOWNERS                      Cambios a docs/adr/, docs/contracts/, la
                                 gobernanza y el propio CI exigen tu aprobación.
 
-Branch protection               main y develop solo reciben cambios por PR,
-                                con CI en verde y review aprobada.
+Branch protection               main solo recibe cambios por PR, con CI en verde.
 ─────────────────────────────────────────────────────────────
 
 Por qué importa: los hooks locales se saltan con --no-verify y solo existen en
@@ -374,7 +360,7 @@ RESUMEN — Git configurado
 BRANCHES
   [✓ si ya existían commits y las creaste / ⧗ si van en el bloque del paso 5]
   main      (producción — siempre deployable)
-  develop   (integración continua)
+  (develop no se crea: GitHub Flow. Opt-in en delivery.conf)
 
 HOOKS DE GIT
   ✓ pre-commit    (lint + archivos prohibidos)
@@ -400,13 +386,11 @@ PENDIENTE — LO EJECUTAS TÚ (regla dura 3)
   [pega aquí el bloque del paso 5]
 
 REFERENCIA RÁPIDA DE GIT
-  Nueva feature:     git checkout develop && git checkout -b feature/[slug]
+  Nueva feature:     git checkout main && git checkout -b feature/[slug]
   Commit:            git add <archivos> && git commit -m "tipo(scope): desc"
-  Mergear feature:   git checkout develop && git merge feature/[slug] --no-ff
-  Release a main:    git checkout main && git merge develop --no-ff -m "release: desc"
+  Entregar:          PR a main (el humano mergea)
   Tag de release:    git tag -a v1.0.0 -m "release: descripción"
   Push con tags:     git push origin main --follow-tags
-  Sincronizar dev:   git checkout develop && git merge main && git push origin develop
 ─────────────────────────────────────────────────────────────
 ```
 

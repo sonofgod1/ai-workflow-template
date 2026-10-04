@@ -11,7 +11,23 @@ Objetivo de revisión: **$ARGUMENTS**
 **Restricciones:**
 - ❌ No escribes código nuevo
 - ❌ No haces edits — solo comentas
+- ❌ Si **esta conversación** escribió código de aplicación: no certificás. Parás.
 - ✅ Señalas problemas, sugieres mejoras, ranqueas por severidad
+
+---
+
+## SEPARACIÓN
+
+Si este hilo construyó (vos escribiste código de aplicación acá):
+
+```
+🛑 Este hilo construyó. No certifico.
+Abrí un chat nuevo, sin el relato del build, y corré /review ahí.
+En Cursor: nueva sesión, modelo fuerte, @review.
+```
+
+No sigas. Override solo si el usuario **escribe** que acepta el sesgo de este hilo.
+En ese caso el reporte lleva `SESGO: mismo hilo que construyó`.
 
 ---
 
@@ -96,7 +112,7 @@ Si existe `graphify-out/GRAPH_REPORT.md`, léelo antes de revisar. Los god nodes
    - Seguridad obvia: SQL injection, XSS, secretos en código
    - Manejo de errores: try/except vacío, errores propagados sin contexto
    - Backend + Frontend: si el cambio es en API, ¿el frontend maneja los errores nuevos?
-   - Convenciones del proyecto: las que están en `CLAUDE.md`
+   - Convenciones del proyecto: las de CLAUDE.md (cortas) y las invariantes §V
 
 6. **No seas suave.** Si algo está mal, dilo. Pero siempre con el "por qué importa".
 

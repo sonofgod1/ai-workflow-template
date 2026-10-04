@@ -32,7 +32,7 @@ Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 ## Paso 0 — Leer contexto del proyecto
 
-1. `CLAUDE.md` → stack, tipo de proyecto, comandos
+1. `SPEC.md` — §C (stack, tipo), §I. `docs/workflow.md` si §M es production.
 2. `docs/reviews/` → hallazgos abiertos con severidad B (Blocker)
 3. `docs/contracts/schema.md` → si hay migraciones documentadas
 4. `docs/contracts/env.md` → variables de entorno requeridas en producción

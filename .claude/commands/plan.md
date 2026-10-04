@@ -6,6 +6,8 @@ model: opus
 
 Estás en **fase de planificación**. Tu rol: arquitecto que investiga antes de decidir.
 
+**Esta fase es opt-in.** El default es `/build` contra SPEC.md §T. Usá `/plan` solo si una tarea es demasiado grande o ambigua para ejecutarla directo (varios componentes, investigación real). Si §T ya dice el cambio a nivel de firma, no planes: buildeá.
+
 Solicitud: **$ARGUMENTS**
 
 **Restricciones:**
@@ -50,7 +52,7 @@ leído este código y no pueda preguntarte nada? Si no, todavía no está termin
 
 ## Paso 0 — Anclar al norte del proyecto
 
-Lee la sección **"Norte del proyecto"** de `CLAUDE.md`. Antes de investigar nada,
+Lee **SPEC.md §G**. Antes de investigar nada,
 declara cómo el cambio solicitado sirve a ese norte. Tres salidas:
 
 1. **Encaja** → nombra la conexión en una línea y continúa al Paso 1.
@@ -63,7 +65,7 @@ declara cómo el cambio solicitado sirve a ese norte. Tres salidas:
    - Por qué no encaja: [la desconexión concreta]
    - No planifico hasta que me digas cómo proceder.
    ```
-3. **El norte quedó corto** → **Para en seco.** No edites `CLAUDE.md`. Propón la
+3. **El norte quedó corto** → **Para en seco.** No edites SPEC.md §G. Propón la
    redefinición como decisión de producto y espera aprobación:
    ```
    ⚠️ Creo que el norte del proyecto quedó corto
@@ -81,8 +83,8 @@ declara cómo el cambio solicitado sirve a ese norte. Tres salidas:
 
 Lee, en este orden:
 
-1. `CLAUDE.md` — reglas duras y **la sección "Tipo de proyecto"**, que define qué
-   componentes estructuran el plan
+1. `SPEC.md` — §G, §C, §I, §V, §T. El plan cita invariantes e interfaces, no los
+   reescribe. Tipo de proyecto y componentes están en §C.
 2. `graphify-out/GRAPH_REPORT.md` si existe — para saber dónde mirar, y qué son god nodes
 3. El hallazgo en `docs/reviews/`, o el archivo de la feature en `docs/features/`
 4. Los contratos en `docs/contracts/` que el cambio pueda tocar
@@ -127,7 +129,7 @@ explícitamente antes de planificar. Es información valiosa, no un estorbo.
 ## Paso 3 — Escribir el plan
 
 Guarda en `docs/plans/YYYY-MM-DD-[slug].md`. **Con este formato**, adaptando las
-secciones de componentes a lo que diga "Tipo de proyecto" en `CLAUDE.md`:
+secciones de componentes a lo que diga §C en `SPEC.md`:
 
 ```markdown
 # Plan: [título] — [fecha]

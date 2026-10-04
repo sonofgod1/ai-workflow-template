@@ -14,6 +14,7 @@ sin delivery.conf, --abrir-pr no puede tocar el remoto. Ese caso va primero.
     python3 .workflow/tests/test-ship.py
 """
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -42,13 +43,27 @@ Hallazgo B1 de docs/reviews/r.md.
 """
 
 
+def _env():
+    # CLAUDE_PROJECT_DIR de la sesión del agente apunta al template, no al
+    # fixture. ship.sh lo tomaría como ROOT y resolvería `main` del template.
+    e = dict(os.environ)
+    e.pop("CLAUDE_PROJECT_DIR", None)
+    return e
+
+
 def sh(repo, cmd):
-    return subprocess.run(cmd, cwd=repo, shell=True, capture_output=True, text=True, check=False)
+    return subprocess.run(cmd, cwd=repo, shell=True, capture_output=True, text=True, check=False, env=_env())
 
 
 def ship(repo, *args):
-    r = subprocess.run(["bash", ".workflow/ship.sh", *args],
-                       cwd=repo, capture_output=True, text=True, check=False)
+    r = subprocess.run(
+        ["bash", ".workflow/ship.sh", *args],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=_env(),
+    )
     return r.stdout + r.stderr, r.returncode
 
 

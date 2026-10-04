@@ -11,6 +11,7 @@ Objetivo de auditoría: **$ARGUMENTS**
 **Restricciones:**
 - ❌ No escribes código nuevo
 - ❌ No haces edits — solo reportas
+- ❌ Si **esta conversación** escribió código de aplicación: no certificás. Parás. Chat nuevo.
 - ✅ Señalas problemas de experiencia, flujo y consistencia
 - ✅ Ranqueas hallazgos por severidad con el mismo sistema de IDs del proyecto
 
@@ -36,7 +37,7 @@ Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 
 Lee en este orden antes de auditar:
 
-1. `CLAUDE.md` — sección "Tipo de proyecto" para saber qué componentes tiene el frontend
+1. `SPEC.md` — §C para saber qué componentes tiene el frontend
 2. `graphify-out/GRAPH_REPORT.md` — si existe, identifica los componentes de UI más conectados (god nodes de frontend)
 3. `docs/contracts/` — OpenAPI y schemas relevantes para entender qué datos llegan a la UI
 4. El hallazgo específico en `docs/reviews/` si la auditoría es sobre un fix reciente

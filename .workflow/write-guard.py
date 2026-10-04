@@ -260,6 +260,7 @@ TEST_PATTERNS = [
 ]
 
 DOCS_PATTERNS = ["docs/**"]
+SPEC_PATTERNS = ["SPEC.md", "FORMAT.md"]
 
 # Una fase de escritura limitada tiene que poder dejar su reporte y su rastro.
 ALWAYS_ALLOWED = [".workflow/**", "graphify-out/**"]
@@ -404,12 +405,17 @@ def main():
                 continue
             if matches_any(rel, ALWAYS_ALLOWED) or matches_any(rel, DOCS_PATTERNS):
                 continue
+            if policy == "spec" and matches_any(rel, SPEC_PATTERNS):
+                continue
             if policy == "tests" and matches_any(rel, TEST_PATTERNS):
                 continue
 
             fase = phase.get("fase", "?")
-            que = ("solo puede escribir bajo docs/" if policy == "docs"
-                   else "solo puede escribir tests y docs/")
+            que = {
+                "spec": "solo puede escribir SPEC.md, FORMAT.md y docs/",
+                "docs": "solo puede escribir bajo docs/",
+                "tests": "solo puede escribir tests y docs/",
+            }.get(policy, "tiene una política de escritura restringida")
             sys.stderr.write(
                 f"🛑 BLOQUEADO por la fase activa: /{fase} {que}.\n"
                 f"Intento de escritura en: {rel}\n\n"

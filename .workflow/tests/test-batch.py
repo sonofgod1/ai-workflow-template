@@ -50,6 +50,7 @@ exit 0
 
 def sh(cmd, cwd=None, env=None):
     e = dict(os.environ)
+    e.pop("CLAUDE_PROJECT_DIR", None)
     if env:
         e.update(env)
     return subprocess.run(cmd, cwd=cwd, shell=True, capture_output=True, text=True,

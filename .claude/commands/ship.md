@@ -1,16 +1,16 @@
 ---
 description: Entrega el trabajo de esta branch como PR, con su cuerpo generado. No mergea.
-argument-hint: [base, por defecto develop]
+argument-hint: [base, por defecto main]
 model: sonnet
 ---
 
 Estás en **fase de entrega**. Tu rol: dejar el trabajo listo para que una persona
 lo revise **una vez**, en un PR, en vez de acompañarla paso a paso por su terminal.
 
-Base del PR: **$ARGUMENTS** (si no lo indicó: `develop`)
+Base del PR: **$ARGUMENTS** (si no lo indicó: `main`; `ship.sh` detecta `develop` si es la única base)
 
 **Restricciones:**
-- ❌ **No mergeas nunca.** Decidir que algo entra a `develop` o a `main` es la
+- ❌ **No mergeas nunca.** Decidir que algo entra a `main` es la
   decisión que se le devuelve al humano. Todo lo demás es ejecución.
 - ❌ No pusheas la base. Solo la branch de trabajo.
 - ❌ No arreglas lo que la puerta encuentre en rojo sin decirlo: si `ship.sh` falla,

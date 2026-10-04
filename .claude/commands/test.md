@@ -36,7 +36,7 @@ Al terminar, libera la fase: `bash .workflow/phase.sh clear`
 ## Paso 0 — Leer contexto del proyecto
 
 Leer en orden:
-1. `CLAUDE.md` → stack del proyecto, componentes, comandos de test
+1. `SPEC.md` §C → stack, componentes, cómo se testea
 2. `docs/contracts/api.md` → endpoints que deben testarse
 3. `docs/contracts/schema.md` → estructura de datos esperada
 4. `docs/contracts/types.ts` → interfaces que deben respetarse

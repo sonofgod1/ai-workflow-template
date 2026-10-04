@@ -62,23 +62,10 @@ OVERRIDES = {
     "git-setup.md": [
         # Comandos de shell reales: aquí CLAUDE.md no es una referencia, es un
         # argumento de `git add`, y en Cursor el equivalente es .cursor/.
-        ("""for p in CLAUDE.md .claude .github git-hooks docs .gitignore .graphifyignore \\
-         sync-workflow.sh generate-cursor-rules.sh graphify-out/.gitkeep; do""",
-         """for p in .cursor .github git-hooks docs .gitignore .graphifyignore \\
-         sync-workflow.sh graphify-out/.gitkeep; do"""),
-    ],
-    "discovery.md": [
-        ("[copia de CLAUDE.md]",
-         '[copia de la sección "Tipo de proyecto" de ' + GOB_SHORT + "]"),
-        # Instrucciones de escritura: conviene la ruta completa, no el nombre corto.
-        ('Actualiza `CLAUDE.md` directamente — la sección "Tipo de proyecto" — con:',
-         "Actualiza " + GOB_PATH + ' directamente — la sección "Tipo de proyecto" — con:'),
-        ('2. Actualiza la sección **"Norte del proyecto"** de `CLAUDE.md`, reemplazando el `[pendiente]`.',
-         '2. Actualiza la sección **"Norte del proyecto"** de ' + GOB_PATH + ", reemplazando el `[pendiente]`."),
-    ],
-    "architect.md": [
-        ('5. **Actualiza `CLAUDE.md`** — solo las secciones "Stack del proyecto" y "Comandos del proyecto".',
-         "5. **Actualiza " + GOB_PATH + '** — solo las secciones "Stack del proyecto" y "Comandos del proyecto".'),
+        ("""for p in CLAUDE.md SPEC.md FORMAT.md .claude .github git-hooks docs .gitignore \\
+         .graphifyignore sync-workflow.sh generate-cursor-rules.sh apply-sdd.sh graphify-out/.gitkeep; do""",
+         """for p in SPEC.md FORMAT.md .cursor .github git-hooks docs .gitignore \\
+         .graphifyignore sync-workflow.sh apply-sdd.sh graphify-out/.gitkeep; do"""),
     ],
 }
 
@@ -95,25 +82,13 @@ GOB_OVERRIDES = [
      "   esta misma regla (" + GOB_SHORT + "), `.workflow/delivery.conf`, `LICENSE`.\n"
      "   En `docs/adr/**` puedes **crear** archivos nuevos, pero no modificar los que ya\n"
      "   existen: un ADR no se edita, se reemplaza por otro que lo supere. Los contratos de\n"
-     "   `docs/contracts/**` NO están protegidos: son documentos vivos y se precisan con el\n"
-     "   código. Lo que los cuida es que el plan declare cuáles toca y tú lo apruebes."),
-    ("`delivery.conf` está en `.claude/protected.txt`: **lo creas tú, a mano.** La\n"
-     "autorización para pushear no puede ser algo que el agente se conceda a sí mismo\n"
-     "escribiendo el archivo, y el hook lo bloquea.",
-     "`delivery.conf` es un archivo protegido de la regla 1: **lo creas tú, a mano.** La\n"
-     "autorización para pushear no puede ser algo que el agente se conceda a sí mismo\n"
-     "escribiendo el archivo. En Cursor no hay hook que lo bloquee, así que aquí la regla\n"
-     "es la única barrera: no lo escribas nunca, ni siquiera si te lo piden de pasada."),
-    ('Modificar la sección "Norte del proyecto" requiere mi aprobación explícita, igual que cualquier archivo en `.claude/protected.txt`.',
-     'Modificar la sección "Norte del proyecto" requiere mi aprobación explícita, igual que cualquier archivo protegido de la regla 1.'),
-    ("Cada fase tiene un slash command con restricciones claras. **Fuera de un comando, modo consulta: respondes preguntas, no modificas nada.**",
-     "Cada fase es una regla que el usuario invoca con `@`, con restricciones claras. **Fuera de una fase, modo consulta: respondes preguntas, no modificas nada.**"),
-    ("El port de `CLAUDE.md` sigue siendo aparte y manual — `sync-workflow.sh` nunca lo\n"
-     "sobreescribe, porque ese archivo lleva el norte del proyecto.",
-     "El port de esta regla sigue siendo aparte y manual — `sync-workflow.sh` nunca\n"
-     "sobreescribe el archivo que lleva el norte del proyecto."),
-    ("| Fase | Comando | Modelo | Qué haces |", "| Fase | Regla | Modelo sugerido | Qué haces |"),
-    ("Los slash commands (especialmente `@implement`) usan", "Las reglas de fase (especialmente `@implement`) usan"),
+     "   `docs/contracts/**` NO están protegidos: son documentos vivos. Lo que los cuida\n"
+     "   es SPEC.md §I y el diff del PR."),
+    ("`delivery.conf` está en `.claude/protected.txt`: **lo creas tú, a mano.** La autorización para pushear no puede ser algo que el agente se conceda a sí mismo escribiendo el archivo, y el hook lo bloquea.",
+     "`delivery.conf` es un archivo protegido de la regla 1: **lo creas tú, a mano.** La autorización para pushear no puede ser algo que el agente se conceda a sí mismo escribiendo el archivo. En Cursor no hay hook que lo bloquee, así que aquí la regla es la única barrera: no lo escribas nunca, ni siquiera si te lo piden de pasada."),
+    ("Modificar SPEC.md §G requiere aprobación explícita, igual que cualquier archivo en `.claude/protected.txt`.",
+     "Modificar SPEC.md §G requiere aprobación explícita, igual que cualquier archivo protegido de la regla 1."),
+    ("| Fase | Comando | Qué hacés |", "| Fase | Regla | Qué hacés |"),
 ]
 
 ENFORCEMENT = """
@@ -135,7 +110,7 @@ cualquier editor):
 
 **Depende enteramente de que tú las respetes** (no hay nada que te lo impida):
 
-- Las 15 reglas duras de arriba, incluida la política de escritura por fase (regla 13).
+- Las reglas duras de arriba, incluida la política de escritura por fase (regla 13).
 - La lista de archivos protegidos de la regla 1.
 - No ejecutar comandos destructivos sin que el usuario escriba "confirmo".
 - Parar y preguntar en vez de adivinar.
@@ -256,13 +231,13 @@ if not skip_gob:
             continue
         gob = gob.replace(old, new)
 
-    marker = "\n## Uso del grafo de graphify"
+    marker = "\n## Verificación"
     if marker not in gob:
-        die("CLAUDE.md: no encuentro la sección 'Uso del grafo de graphify' para insertar el bloque de enforcement.")
+        die("CLAUDE.md: no encuentro la sección 'Verificación' para insertar el bloque de enforcement.")
     gob = gob.replace(marker, "\n" + ENFORCEMENT.strip() + marker, 1)
 
     generated[GOB_FILE] = ("---\n"
-        "description: Gobernanza del proyecto — norte, reglas duras, fases y estrategia de Git. Siempre activa.\n"
+        "description: Gobernanza slim — SPEC.md manda. Siempre activa.\n"
         "globs:\nalwaysApply: true\n---\n\n" + gob.strip() + "\n")
 
 # ── Verificar ────────────────────────────────────────────────────────────────

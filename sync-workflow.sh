@@ -67,6 +67,7 @@ SYNC_PATHS+=(".workflow/danger-scan.py" ".workflow/tests")
 SYNC_PATHS+=(".workflow/check-tools.sh" ".workflow/check-regression.py")
 SYNC_PATHS+=(".workflow/ship.sh" ".workflow/pr-body.py" ".workflow/batch.sh")
 SYNC_PATHS+=(".workflow/check-plan-paths.sh")
+SYNC_PATHS+=("apply-sdd.sh")
 # delivery.conf NO va aquí: es la autorización de entrega de cada proyecto, y
 # repartirla desde el template le concedería a otro repo un permiso que su dueño
 # no dio. Es lo contrario de lo que protected.txt protege.
