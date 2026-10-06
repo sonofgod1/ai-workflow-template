@@ -14,7 +14,7 @@
 #   bash apply-sdd.sh /ruta/al/proyecto --claude         # intenta `claude -p` para distill
 #
 # Hace: overlay de andamiaje + hooks + stub de SPEC.md (norte del CLAUDE viejo).
-# No hace: commits, push, ni /check (otro chat). Distill de §I/§V es un agente;
+# No hace: commits ni push. Distill de §I/§V es un agente;
 # el script deja el prompt. --claude lo lanza si hay CLI.
 #
 # Nunca pisa: verify.conf, delivery.conf, CODEOWNERS, .github/workflows,
@@ -297,8 +297,8 @@ Llená §I, §V y el resto de §C desde el código, tests y docs/contracts/.
 §T = huecos reales (TODO, tests faltantes), no un inventario del pasado.
 No copies el SPEC.md de la plantilla. Este producto no es el andamiaje.
 
-Cuando termines, paramos. /check va en OTRO chat: /check --all
-(--all acá es hito: acabás de destilar la spec entera. Después de cada /build: /check T<n>.)
+Cuando termines, paramos. Certifica bash .workflow/verify.sh.
+/check es python3 .workflow/check-spec.py y no lee la app. No es puerta.
 EOF
 )
 if ! $DRY_RUN; then
@@ -311,7 +311,7 @@ echo ""
 echo "Siguiente (Claude Code, en $TARGET):"
 echo "  1. Abrí este repo. Pegá el contenido de .claude/sdd-distill-prompt.txt"
 echo "  2. Revisá SPEC.md §G"
-echo "  3. Chat NUEVO → /check --all   # hito post-distill; después: /check T<n>"
+echo "  3. bash .workflow/verify.sh     # eso certifica. /check es el script, no un chat"
 echo ""
 
 if $RUN_CLAUDE; then

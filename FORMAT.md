@@ -142,21 +142,17 @@ Sin fold no hay `x`. T `x` con su §D todavía abierta = STALE en `/check`.
 | `/spec` (new/amend/bug) | crea o edita | live que nombre, o §D si no es actual |
 | `/feature` | §D + §T | no reescribe §I/§V live |
 | `/build` | status §T **y** fold de §D citada | nada más |
-| `/check` | nada | read-only; puntúa live en el alcance (`T<n>` o sección). `--all` es hito |
+| `/check` | nada | corre `.workflow/check-spec.py` (`T<n>` o `--all`). No lee la app |
 | `/explore` | código, no spec | — |
 
 `/build` no inventa §I/§V. Si el delta está mal, `/spec` lo corrige.
 
-## CONSTRUCTOR ≠ AUDITOR
+## QUIÉN CERTIFICA
 
-El que construye no certifica. El que certifica no escribe. El que no es un
-modelo es `verify.sh`.
+`verify.sh` certifica. El que no es un modelo es la suite.
 
-- `/build` corre `verify.sh` y pega la salida. Eso no es `/check`.
-- `/build` no invoca `/check` ni `/review` en el mismo hilo.
-- `/check` y `/review` (y `/security` `/ux`) paran si **esta conversación**
-  escribió código de aplicación. Piden un chat nuevo, sin el relato del build.
-- En Cursor el modelo es el de esa sesión: el chat B usa el modelo fuerte.
-- No hay hook que abra el chat. La barrera es la regla en el comando (como
-  Cursor sin PreToolUse). Override solo si el usuario escribe que acepta el
-  sesgo; el reporte lleva `SESGO: mismo hilo que construyó`.
+- `/build` corre `verify.sh` y pega la salida. No abre `/check`.
+- `/check` corre `.workflow/check-spec.py`. No lee código de aplicación.
+  HOLD exige un test `test_v<n>` y `.last-verify.json` `ok` de este árbol.
+- El cierre de `/build` es `/ship`. `/check` no es puerta.
+- `/review` es opt-in: el diff, cuando el humano lo pide. No es puerta de `/ship`.

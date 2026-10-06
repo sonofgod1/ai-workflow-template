@@ -4,12 +4,12 @@ Plantilla **spec-driven** para Claude Code y Cursor. Una spec viva (`SPEC.md`) m
 El loop de todos los días es corto. El SDLC de producción es opt-in.
 
 ```
-/spec → /build → (chat nuevo) /check T<n>
+/spec → /build → /ship
 ```
 
 Un bug no se "arregla y se olvida": vuelve a la spec como invariante (`/spec bug:`).
 
-**El que construye no certifica.** `/build` corre `verify.sh`. `/check` y `/review` son otro chat, y no escriben.
+**`verify.sh` certifica.** `/build` corre `verify.sh`. `/check` es `python3 .workflow/check-spec.py` y no lee la app. `/review` no es puerta de `/ship`.
 
 **Fuera de un comando el agente puede escribir código** si se lo pediste. Los
 comandos acotan una fase; no son un ticket system.
@@ -56,9 +56,7 @@ cd mi-proyecto
 /git-setup          # hooks, CODEOWNERS, protección de main
 /spec               # o /discovery si todavía no está claro el propósito
 /build --next       # ejecuta la siguiente §T; pega verify.sh
-# chat nuevo:
-/check T<n>         # ¿esta tarea sigue la spec? No en el hilo del build.
-                    # --all es hito (antes de /ship, o cada varias T).
+/ship               # PR. /check es opcional: python3 .workflow/check-spec.py T<n>
 ```
 
 Graphify es **opcional** (repos grandes). No es el paso 0.
@@ -79,12 +77,11 @@ Copia comandos, `.workflow/` (sin `verify.conf`/`delivery.conf`), `FORMAT.md`,
 ```
 # en Claude Code, abierto el otro proyecto:
 # pegá .claude/sdd-distill-prompt.txt  →  /spec distill
-# chat nuevo: /check --all   ← hito: acabás de destilar la spec entera
+# bash .workflow/verify.sh
 ```
 
-`--claude` lanza `claude -p` con ese prompt si tenés la CLI. `/check` nunca
-corre en el mismo paso: el que construye no certifica. Tras cada `/build`
-después de eso: `/check T<n>`, no `--all`.
+`--claude` lanza `claude -p` con ese prompt si tenés la CLI. Certifica
+`verify.sh`. `/check` es el script y no es puerta.
 
 ---
 
@@ -97,13 +94,13 @@ la recurrencia, **§D** delta (lo propuesto; no es la verdad actual).
 
 `/spec` y `/feature` escriben en §D un cambio que todavía no es verdad
 (`ADDED` / `MODIFIED` / `REMOVED`). `/build` lo folda a lo live al marcar la
-§T `x`. `/check` puntúa lo actual: un `ADDED` abierto no es MISSING.
+§T `x`. `/check` puntúa §V con el script: un `ADDED` abierto no es fallo, salvo que la T `x` todavía lo cite (STALE).
 
 | Comando | Qué hace |
 |---------|----------|
 | `/spec` `@spec` | Crea, enmienda o registra un bug. Cambio no-actual → §D. |
-| `/build` `@build` | Ejecuta la siguiente §T. Folda §D. `verify.sh`. No certifica. |
-| `/check` `@check` | Drift spec↔código. `T<n>` acota a esa tarea. `--all` es hito. Otro chat. Si este hilo implementó, para. |
+| `/build` `@build` | Ejecuta la siguiente §T. Folda §D. `verify.sh`. Siguiente: `/ship`. |
+| `/check` `@check` | Corre `.workflow/check-spec.py`. `T<n>` o `--all`. No lee la app. |
 | `/explore` `@explore` | Spike sin spec. Al final, destilar o tirar. |
 
 Tres modos (`SPEC.md` §M):

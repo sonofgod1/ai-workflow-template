@@ -13,7 +13,7 @@ Si no lo indicó, pregúntaselo antes de continuar.
 - ❌ No rediseñás. Las decisiones están en SPEC.md (o en el plan nombrado)
 - ❌ No ampliás el scope
 - ❌ No enmendás la spec salvo el status de §T **y** el fold de §D citada al marcar `x`
-- ❌ No invocás `@check` ni `@review` (ni `@security` `@ux`). Este hilo construye, no certifica.
+- ❌ No invocás `@check` ni `@review` (ni `@security` `@ux`). La evidencia es `verify.sh`.
 - ✅ Implementás, testeás, verificás (`verify.sh`)
 
 ---
@@ -74,13 +74,11 @@ Por cada tarea, en orden:
    - (a) bug de tu código → arreglá y re-corrê
    - (b) spec mal / (c) borde no especificado → pará y pedí `@spec bug: <causa>`
 6. Al cierre de la tanda: `bash .workflow/verify.sh` y pegá la salida.
-   No invoques `@check` ni `@review` en este hilo.
+   No abras `@check`. La evidencia es la salida de `verify.sh`.
 
 ```
 Listo el build. Evidencia: [salida de verify.sh]
-Certificación: chat nuevo → @check T<n>
-(En Cursor: nueva sesión, modelo fuerte, @check T<n>)
-Hito (antes de @ship, o cada varias T): @check --all
+Siguiente: @ship
 ```
 
 Si al abrir un archivo la realidad no coincide ni con lo live ni con el §D de esta T:
@@ -113,7 +111,7 @@ La regla sigue siendo: si el plan y la realidad no coinciden, paras. No rediseñ
 El plan se arregla con `@plan`, no acá.
 
 Verificación igual: `bash .workflow/verify.sh` y pegar la salida.
-No invoques `@check` ni `@review` acá: chat nuevo.
+No abras `@check`. Siguiente: `@ship`.
 
 Si el proyecto está en modo PR (`delivery.conf`), commití código+tests en un commit
 y docs en otro, en la branch de trabajo. Nunca `main`. Nunca merge.
@@ -122,5 +120,6 @@ y docs en otro, en la branch de trabajo. Nunca `main`. Nunca merge.
 
 ## Tests
 
-Cada invariante tocada (live o ADDED en §D) deja un test que lo nombra (`test_v2_token_expiry` o
-equivalente). Un `x` en §T sin test de las §V citadas, o con su §D todavía abierta, no está terminado.
+Cada invariante tocada (live o ADDED en §D) deja un test que lo nombra `test_v<n>`
+(`test_v2_token_expiry`). `.workflow/check-spec.py` busca ese nombre: otro nombre sale
+UNVERIFIABLE. Un `x` en §T sin ese test, o con su §D todavía abierta, no está terminado.

@@ -324,6 +324,15 @@ def caso_instalar_hooks_los_copia():
         assert "nuevo" in instalado, f"no copió el hook: {instalado!r}"
 
 
+def caso_check_spec_se_reparte():
+    """Sin esto el /check nuevo llega al proyecto y el script no."""
+    contenido = SYNC.read_text(encoding="utf-8")
+    assert ".workflow/check-spec.py" in contenido, (
+        "check-spec.py no está en SYNC_PATHS: los proyectos recibirían un "
+        "check.md que invoca un script que nunca les llega"
+    )
+
+
 def caso_check_plan_paths_se_reparte():
     """Se abrió al arreglar I2: build.md invoca un script que no se sincronizaba."""
     contenido = SYNC.read_text(encoding="utf-8")
@@ -346,6 +355,7 @@ CASOS = [
     caso_no_avisa_si_los_hooks_coinciden,
     caso_instalar_hooks_los_copia,
     caso_check_plan_paths_se_reparte,
+    caso_check_spec_se_reparte,
 ]
 
 

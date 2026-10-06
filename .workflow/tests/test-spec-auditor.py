@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regresión V14 (constructor ≠ auditor) y V16 (check acotado a T<n>).
+"""Regresión V14 (verify.sh certifica) y V16 (check es el script, acotado a T<n>).
 
 python3 .workflow/tests/test-spec-auditor.py
 """
@@ -24,65 +24,73 @@ def _cmd(name):
 def test_v14_build_no_invoca_check():
     build = _cmd("build.md")
     assert "No invocás `/check`" in build or "No invoques `/check`" in build
-    assert "chat nuevo" in build
+    assert "chat nuevo" not in build
+    assert "modelo fuerte" not in build
+    assert "/check --all" not in build
     assert "verify.sh" in build
+    assert "/ship" in build
 
 
-def test_v14_check_para_si_el_hilo_construyo():
+def test_v14_check_es_el_script():
     check = _cmd("check.md")
-    assert "## SEPARACIÓN" in check
-    assert "Este hilo construyó. No certifico." in check
-    assert "SESGO: mismo hilo que construyó" in check
-    assert "chat nuevo" in check
+    assert "check-spec.py" in check
+    assert "No leés el código" in check or "No leés" in check
+    assert "chat nuevo" not in check
+    assert "modelo fuerte" not in check
+    assert "UNVERIFIABLE" in check
 
 
-def test_v14_review_para_si_el_hilo_construyo():
+def test_v14_review_no_es_puerta():
     review = _cmd("review.md")
-    assert "## SEPARACIÓN" in review
-    assert "Este hilo construyó. No certifico." in review
-    assert "SESGO: mismo hilo que construyó" in review
+    assert "diff" in review
+    assert "No es puerta de `/ship`" in review
+    assert "chat nuevo" not in review
+    assert "Este hilo construyó. No certifico." not in review
 
 
 def test_v14_constitucion_y_formato():
-    assert "## CONSTRUCTOR ≠ AUDITOR" in FORMAT
+    assert "## QUIÉN CERTIFICA" in FORMAT
+    assert "check-spec.py" in FORMAT
+    assert "CONSTRUCTOR ≠ AUDITOR" not in FORMAT
     if not ES_PLANTILLA:
         return
-    assert "El que construye no certifica" in CLAUDE
-    assert "otro chat" in CLAUDE.lower()
+    assert "verify.sh` certifica" in CLAUDE or "`verify.sh` certifica" in CLAUDE
+    assert "El que construye no certifica" not in CLAUDE
+    assert "otro chat" not in CLAUDE.lower()
     assert "V14:" in SPEC
 
 
 def test_v16_check_acepta_tarea():
     check = _cmd("check.md")
     assert "T<n>" in check
-    assert "Alcance `T<n>`" in check
-    assert "git diff --name-only" in check
-    assert "no certifica el resto" in check
-    assert "--all" in check and "Hito" in check
+    assert "check-spec.py" in check
+    assert "--all" in check
+    assert "git diff --name-only" not in check
+    assert "Hito" not in check
 
 
-def test_v16_build_cierra_con_check_de_tarea():
+def test_v16_build_cierra_en_ship():
     build = _cmd("build.md")
-    assert "/check T<n>" in build
-    assert "/check [--all]" not in build
-    assert "/check --all" in build
+    assert "Siguiente: /ship" in build or "Siguiente: `/ship`" in build
+    assert "/check T<n>" not in build
+    assert "/check --all" not in build
 
 
 def test_v16_spec_y_constitucion():
     if not ES_PLANTILLA:
         return
     assert "V16:" in SPEC
-    assert "`T<n>`" in SPEC
-    assert "/check T<n>" in CLAUDE or "`/check T<n>`" in CLAUDE
+    assert "check-spec.py" in SPEC
+    assert "/check` es `python3 .workflow/check-spec.py`" in CLAUDE or "check-spec.py" in CLAUDE
 
 
 CASOS = [
     test_v14_build_no_invoca_check,
-    test_v14_check_para_si_el_hilo_construyo,
-    test_v14_review_para_si_el_hilo_construyo,
+    test_v14_check_es_el_script,
+    test_v14_review_no_es_puerta,
     test_v14_constitucion_y_formato,
     test_v16_check_acepta_tarea,
-    test_v16_build_cierra_con_check_de_tarea,
+    test_v16_build_cierra_en_ship,
     test_v16_spec_y_constitucion,
 ]
 
