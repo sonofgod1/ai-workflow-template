@@ -35,7 +35,7 @@ spec
 - file: `.workflow/verify.sh` contrato de verificación
 - file: `docs/adr/0002-spec-actual-vs-delta.md` decisión actual vs delta
 - file: `apply-sdd.sh` overlay SDD a un proyecto con código ya existente
-- cmd: `python3 .workflow/bootstrap-proyecto.py` → `plantilla` | `copia` | `proyecto`. `copia` escribe SPEC stub (`[pendiente`) y borra `verify.conf` de la plantilla. Remote `ai-workflow-template` → `plantilla`, ⊥ escribe.
+- cmd: `python3 .workflow/bootstrap-proyecto.py` → `plantilla` | `copia` | `proyecto`. `copia` escribe SPEC stub (`[pendiente`), borra `verify.conf` de la plantilla y vacía `docs/findings.json`. `proyecto` quita filas cuyo commit ∉ este repo. Remote `ai-workflow-template` → `plantilla`, ⊥ escribe.
 - file: `.workflow/es-plantilla` marca de copia. `apply-sdd.sh` no la copia.
 - env: ninguno requerido para el loop SDD
 
@@ -57,6 +57,7 @@ V14: `/build` corre `verify.sh` y no abre `/check`. `/check` no exige otro hilo.
 V15: `apply-sdd.sh` copia el andamiaje al destino sin pisar `verify.conf`, `delivery.conf`, un SPEC.md con §G real, ni `CLAUDE.md.pre-sdd` si ya existe. Branch `chore/sdd-workflow` solo desde `main`/`master`/`develop`, o checkout si ya existe. No commitea. Distill de §I/§V queda para `/spec distill`.
 V16: `/check T<n>` corre el script sobre las §V que cita esa T. `--all` corre el script sobre todas las §V. ⊥ relectura del repo. El cierre de `/build` sugiere `/ship`, no `/check`.
 V17: `bootstrap-proyecto.py` sin remote `ai-workflow-template`, con `.workflow/es-plantilla` y §G de la plantilla, escribe SPEC stub (`[pendiente`) y borra `verify.conf` si es el de la plantilla. Ese remote → imprime `plantilla` y ⊥ escribe. `apply-sdd.sh` ⊥ copia `es-plantilla`. `/spec` con §G `[pendiente` → NEW. `/discovery` pregunta el norte y espera OK. `/architect` y `/build` paran si §G está `[pendiente`.
+V18: `copia` deja `docs/findings.json` en `{"version":1,"hallazgos":[]}`. `proyecto` quita la fila cuyo commit ∉ este repo y conserva la que sí. `decisiones.md` se reescribe con el índice que queda. Tests de bootstrap siembran spec, `verify.conf` y `es-plantilla` propios: ⊥ los leen del checkout.
 
 ## §T TASKS
 id|status|task|cites
@@ -81,6 +82,7 @@ id|date|cause|fix
 B1|2026-09-15|apply-sdd hacía `checkout -b` desde cualquier feature y pisaba CLAUDE.md.pre-sdd|V15
 B2|2026-10-06|`/check` con modelo relee el repo y bloquea el PR|V5
 B3|2026-10-06|copia del template hereda SPEC.md cerrado de la plantilla y /spec no entrevista|V17
+B4|2026-10-07|copia hereda findings.json con commits de la plantilla; test_v17 lee verify.conf del checkout|V18
 
 ## §D DELTA
 id|op|target|change|cites
