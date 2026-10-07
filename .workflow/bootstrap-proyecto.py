@@ -9,15 +9,19 @@ Correr desde la raíz del proyecto:
 Imprime una palabra:
 
     plantilla   este remote (o un clone largo sin remote) es la plantilla. No escribe.
-    copia       había spec y verify.conf de la plantilla. Quedó un SPEC stub y se
-                borró ese verify.conf. La marca .workflow/es-plantilla se va.
+    copia       había spec y verify.conf de la plantilla. Quedó un SPEC stub, se
+                borró ese verify.conf y el índice de hallazgos quedó vacío.
+                La marca .workflow/es-plantilla se va.
     proyecto    la spec ya es del producto, o no hay marca. No reemplaza SPEC.md.
+                Si el índice cita solo commits que no existen aquí, también lo vacía.
 
 --force no alcanza para reescribir el repo cuyo remote se llama ai-workflow-template.
 """
 
 from __future__ import annotations
 
+import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -131,11 +135,55 @@ def verify_es_de_la_plantilla(texto: str) -> bool:
     return "Contrato de verificación de la plantilla." in texto and "tests-andamiaje" in texto
 
 
+def _render_decisiones(data: dict) -> str:
+    ruta = Path(__file__).resolve().parent / "findings.py"
+    spec = importlib.util.spec_from_file_location("findings_bootstrap", ruta)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"no se pudo cargar {ruta}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.render_decisiones(data)
+
+
+def _commit_existe(root: Path, sha: str) -> bool:
+    return _git(root, "cat-file", "-e", f"{sha}^{{commit}}").returncode == 0
+
+
+def vaciar_indice(root: Path, *, forzar: bool) -> None:
+    """Saca del proyecto el índice de hallazgos de la plantilla.
+
+    En una copia el archivo entero es de la plantilla, aunque el clone haya
+    traído su historia y los hashes existan. En un proyecto ya arrancado solo
+    se quitan las filas cuyo commit no está en este repo: un hallazgo propio,
+    con hash de aquí, se queda.
+    """
+    indice = root / "docs" / "findings.json"
+    if not indice.is_file():
+        return
+    data = json.loads(indice.read_text(encoding="utf-8"))
+    hallazgos = list(data.get("hallazgos") or [])
+    if forzar:
+        propios = []
+    else:
+        propios = [h for h in hallazgos if not h.get("commit") or _commit_existe(root, h["commit"])]
+    if propios == hallazgos:
+        return
+    nuevo = {"version": data.get("version", 1), "hallazgos": propios}
+    indice.write_text(
+        json.dumps(nuevo, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    decisiones = root / "docs" / "reviews" / "decisiones.md"
+    decisiones.parent.mkdir(parents=True, exist_ok=True)
+    decisiones.write_text(_render_decisiones(nuevo), encoding="utf-8")
+
+
 def iniciar(root: Path) -> None:
     (root / "SPEC.md").write_text(STUB, encoding="utf-8")
     verify = root / ".workflow" / "verify.conf"
     if verify.is_file() and verify_es_de_la_plantilla(verify.read_text(encoding="utf-8")):
         verify.unlink()
+    vaciar_indice(root, forzar=True)
     marca = root / MARCA
     if marca.exists():
         marca.unlink()
@@ -176,6 +224,8 @@ def main(argv: list[str] | None = None) -> int:
         # Marca colgada de un overlay: la spec ya no es la de la plantilla.
         if marca.exists():
             marca.unlink()
+        if not detectar:
+            vaciar_indice(root, forzar=False)
         print("proyecto")
         return 0
 
