@@ -21,8 +21,13 @@ Si no lo indicó, pregúntaselo antes de continuar.
 ## Fase activa
 
 ```bash
+python3 .workflow/bootstrap-proyecto.py
 bash .workflow/phase.sh set spec
 ```
+
+`plantilla` = este checkout es el andamiaje; su SPEC.md se enmienda, no se reemplaza.
+`copia` = quedó un stub con §G `[pendiente`. Seguí en NEW.
+`proyecto` = SPEC.md ya es del producto.
 
 Política de escritura: `SPEC.md`, `FORMAT.md`, `docs/`. Si un bloqueo te detiene, no lo rodees.
 
@@ -32,11 +37,14 @@ Al terminar: `bash .workflow/phase.sh clear`
 
 ## DISPATCH
 
-1. No hay `SPEC.md` y el pedido describe una idea (o está vacío y el usuario quiere empezar) → **NEW**
-2. No hay `SPEC.md` y el pedido trae `distill` / "desde el código" → **DISTILL**
+§G pendiente = el cuerpo de §G contiene `[pendiente`.
+
+1. No hay `SPEC.md`, o §G está pendiente, y el pedido no es `distill` / `bug:` / `amend` → **NEW**
+2. El pedido trae `distill` / "desde el código" → **DISTILL**. Si §G está pendiente, no lo inventes: una pregunta, o dejalo `[pendiente` si el usuario dijo que lo saques del código con `?`.
 3. Hay `SPEC.md` y el pedido empieza con `bug:` → **BUG** (backprop)
-4. Hay `SPEC.md` y el pedido empieza con `amend` → **AMEND**
-5. Hay `SPEC.md` sin args → preguntá el modo. No adivines.
+4. Hay `SPEC.md` con §G real y el pedido empieza con `amend` → **AMEND**. Si §G está pendiente, no hay spec de producto: caé en **NEW**.
+5. Hay §G real, el cuerpo de §I o de §V es solo una línea `[pendiente`, y el pedido está vacío → **completar**: preguntá superficies e invariantes. No reescribas §G ni el stack que ya está en §C.
+6. Hay §G real, §I y §V ya no son el placeholder, y no hay args → preguntá el modo. No adivines.
 
 Leé `FORMAT.md` una vez. Leé `SPEC.md` si existe.
 
@@ -45,13 +53,14 @@ Leé `FORMAT.md` una vez. Leé `SPEC.md` si existe.
 ## NEW — idea → spec
 
 1. Extraé el objetivo (1-2 frases) → §G. **Mostralo y esperá OK antes de seguir** si el usuario no lo dictó literal.
-2. Constraints dichos o implícitos → §C.
-3. Superficies externas nombradas → §I.
-4. Invariantes iniciales testeables → §V (V1…).
-5. Tareas ordenadas → §T, status `.`, cites a §V/§I.
-6. §M = `spec` salvo que el usuario pida `explore` o `production`.
-7. §B con header de tabla, sin filas.
-8. §D con header + fila `-` (baseline: no hay cambio propuesto).
+2. Si el usuario no nombró stack y §C no lo tiene: **una** pregunta. Elegirlo ahora con `@architect` (dos opciones, espera su elección) o seguir y dejar el stack como `[pendiente` en §C. No inventes el stack.
+3. Constraints dichos o implícitos → §C.
+4. Superficies externas nombradas → §I.
+5. Invariantes iniciales testeables → §V (V1…).
+6. Tareas ordenadas → §T, status `.`, cites a §V/§I.
+7. §M = `spec` salvo que el usuario pida `explore` o `production`.
+8. §B con header de tabla, sin filas.
+9. §D con header + fila `-` (baseline: no hay cambio propuesto).
 
 Escribí SPEC.md. Mostrá el archivo. Preguntá: "spec OK? @build --next o más amends."
 
@@ -62,7 +71,8 @@ No llenes §G con un norte inventado. Si no está claro, **una** pregunta.
 ## DISTILL — código → spec
 
 Caminá el repo (README, entrypoints, tests, contratos si hay).
-§G inferido (marcá `?` si no estás seguro). §C del stack real. §I de APIs/CLIs/env.
+Si §G ya es real, no lo reescribas. Si está `[pendiente`, no lo inventes: una pregunta, o `?` y OK del usuario.
+§C del stack real. §I de APIs/CLIs/env.
 §V derivado de tests y asserts. §T = huecos (TODO, tests faltantes). §B vacío.
 §D vacío (esto captura el presente, no un cambio).
 §M = `spec`.

@@ -87,6 +87,8 @@ def test_v15_overlay_preserva_conf_y_norte():
         branch = sh(proy, "git", "branch", "--show-current").stdout.strip()
         assert branch == "chore/sdd-workflow"
         assert (proy / ".git" / "hooks" / "pre-commit").is_file()
+        assert (proy / ".workflow" / "bootstrap-proyecto.py").is_file()
+        assert not (proy / ".workflow" / "es-plantilla").exists()
 
 
 def test_v15_no_pisa_spec_con_g():

@@ -9,8 +9,11 @@ Estás en **fase de implementación**. Este comando es un atajo. El camino real 
 Pedido: **$ARGUMENTS**
 
 ```bash
+python3 .workflow/bootstrap-proyecto.py
 bash .workflow/phase.sh set implement
 ```
+
+Si imprime `copia`, o el cuerpo de §G contiene `[pendiente`: pará. Siguiente: `/discovery`.
 
 Al terminar: `bash .workflow/phase.sh clear`
 

@@ -20,8 +20,11 @@ Pedido: **$ARGUMENTS**
 ## Fase activa
 
 ```bash
+python3 .workflow/bootstrap-proyecto.py
 bash .workflow/phase.sh set explore
 ```
+
+`copia` deja un stub: el norte de la plantilla ya no manda. Si §G está `[pendiente`, el spike no lo inventa.
 
 Escritura: full (respetando protegidos). Al terminar: `bash .workflow/phase.sh clear`
 

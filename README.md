@@ -7,6 +7,8 @@ El loop de todos los días es corto. El SDLC de producción es opt-in.
 /spec → /build → /ship
 ```
 
+Ese es el loop de todos los días, cuando la spec ya es del producto. El primer día de un proyecto nuevo es `/discovery` → `/architect` → `/spec`.
+
 Un bug no se "arregla y se olvida": vuelve a la spec como invariante (`/spec bug:`).
 
 **`verify.sh` certifica.** `/build` corre `verify.sh`. `/check` es `python3 .workflow/check-spec.py` y no lee la app. `/review` no es puerta de `/ship`.
@@ -53,15 +55,21 @@ En este repo deja fuera los archivos que acá son código fuente.
 gh repo create mi-proyecto --template tu-usuario/ai-workflow-template --private
 cd mi-proyecto
 # Abrí Claude Code o Cursor
-/git-setup          # hooks, CODEOWNERS, protección de main
-/spec               # o /discovery si todavía no está claro el propósito
+/git-setup          # hooks. Si esta copia trae el SPEC de la plantilla, lo deja en stub
+/discovery          # pregunta el norte, en una oración, y espera tu OK
+/architect          # dos stacks, espera tu elección, ADRs, §C
+/spec               # §I, §V y §T del producto
 /build --next       # ejecuta la siguiente §T; pega verify.sh
 /ship               # PR. /check es opcional: python3 .workflow/check-spec.py T<n>
 ```
 
-Graphify es **opcional** (repos grandes). No es el paso 0.
+`/git-setup` corre `bootstrap-proyecto.py`. En una copia imprime `copia` y reemplaza el SPEC de la plantilla (el de este repo, con las tareas ya hechas) por uno con §G `[pendiente`. En el repo `ai-workflow-template` imprime `plantilla` y no toca nada.
 
-### Proyecto existente (workflow viejo → SDD)
+Si el propósito ya viene dicho en una frase, `/spec` igual lo confirma antes de escribirlo y, si no hay stack, pregunta si pasás por `/architect`. A partir de ahí el trabajo nuevo entra por `/feature` o `/spec amend`, y se construye con `/build`.
+
+Graphify es **opcional**. No es el paso 0: si el repo ya tiene código se ofrece al final de `/discovery`; si empieza vacío, al cerrar el primer `/build`. Un no queda en `.workflow/graphify-declinado` y no se vuelve a pedir.
+
+### Proyecto que ya tiene código
 
 Desde **este** clone de la plantilla (tiene `/spec`, `FORMAT.md`), no desde GitHub `main`:
 
@@ -70,17 +78,20 @@ bash apply-sdd.sh /ruta/al/otro-proyecto
 # ver qué haría:  bash apply-sdd.sh /ruta/al/otro-proyecto --dry-run
 ```
 
-Copia comandos, `.workflow/` (sin `verify.conf`/`delivery.conf`), `FORMAT.md`,
+Copia comandos, `.workflow/` (sin `verify.conf`, `delivery.conf` ni la marca `es-plantilla`), `FORMAT.md`,
 `CLAUDE.md` slim, reinstala hooks, arma un `SPEC.md` stub con el norte del
-`CLAUDE.md` viejo. **No commitea.** Distill de §I/§V lo hace el agente:
+`CLAUDE.md` viejo. **No commitea.** No pisa un §G que ya sea del producto.
 
 ```
-# en Claude Code, abierto el otro proyecto:
-# pegá .claude/sdd-distill-prompt.txt  →  /spec distill
-# bash .workflow/verify.sh
+# en el otro proyecto:
+/discovery          # solo si §G quedó [pendiente]: pregunta el norte y espera el OK
+/spec distill       # §I, §V y el stack real desde el código. No reescribe §G
+# /architect solo si hay que elegir stack; si ya está en el código, no
+/build --next       # o /feature para trabajo nuevo
+/ship
 ```
 
-`--claude` lanza `claude -p` con ese prompt si tenés la CLI. Certifica
+`--claude` lanza `claude -p` con `.claude/sdd-distill-prompt.txt` si tenés la CLI. Certifica
 `verify.sh`. `/check` es el script y no es puerta.
 
 ---

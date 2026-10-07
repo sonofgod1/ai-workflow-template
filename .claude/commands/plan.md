@@ -20,8 +20,11 @@ Solicitud: **$ARGUMENTS**
 ## Fase activa — antes de cualquier otra cosa
 
 ```bash
+python3 .workflow/bootstrap-proyecto.py
 bash .workflow/phase.sh set plan
 ```
+
+Si imprime `copia`, o el cuerpo de §G contiene `[pendiente`: pará y pedí `/discovery`.
 
 Esto declara la fase y activa su política de escritura: en `/plan` los hooks
 bloquean cualquier escritura fuera de `docs/`.

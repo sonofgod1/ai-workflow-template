@@ -20,8 +20,12 @@ Pedido: **$ARGUMENTS**
 ## Fase activa
 
 ```bash
+python3 .workflow/bootstrap-proyecto.py
 bash .workflow/phase.sh set build
 ```
+
+Si imprime `copia`, o el cuerpo de §G contiene `[pendiente`: pará. "No hay producto que construir. Siguiente: `/discovery`."
+`plantilla` = este SPEC es el del andamiaje. Seguí solo si el pedido es una §T de esta plantilla.
 
 Al terminar: `bash .workflow/phase.sh clear`
 
@@ -46,6 +50,8 @@ Elegí tareas:
 - `§T.n` → esa
 - `--next` o vacío → la de id más bajo con status `.` o `~`
 - `--all` → todas las `.` en orden
+
+Si no hay ninguna fila `.` o `~`: pará. No hay trabajo encolado. `/spec` o `/feature` agregan una §T. No reabras una `x`.
 
 ### Plan nativo (en el chat, no un archivo)
 
@@ -79,6 +85,17 @@ Por cada tarea, en orden:
 Listo el build. Evidencia: [salida de verify.sh]
 Siguiente: /ship
 ```
+
+Graphify, una vez, después de ese cierre. No es paso del build y no lo retrasa.
+Si existe `graphify-out/GRAPH_REPORT.md` o `.workflow/graphify-declinado`, no lo menciones.
+Si esta tanda dejó código de la app (fuera de `.workflow/`, `git-hooks/` y las reglas del editor): ofrecé instalarlo.
+
+```
+uv tool install graphifyy && graphify install
+# En el asistente: /graphify .
+```
+
+Si dice que no, escribí `.workflow/graphify-declinado` con una línea. No lo instales sin un sí.
 
 Si al abrir un archivo la realidad no coincide ni con lo live ni con el §D de esta T:
 

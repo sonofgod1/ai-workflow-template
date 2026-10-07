@@ -222,6 +222,7 @@ ANDAMIAJE = (
     "sync-workflow.sh",
     "generate-cursor-rules.sh",
     "apply-sdd.sh",
+    "bootstrap-proyecto.py",
 )
 
 

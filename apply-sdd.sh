@@ -166,6 +166,7 @@ run cp "$SRC/.claude/protected.txt" "$TARGET/.claude/protected.txt"
 rsync_cmd "$SRC/.workflow/" "$TARGET/.workflow/" \
   --exclude verify.conf \
   --exclude delivery.conf \
+  --exclude es-plantilla \
   --exclude '.last-verify.json' \
   --exclude '.phase.json' \
   --exclude '__pycache__' \
@@ -293,9 +294,11 @@ PROMPT=$(cat <<'EOF'
 /spec distill
 
 §G de SPEC.md ya está (o está en .claude/CLAUDE.md.pre-sdd). No lo reescribas salvo que esté [pendiente].
+Si §G está [pendiente], no lo inventes: /discovery lo pregunta y espera el OK.
 Llená §I, §V y el resto de §C desde el código, tests y docs/contracts/.
 §T = huecos reales (TODO, tests faltantes), no un inventario del pasado.
 No copies el SPEC.md de la plantilla. Este producto no es el andamiaje.
+El stack que ya está en el código va a §C. /architect solo si hay que elegirlo.
 
 Cuando termines, paramos. Certifica bash .workflow/verify.sh.
 /check es python3 .workflow/check-spec.py y no lee la app. No es puerta.
@@ -308,10 +311,11 @@ fi
 echo ""
 echo "✅ Overlay listo. No hay commit (eso lo hacés vos)."
 echo ""
-echo "Siguiente (Claude Code, en $TARGET):"
-echo "  1. Abrí este repo. Pegá el contenido de .claude/sdd-distill-prompt.txt"
-echo "  2. Revisá SPEC.md §G"
-echo "  3. bash .workflow/verify.sh     # eso certifica. /check es el script, no un chat"
+echo "Siguiente (Claude Code o Cursor, en $TARGET):"
+echo "  1. Si §G está [pendiente]: /discovery  (pregunta el norte y espera el OK)"
+echo "  2. Pegá .claude/sdd-distill-prompt.txt  →  /spec distill"
+echo "  3. A partir de ahí: /feature o /spec amend, /build, /ship"
+echo "  4. bash .workflow/verify.sh     # eso certifica. /check es el script, no un chat"
 echo ""
 
 if $RUN_CLAUDE; then
