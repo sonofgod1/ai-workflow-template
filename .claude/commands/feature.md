@@ -19,8 +19,11 @@ Feature: **$ARGUMENTS**
 ## Fase activa
 
 ```bash
+python3 .workflow/bootstrap-proyecto.py
 bash .workflow/phase.sh set feature
 ```
+
+Si imprime `copia`, o el cuerpo de §G contiene `[pendiente`: pará. Primero `/discovery`. No evalúes una feature sobre el norte de la plantilla.
 
 Política: SPEC.md, FORMAT.md, docs/. Al terminar: `bash .workflow/phase.sh clear`
 

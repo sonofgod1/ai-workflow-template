@@ -5,7 +5,7 @@ Este archivo **no se carga en cada turno**. Lo leen `/ship`, `/deploy`,
 
 El loop de todos los días está en `CLAUDE.md` + `SPEC.md` + `FORMAT.md`.
 §I/§V son lo actual; lo propuesto vive en §D hasta que `/build` lo folda.
-`/build` no certifica: `verify.sh` en el hilo que construye; `/check` y `/review` en otro chat.
+`/build` certifica con `verify.sh`. `/check` es `python3 .workflow/check-spec.py`. `/review` es opt-in y no es puerta de `/ship`.
 
 ---
 
@@ -14,7 +14,7 @@ El loop de todos los días está en `CLAUDE.md` + `SPEC.md` + `FORMAT.md`.
 | Modo | Cuándo | Qué corre |
 |------|--------|-----------|
 | `explore` | bosquejar, spike, "¿y si...?" | código + `verify.sh`. Sin spec. Al terminar, ofrecer `/spec` distill. |
-| `spec` | default. hay SPEC.md | `/spec` → `/build` → `/check T<n>`. `--all` es hito. Backprop a §B+§V si algo falla. |
+| `spec` | default. hay SPEC.md | `/spec` → `/build` → `/ship`. `/check` es el script, opt-in. Backprop a §B+§V si algo falla. |
 | `production` | hay usuarios o datos reales | lo de `spec` **más** review/security/migrate/ship, CI, findings con test de regresión. |
 
 El modo vive en `SPEC.md` §M. Lo cambia el usuario (o `/spec amend §M` con su OK).

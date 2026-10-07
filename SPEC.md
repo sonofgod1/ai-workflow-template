@@ -14,26 +14,29 @@ spec
 - Fuera de un comando el agente PUEDE escribir código si el usuario lo pidió. No hay modo consulta que prohíba construir.
 - GitHub Flow por defecto: `main` + `feature/*` + PR. `develop` es opt-in (`BASE_POR_DEFECTO`).
 - Graphify es opcional, nunca bloquea el primer día.
+- Una copia (template de GitHub o carpeta) no usa el SPEC.md ni el `verify.conf` de esta plantilla como los del producto. El repo cuyo remote es `ai-workflow-template` sí.
 - `verify.sh` es la evidencia. Nada se declara terminado sin pegar su salida.
 - No commits ni pushes del agente salvo `.workflow/delivery.conf` con `MODO_ENTREGA=pr`.
 - El merge nunca es del agente.
 - En Cursor no hay PreToolUse: las reglas duras de escritura se respetan como si el hook existiera.
 - `.workflow/` se verifica aquí; los proyectos consumidores lo excluyen de su linter.
 - §I y §V live = comportamiento actual. Lo que aún no es verdad va a §D hasta el fold.
-- El que construye no certifica. El que certifica no escribe. El que no es un modelo es `verify.sh`.
+- `verify.sh` certifica. `/check` es `.workflow/check-spec.py` y no lee código de aplicación. `/review` no es puerta de `/ship`.
 
 ## §I INTERFACES
 - cmd: `/spec` `@spec` → muta SPEC.md (new / amend / bug / distill). Cambio no-actual → §D, no reescribe §I/§V.
-- cmd: `/build` `@build` → ejecuta §T (o un plan). Folda §D al `x`. Corre `verify.sh`. No invoca `/check` ni `/review`.
-- cmd: `/check` `@check` → drift spec↔código sobre lo actual. Default §V. `T<n>` acota a las §V/§I que cita esa T y al diff vs la rama base. `--all` es hito. No escribe. Si este hilo implementó, para y pide chat nuevo.
+- cmd: `/build` `@build` → ejecuta §T (o un plan). Folda §D al `x`. Corre `verify.sh`. No abre `/check`.
+- cmd: `/check` `@check` → corre `.workflow/check-spec.py`. `T<n>` o `--all`. No escribe. No lee la app.
 - cmd: `/explore` `@explore` → bosqueja código sin spec
-- cmd: `/review` `@review` → auditoría read-only. Si este hilo implementó, para y pide chat nuevo.
+- cmd: `/review` `@review` → auditoría read-only del diff, si el humano la pide. No es puerta de `/ship`.
 - cmd: `/ship` → puerta local + PR, no mergea
 - file: `FORMAT.md` schema de SPEC.md
 - file: `CLAUDE.md` constitución slim; `.cursor/rules/00-gobernanza.mdc` es su derivado
 - file: `.workflow/verify.sh` contrato de verificación
 - file: `docs/adr/0002-spec-actual-vs-delta.md` decisión actual vs delta
-- file: `apply-sdd.sh` overlay SDD a un proyecto con workflow viejo
+- file: `apply-sdd.sh` overlay SDD a un proyecto con código ya existente
+- cmd: `python3 .workflow/bootstrap-proyecto.py` → `plantilla` | `copia` | `proyecto`. `copia` escribe SPEC stub (`[pendiente`) y borra `verify.conf` de la plantilla. Remote `ai-workflow-template` → `plantilla`, ⊥ escribe.
+- file: `.workflow/es-plantilla` marca de copia. `apply-sdd.sh` no la copia.
 - env: ninguno requerido para el loop SDD
 
 ## §V INVARIANTS
@@ -41,18 +44,19 @@ V1: CLAUDE.md always-on no duplica el SDLC completo. Git flow largo, findings CL
 V2: SPEC.md existe en la raíz con las secciones §G §M §C §I §V §T §B §D en ese orden. §D vacío = header + fila `-`.
 V3: `/build` sin argumento de plan ejecuta la siguiente fila §T con status `.` o `~`, citando §V y §I tocados.
 V4: Un test o build que falla considera backprop a §B+§V antes de reintentar a ciegas.
-V5: `/check` no escribe archivos. Reporta HOLD / VIOLATE / UNVERIFIABLE por cada V<n> en el alcance.
+V5: `/check` corre `.workflow/check-spec.py`. ⊥ escribe. ⊥ lee código de aplicación. HOLD si ∃ `test_v<n>` y `.last-verify.json` es `ok` de este árbol (mismo HEAD, limpio, no `--quick`). UNVERIFIABLE si no hay ese test. SIN EVIDENCIA si el test existe y la evidencia no cubre este árbol. STALE si T `x` y §D la cita.
 V6: Política de fase `spec` permite escribir `SPEC.md`, `FORMAT.md` y `docs/**`. No código de aplicación.
 V7: Default de entrega es PR a `main`. Si `main` no existe y `develop` sí, se usa `develop` (compat).
-V8: Graphify no es paso 0 de discovery. Se ofrece al final, o si el usuario lo pide.
+V8: Graphify no es paso 0. `/discovery` lo ofrece al final solo si ya hay código. Repo vacío no es un no: `/build` lo ofrece al cerrar la primera tanda que deja código de la app, si no hay grafo ni `.workflow/graphify-declinado`. Un no escribe esa marca y no se vuelve a ofrecer. Nunca bloquea.
 V9: `generate-cursor-rules.sh --check` sigue verde: las reglas `.mdc` derivan de `.claude/commands/` + CLAUDE.md.
 V10: Convención "funciones < 30 líneas" no forma parte de la constitución. No se exige.
 V11: Un cambio que no es verdad todavía se escribe en §D (ADDED/MODIFIED/REMOVED), no reescribiendo §I/§V en el lugar. Corrección de spec que mentía sobre el presente sí es amend live.
-V12: `/check` puntúa §I/§V live. Filas abiertas de §D no son MISSING ni VIOLATE. T `x` con §D citada sin foldar es STALE.
+V12: `/check` puntúa §V live con el script. §I no se puntúa. Una fila §D abierta no es fallo, salvo STALE cuando la cita una T `x`.
 V13: `/build` al pasar T → `x` folda las filas §D que citan esa T (ítem a ítem) y las borra de §D. No reescribe la sección entera.
-V14: `/build` no invoca `/check` ni `/review`. `/check` y `/review` paran si esta conversación escribió código de aplicación, salvo override explícito del usuario (reporte: `SESGO: mismo hilo que construyó`).
+V14: `/build` corre `verify.sh` y no abre `/check`. `/check` no exige otro hilo. `/review` es opt-in, lee el diff, y no es puerta de `/ship`.
 V15: `apply-sdd.sh` copia el andamiaje al destino sin pisar `verify.conf`, `delivery.conf`, un SPEC.md con §G real, ni `CLAUDE.md.pre-sdd` si ya existe. Branch `chore/sdd-workflow` solo desde `main`/`master`/`develop`, o checkout si ya existe. No commitea. Distill de §I/§V queda para `/spec distill`.
-V16: `/check T<n>` solo puntúa las §V/§I que cita esa T y los archivos del diff vs la rama base. `--all` es hito (antes de `/ship` o cada varias T). El cierre de `/build` sugiere `/check T<n>`, no `--all`.
+V16: `/check T<n>` corre el script sobre las §V que cita esa T. `--all` corre el script sobre todas las §V. ⊥ relectura del repo. El cierre de `/build` sugiere `/ship`, no `/check`.
+V17: `bootstrap-proyecto.py` sin remote `ai-workflow-template`, con `.workflow/es-plantilla` y §G de la plantilla, escribe SPEC stub (`[pendiente`) y borra `verify.conf` si es el de la plantilla. Ese remote → imprime `plantilla` y ⊥ escribe. `apply-sdd.sh` ⊥ copia `es-plantilla`. `/spec` con §G `[pendiente` → NEW. `/discovery` pregunta el norte y espera OK. `/architect` y `/build` paran si §G está `[pendiente`.
 
 ## §T TASKS
 id|status|task|cites
@@ -69,10 +73,14 @@ T10|x|constructor ≠ auditor: /build no checkea; /check y /review paran si el h
 T11|x|apply-sdd.sh overlay a proyectos con workflow viejo|V15
 T12|x|apply-sdd: no crear branch desde feature; no pisar pre-sdd|V15
 T13|x|/check T<n> acotado; --all queda como hito|V16
+T14|x|check-spec.py reemplaza la certificación con modelo|V5,V12,V14,V16
+T15|x|bootstrap de copia + entrevista norte/stack/spec|V17
 
 ## §B BUGS
 id|date|cause|fix
 B1|2026-09-15|apply-sdd hacía `checkout -b` desde cualquier feature y pisaba CLAUDE.md.pre-sdd|V15
+B2|2026-10-06|`/check` con modelo relee el repo y bloquea el PR|V5
+B3|2026-10-06|copia del template hereda SPEC.md cerrado de la plantilla y /spec no entrevista|V17
 
 ## §D DELTA
 id|op|target|change|cites

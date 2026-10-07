@@ -57,6 +57,7 @@ build/
 # cómo se verifica este repo.
 .workflow/.phase.json
 .workflow/.last-verify.json
+.workflow/graphify-declinado
 
 # Logs y worktrees de batch.sh: son de una corrida, no del proyecto.
 .workflow/.batch-logs/

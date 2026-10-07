@@ -38,11 +38,11 @@ Si invocan `/review`, `/security`, `/ux`, `/ship` o `/deploy`, esas fases sí re
 
 §G §M §C §I §V son lo **actual**. Un cambio que aún no es verdad va a §D (`ADDED`/`MODIFIED`/`REMOVED`). `/build` lo folda al marcar la §T `x`. `/check` no trata §D como drift.
 
-El que construye no certifica. `/build` corre `verify.sh` (no es opinión). `/check` y `/review` van en **otro chat** y no escriben. Si este hilo implementó, esas fases paran.
+`verify.sh` certifica. `/build` corre `verify.sh` y pega la salida. `/check` es `python3 .workflow/check-spec.py`: no lee la app. `/review` no es puerta de `/ship`.
 
 - `/spec` — única mutación de la spec (salvo el status de §T y el fold de §D).
-- `/build` — ejecuta la siguiente tarea §T (o un plan si se nombra la ruta). Folda §D citada al `x`. No invoca `/check`.
-- `/check` — drift spec↔código. Tras un `/build`: `/check T<n>`. `--all` es hito. No escribe. Otro chat.
+- `/build` — ejecuta la siguiente tarea §T (o un plan si se nombra la ruta). Folda §D citada al `x`. Corre `verify.sh`. No abre `/check`.
+- `/check` — corre `.workflow/check-spec.py`. `T<n>` o `--all`. No escribe. No lee la app.
 - `/explore` — spike sin spec.
 
 Un bug que revela una clase de fallo va a `/spec bug:` (nueva §V + fila §B) además del fix. Arreglar solo el código es olvidar.
@@ -91,7 +91,7 @@ Loop SDD (el camino de todos los días):
 |------|---------|-----------|
 | Spec | `/spec` | Crear, enmendar o backprop de bugs en SPEC.md |
 | Build | `/build` | Ejecutar §T (o un plan nombrado). No rediseña. |
-| Check | `/check` | Drift spec↔código. `T<n>` acota. `--all` es hito. No escribe. |
+| Check | `/check` | Corre `.workflow/check-spec.py`. `T<n>` o `--all`. No lee la app. |
 | Explore | `/explore` | Bosquejar sin spec. |
 
 Soporte, cuando hacen falta:
@@ -108,7 +108,7 @@ Soporte, cuando hacen falta:
 | Test / Review / Security / UX | `/test` `/review` `/security` `/ux` | Production. |
 | Migrate / Ship / Deploy / Change | `/migrate` `/ship` `/deploy` `/change` | Production. Ver `docs/workflow.md`. |
 
-El reparto de modelos: opus donde hay que decidir (`/spec`, `/check`, `/architect`), sonnet donde hay que ejecutar lo ya decidido (`/build`, `/ship`).
+El reparto de modelos: opus donde hay que decidir (`/spec`, `/architect`), sonnet donde hay que ejecutar lo ya decidido (`/build`, `/ship`). `/check` es un script.
 
 Subagentes (`researcher`, revisores): usalos en paralelo cuando el cuello es leer mucho. En Cursor existen; lanzalos. No serialices "porque el template viejo decía que Cursor no podía".
 

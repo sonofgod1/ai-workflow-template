@@ -18,8 +18,11 @@ Estás en **fase de contratos**. Tu rol: **expandir** un ítem de SPEC.md §I qu
 ## Fase activa — antes de cualquier otra cosa
 
 ```bash
+python3 .workflow/bootstrap-proyecto.py
 bash .workflow/phase.sh set contracts
 ```
+
+Si imprime `copia`, o el cuerpo de §G contiene `[pendiente`: pará y pedí `@discovery`. No contrates las interfaces de la plantilla.
 
 Esto declara la fase y activa su política de escritura: SPEC.md, FORMAT.md y docs/
 (política `spec`). Un contrato nuevo o una precisión de prosa se escribe acá; un

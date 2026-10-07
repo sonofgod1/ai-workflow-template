@@ -63,9 +63,9 @@ OVERRIDES = {
         # Comandos de shell reales: aquí CLAUDE.md no es una referencia, es un
         # argumento de `git add`, y en Cursor el equivalente es .cursor/.
         ("""for p in CLAUDE.md SPEC.md FORMAT.md .claude .github git-hooks docs .gitignore \\
-         .graphifyignore sync-workflow.sh generate-cursor-rules.sh apply-sdd.sh graphify-out/.gitkeep; do""",
+         .graphifyignore sync-workflow.sh generate-cursor-rules.sh apply-sdd.sh .workflow/bootstrap-proyecto.py graphify-out/.gitkeep; do""",
          """for p in SPEC.md FORMAT.md .cursor .github git-hooks docs .gitignore \\
-         .graphifyignore sync-workflow.sh apply-sdd.sh graphify-out/.gitkeep; do"""),
+         .graphifyignore sync-workflow.sh apply-sdd.sh .workflow/bootstrap-proyecto.py graphify-out/.gitkeep; do"""),
     ],
 }
 

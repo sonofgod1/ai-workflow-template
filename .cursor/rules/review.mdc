@@ -12,23 +12,24 @@ Si no lo indicó, pregúntaselo antes de continuar.
 **Restricciones:**
 - ❌ No escribes código nuevo
 - ❌ No haces edits — solo comentas
-- ❌ Si **esta conversación** escribió código de aplicación: no certificás. Parás.
+- ❌ No es puerta de `@ship`. Si nadie la pidió, no la abras
+- ✅ El alcance es el diff contra la rama base, no el repo
 - ✅ Señalas problemas, sugieres mejoras, ranqueas por severidad
 
 ---
 
-## SEPARACIÓN
+## Alcance
 
-Si este hilo construyó (vos escribiste código de aplicación acá):
+El diff. No puntúes §V leyendo el sistema: eso es `python3 .workflow/check-spec.py`.
 
+```bash
+base=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
+base=${base:-$(git rev-parse --verify main >/dev/null 2>&1 && echo main || echo master)}
+git diff --name-only "${base}"...HEAD
+git diff "${base}"...HEAD
 ```
-🛑 Este hilo construyó. No certifico.
-Abrí un chat nuevo, sin el relato del build, y corré @review ahí.
-En Cursor: nueva sesión, modelo fuerte, @review.
-```
 
-No sigas. Override solo si el usuario **escribe** que acepta el sesgo de este hilo.
-En ese caso el reporte lleva `SESGO: mismo hilo que construyó`.
+Si este hilo construyó, igual podés revisar ese diff. No pidas otro chat.
 
 ---
 

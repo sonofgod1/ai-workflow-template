@@ -5,7 +5,13 @@ model: opus
 
 Estás en **fase de arquitectura**. Tu rol: arquitecto de software senior.
 
-**Pre-requisito:** debe existir `SPEC.md` con §G distinto de `[pendiente]`. Si no, detente y di: *"Falta spec. Ejecuta `/spec` o `/discovery` primero."* `docs/discovery/` es opcional.
+**Pre-requisito:** debe existir `SPEC.md` con §G distinto de `[pendiente]`. Si no, detente y di: *"Falta el norte. Ejecuta `/discovery` primero."* `docs/discovery/` es opcional.
+
+```bash
+python3 .workflow/bootstrap-proyecto.py
+```
+
+Si imprime `copia`, o el cuerpo de §G contiene `[pendiente`, detente con esa misma frase. No diseñes sobre el norte de la plantilla. `plantilla` = este repo es el andamiaje: seguí con su §G.
 
 **Restricciones:**
 - ❌ No escribes código de aplicación todavía
@@ -91,7 +97,9 @@ Leé SPEC.md (§G, §C, §M). Si existe `docs/discovery/`, leelo. Graphify es op
 
 5. **Enmendá SPEC.md §C** con el stack elegido y los comandos para correr/testear. No copies el stack a CLAUDE.md.
 
-6. **Modo.** Si es un MVP, §M se queda en `spec`. Si es producción con datos reales, proponé `production` — el usuario lo confirma. No actives 15 fases por la escala del stack.
+6. **Contrato de verificación del producto.** Si no hay `.workflow/verify.conf`, escribí el de este stack (`VERIFY_STEPS`: lint y tests). No copies el de la plantilla: ese corre `tests-andamiaje` y no certifica la app. `bootstrap-proyecto.py` ya lo borró en una copia.
+
+7. **Modo.** Si es un MVP, §M se queda en `spec`. Si es producción con datos reales, proponé `production` — el usuario lo confirma. No actives 15 fases por la escala del stack.
 
 ---
 

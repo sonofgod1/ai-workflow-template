@@ -23,8 +23,13 @@ Estás en **fase de inicialización Git**. Tu rol: configurar la infraestructura
 ## Fase activa — antes de cualquier otra cosa
 
 ```bash
+python3 .workflow/bootstrap-proyecto.py
 bash .workflow/phase.sh set git-setup
 ```
+
+`copia` = esta carpeta era una copia de la plantilla: el script ya dejó un SPEC.md con §G `[pendiente` y sacó el `verify.conf` de la plantilla. No lo reviertas.
+`plantilla` = estás en el repo del andamiaje. No borres su spec.
+`proyecto` = la spec ya es del producto. Seguís.
 
 Esto declara la fase y activa su política de escritura: en `@git-setup` los hooks
 no restringen la escritura más allá de los archivos protegidos.
@@ -58,7 +63,7 @@ solo los que existan — nunca `git add .`, y no todos los proyectos instalan lo
 
 ```bash
 for p in SPEC.md FORMAT.md .cursor .github git-hooks docs .gitignore \
-         .graphifyignore sync-workflow.sh apply-sdd.sh graphify-out/.gitkeep; do
+         .graphifyignore sync-workflow.sh apply-sdd.sh .workflow/bootstrap-proyecto.py graphify-out/.gitkeep; do
   [ -e "$p" ] && git add "$p"
 done
 git status --short
@@ -402,5 +407,7 @@ REFERENCIA RÁPIDA DE GIT
 Git preparado. Hooks instalados: pre-commit, pre-push, commit-msg.
 > Herramientas del entorno: [resultado de check-tools.sh — nombra lo que falte]
 Los comandos de arriba los ejecutas tú — yo no toco el historial.
-Cuando termines, avísame y verifico. Después, @discovery para empezar el proyecto.
+Cuando termines, avísame y verifico.
+Proyecto nuevo: @discovery (norte) → @architect (dos stacks, espera) → @spec (§I §V §T) → @build.
+Proyecto que ya tenía código: el overlay lo hace apply-sdd.sh; después @spec distill.
 ```

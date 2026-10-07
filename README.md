@@ -4,12 +4,14 @@ Plantilla **spec-driven** para Claude Code y Cursor. Una spec viva (`SPEC.md`) m
 El loop de todos los días es corto. El SDLC de producción es opt-in.
 
 ```
-/spec → /build → (chat nuevo) /check T<n>
+/spec → /build → /ship
 ```
+
+Ese es el loop de todos los días, cuando la spec ya es del producto. El primer día de un proyecto nuevo es `/discovery` → `/architect` → `/spec`.
 
 Un bug no se "arregla y se olvida": vuelve a la spec como invariante (`/spec bug:`).
 
-**El que construye no certifica.** `/build` corre `verify.sh`. `/check` y `/review` son otro chat, y no escriben.
+**`verify.sh` certifica.** `/build` corre `verify.sh`. `/check` es `python3 .workflow/check-spec.py` y no lee la app. `/review` no es puerta de `/ship`.
 
 **Fuera de un comando el agente puede escribir código** si se lo pediste. Los
 comandos acotan una fase; no son un ticket system.
@@ -19,6 +21,75 @@ con código — ver [Claude Code y Cursor](#claude-code-y-cursor). Detalle de
 producción (findings, batch, Git Flow) en [`docs/workflow.md`](docs/workflow.md).
 
 **Esto es un punto de partida.** Adaptá `.claude/` o `.cursor/`.
+
+Para abrir un producto, seguí [Cómo empezar un proyecto](#cómo-empezar-un-proyecto). No escribas ese producto dentro de este repo.
+
+---
+
+## Cómo empezar un proyecto
+
+Este repositorio es la plantilla. El producto vive en otro repo. Hay dos caminos.
+
+En **Claude Code** el comando es `/git-setup`. En **Cursor** es `@git-setup`. El texto es el mismo. Abajo se usa `@`; en Claude Code cambiá la arroba por la barra.
+
+### Proyecto desde cero
+
+1. Creá el repo desde esta plantilla. GitHub copia `main`.
+
+```bash
+gh repo create mi-proyecto --template sonofgod1/ai-workflow-template --private --clone
+cd mi-proyecto
+```
+
+En la web: **Use this template** → **Create a new repository**, y cloná esa carpeta. Abrila en Cursor o Claude Code. No abras `ai-workflow-template`.
+
+2. `@git-setup`
+
+Instala hooks, CI y la protección de `main`. No crea `develop`: cada cambio va en `feature/*` con PR a `main`. Si el `SPEC.md` que ves es el de la plantilla (el norte habla de andamiaje y las tareas ya están hechas), este paso lo reemplaza por uno con el norte en `[pendiente]`.
+
+3. `@discovery`
+
+Te hace una pregunta: qué problema resuelve esto, en una oración, para quién. Confirma el texto antes de escribirlo. Eso queda en `SPEC.md` §G. No elige el stack.
+
+4. `@architect`
+
+Propone dos stacks y espera que elijas uno. Escribe los ADR y el `.workflow/verify.conf` de tu app.
+
+5. `@spec`
+
+Arma las interfaces, los invariantes y las tareas de tu producto. Si todavía no hay stack, te pregunta si volvés a `@architect`.
+
+6. `@build`
+
+Construye la siguiente tarea de §T y pega la salida de `verify.sh`.
+
+7. `@ship`
+
+Abre el PR. El merge de ese PR lo hacés vos.
+
+Graphify (el mapa de los archivos) no se instala en el paso 2. Si el repo ya tiene código, `@discovery` lo ofrece al final. Si empieza vacío, `@build` lo ofrece cuando ya hay archivos. Si decís que no, no vuelve a preguntar.
+
+Al día siguiente el ciclo es corto: `@feature` o `@spec` para cambiar la spec, `@build` para construir, `@ship` para el PR.
+
+### Proyecto que ya tiene código
+
+Desde un clone de esta plantilla, en `main`. No lo corras desde el proyecto destino.
+
+```bash
+git clone https://github.com/sonofgod1/ai-workflow-template.git
+cd ai-workflow-template
+bash apply-sdd.sh /ruta/al/otro-proyecto
+# ver qué haría, sin escribir:  bash apply-sdd.sh /ruta/al/otro-proyecto --dry-run
+```
+
+Copia comandos, hooks y `.workflow/` sin pisar `verify.conf`, `delivery.conf` ni un norte que el proyecto ya tenga. No hace commit.
+
+Abrí el otro proyecto en el editor:
+
+1. `@discovery` solo si el norte quedó `[pendiente]`.
+2. `@spec distill` llena interfaces, invariantes y el stack desde el código. No reescribe el norte.
+3. `@architect` solo si el stack todavía hay que elegirlo.
+4. `@build` o `@feature` para el trabajo nuevo, y `@ship` para el PR.
 
 ---
 
@@ -45,49 +116,6 @@ En este repo deja fuera los archivos que acá son código fuente.
 
 ---
 
-## Cómo usar
-
-### Proyecto nuevo
-
-```bash
-gh repo create mi-proyecto --template tu-usuario/ai-workflow-template --private
-cd mi-proyecto
-# Abrí Claude Code o Cursor
-/git-setup          # hooks, CODEOWNERS, protección de main
-/spec               # o /discovery si todavía no está claro el propósito
-/build --next       # ejecuta la siguiente §T; pega verify.sh
-# chat nuevo:
-/check T<n>         # ¿esta tarea sigue la spec? No en el hilo del build.
-                    # --all es hito (antes de /ship, o cada varias T).
-```
-
-Graphify es **opcional** (repos grandes). No es el paso 0.
-
-### Proyecto existente (workflow viejo → SDD)
-
-Desde **este** clone de la plantilla (tiene `/spec`, `FORMAT.md`), no desde GitHub `main`:
-
-```bash
-bash apply-sdd.sh /ruta/al/otro-proyecto
-# ver qué haría:  bash apply-sdd.sh /ruta/al/otro-proyecto --dry-run
-```
-
-Copia comandos, `.workflow/` (sin `verify.conf`/`delivery.conf`), `FORMAT.md`,
-`CLAUDE.md` slim, reinstala hooks, arma un `SPEC.md` stub con el norte del
-`CLAUDE.md` viejo. **No commitea.** Distill de §I/§V lo hace el agente:
-
-```
-# en Claude Code, abierto el otro proyecto:
-# pegá .claude/sdd-distill-prompt.txt  →  /spec distill
-# chat nuevo: /check --all   ← hito: acabás de destilar la spec entera
-```
-
-`--claude` lanza `claude -p` con ese prompt si tenés la CLI. `/check` nunca
-corre en el mismo paso: el que construye no certifica. Tras cada `/build`
-después de eso: `/check T<n>`, no `--all`.
-
----
-
 ## El loop (esto es spec-driven development)
 
 `SPEC.md` en la raíz. Formato: [`FORMAT.md`](FORMAT.md). Secciones fijas:
@@ -97,13 +125,13 @@ la recurrencia, **§D** delta (lo propuesto; no es la verdad actual).
 
 `/spec` y `/feature` escriben en §D un cambio que todavía no es verdad
 (`ADDED` / `MODIFIED` / `REMOVED`). `/build` lo folda a lo live al marcar la
-§T `x`. `/check` puntúa lo actual: un `ADDED` abierto no es MISSING.
+§T `x`. `/check` puntúa §V con el script: un `ADDED` abierto no es fallo, salvo que la T `x` todavía lo cite (STALE).
 
 | Comando | Qué hace |
 |---------|----------|
 | `/spec` `@spec` | Crea, enmienda o registra un bug. Cambio no-actual → §D. |
-| `/build` `@build` | Ejecuta la siguiente §T. Folda §D. `verify.sh`. No certifica. |
-| `/check` `@check` | Drift spec↔código. `T<n>` acota a esa tarea. `--all` es hito. Otro chat. Si este hilo implementó, para. |
+| `/build` `@build` | Ejecuta la siguiente §T. Folda §D. `verify.sh`. Siguiente: `/ship`. |
+| `/check` `@check` | Corre `.workflow/check-spec.py`. `T<n>` o `--all`. No lee la app. |
 | `/explore` `@explore` | Spike sin spec. Al final, destilar o tirar. |
 
 Tres modos (`SPEC.md` §M):

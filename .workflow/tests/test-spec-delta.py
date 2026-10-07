@@ -63,12 +63,13 @@ def test_v11_spec_escribe_delta_no_inplace():
 
 def test_v12_check_ignora_delta_abierto():
     check = _cmd("check.md")
-    assert "No marques MISSING" in check or "no es MISSING" in check
-    assert "solo existen como `ADDED`" in check or "ADDED" in check
+    script = (REPO / ".workflow" / "check-spec.py").read_text(encoding="utf-8")
+    assert "no es fallo" in check
+    assert "ADDED" in check
+    assert "no es MISSING" in check
     assert "STALE" in check
     assert "faltó el fold" in check
-    assert "## CHECK §D" in check
-    assert "No son VIOLATE ni MISSING" in check
+    assert "STALE" in script
 
 
 def test_v13_build_folda_al_x():

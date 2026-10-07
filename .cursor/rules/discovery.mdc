@@ -17,8 +17,13 @@ Estás en **fase de descubrimiento**. Tu rol: escuchar antes de especificar.
 ## Fase activa
 
 ```bash
+python3 .workflow/bootstrap-proyecto.py
 bash .workflow/phase.sh set discovery
 ```
+
+`plantilla` = este checkout es el andamiaje. No reemplaces su SPEC.md.
+`copia` = quedó un stub con §G `[pendiente`. Empezá por la pregunta del norte.
+`proyecto` = SPEC.md ya es del producto. Si §G está `[pendiente`, la pregunta sigue siendo obligatoria.
 
 Política: SPEC.md, FORMAT.md, docs/. Al terminar: `bash .workflow/phase.sh clear`
 
@@ -36,6 +41,7 @@ Mostrá lo que falte. No pares el descubrimiento por una herramienta opcional.
 
 ## Paso 1 — El problema, no el stack
 
+Si §G está `[pendiente` o no hay SPEC.md, la pregunta es obligatoria aunque el resto del archivo exista.
 Si el usuario ya dijo el propósito en 1-2 frases, usalo. Si no, **una** pregunta:
 
 > ¿Qué problema resuelve esto, en una oración, para quién?
@@ -67,15 +73,16 @@ Modo §M:
 
 ## Paso 3 — Escribir la spec
 
-Si no hay SPEC.md, creala (formato FORMAT.md) con:
+Si no hay SPEC.md, o §G está `[pendiente`, escribí (o reemplazá el stub) con:
 - §G el norte confirmado
 - §M el modo
-- §C tipo de proyecto, componentes, restricciones que el usuario dijo
-- §I / §V / §T vacíos o con lo que ya se sepa (sin inventar)
+- §C tipo de proyecto, componentes, restricciones que el usuario dijo. El stack no: eso es `@architect`, salvo que el usuario ya lo haya dicho.
+- §I y §V en `[pendiente — @spec]`
+- §T header + fila `-`
 - §B header solo
 - §D header + fila `-` (vacío: esto es baseline, no un cambio)
 
-Si ya hay SPEC.md, **amend §G/§C/§M** — no reescribas §V/§T/§I.
+Si ya hay §G real, **amend §G/§C/§M** — no reescribas §V/§T/§I.
 
 Opcional: `docs/discovery/01-problem.md` con problema, usuario, no-goals, riesgos.
 La spec manda; este archivo es memoria humana.
@@ -86,14 +93,18 @@ No copies §G a `00-gobernanza`. `00-gobernanza` apunta aquí.
 
 ## Paso 4 — Graphify (opt-in, al final)
 
-Solo si el repo ya tiene código y el usuario quiere un mapa:
+No es el paso 0. No lo instales para clasificar el proyecto.
+
+Si el repo todavía no tiene código de la app: no lo instales y no lo cuentes como un no. Decí que se ofrece al cerrar el primer `@build`, cuando haya archivos.
+
+Si ya hay código, no existe `graphify-out/GRAPH_REPORT.md` y no existe `.workflow/graphify-declinado`, preguntá una vez si quiere el mapa:
 
 ```
 uv tool install graphifyy && graphify install
 # En el asistente: /graphify .
 ```
 
-Si dice que no, no lo menciones más.
+Si dice que no, escribí `.workflow/graphify-declinado` con una línea y no lo menciones más. Si dice que sí, el reporte queda en `graphify-out/`. No bloquea el descubrimiento.
 
 ---
 
@@ -103,6 +114,6 @@ Si dice que no, no lo menciones más.
 > - §G: [una línea]
 > - §M: [explore|spec|production]
 > - Composición: [tipo + componentes]
-> - Siguiente: `@spec` para §I/§V/§T, o `@architect` si hay que elegir stack, o `@build --next` si §T ya tiene trabajo.
+> - Siguiente: `@architect` si §C no tiene stack elegido. Si el stack ya está en el código, o el usuario lo dejó pendiente a propósito, `@spec` para §I/§V/§T. `@build` solo cuando §T tenga una fila `.` o `~`.
 >
 > Graphify: [instalado / lo saltamos / no aplica]

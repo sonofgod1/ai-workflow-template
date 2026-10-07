@@ -9,8 +9,11 @@ Estás en **fase de implementación**. Este comando es un atajo. El camino real 
 Pedido: **$ARGUMENTS**
 
 ```bash
+python3 .workflow/bootstrap-proyecto.py
 bash .workflow/phase.sh set implement
 ```
+
+Si imprime `copia`, o el cuerpo de §G contiene `[pendiente`: pará. Siguiente: `/discovery`.
 
 Al terminar: `bash .workflow/phase.sh clear`
 
@@ -33,4 +36,4 @@ turno, con la línea de anclaje arriba. No pidas aprobación de un plan ceremoni
 
 No instales deps sin avisar. No commitas salvo modo PR. No ensanches el scope.
 Si encontrás algo roto fuera de lo pedido: pará y reportá, no lo arregles de paso.
-Al cerrar: `verify.sh` y chat nuevo para `/check T<n>`. `--all` es hito, no el default. No certifiques en este hilo.
+Al cerrar: `verify.sh` y pegá la salida. Siguiente: `/ship`. No abras `/check`.
