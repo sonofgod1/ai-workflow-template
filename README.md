@@ -22,6 +22,75 @@ producción (findings, batch, Git Flow) en [`docs/workflow.md`](docs/workflow.md
 
 **Esto es un punto de partida.** Adaptá `.claude/` o `.cursor/`.
 
+Para abrir un producto, seguí [Cómo empezar un proyecto](#cómo-empezar-un-proyecto). No escribas ese producto dentro de este repo.
+
+---
+
+## Cómo empezar un proyecto
+
+Este repositorio es la plantilla. El producto vive en otro repo. Hay dos caminos.
+
+En **Claude Code** el comando es `/git-setup`. En **Cursor** es `@git-setup`. El texto es el mismo. Abajo se usa `@`; en Claude Code cambiá la arroba por la barra.
+
+### Proyecto desde cero
+
+1. Creá el repo desde esta plantilla. GitHub copia `main`.
+
+```bash
+gh repo create mi-proyecto --template sonofgod1/ai-workflow-template --private --clone
+cd mi-proyecto
+```
+
+En la web: **Use this template** → **Create a new repository**, y cloná esa carpeta. Abrila en Cursor o Claude Code. No abras `ai-workflow-template`.
+
+2. `@git-setup`
+
+Instala hooks, CI y la protección de `main`. No crea `develop`: cada cambio va en `feature/*` con PR a `main`. Si el `SPEC.md` que ves es el de la plantilla (el norte habla de andamiaje y las tareas ya están hechas), este paso lo reemplaza por uno con el norte en `[pendiente]`.
+
+3. `@discovery`
+
+Te hace una pregunta: qué problema resuelve esto, en una oración, para quién. Confirma el texto antes de escribirlo. Eso queda en `SPEC.md` §G. No elige el stack.
+
+4. `@architect`
+
+Propone dos stacks y espera que elijas uno. Escribe los ADR y el `.workflow/verify.conf` de tu app.
+
+5. `@spec`
+
+Arma las interfaces, los invariantes y las tareas de tu producto. Si todavía no hay stack, te pregunta si volvés a `@architect`.
+
+6. `@build`
+
+Construye la siguiente tarea de §T y pega la salida de `verify.sh`.
+
+7. `@ship`
+
+Abre el PR. El merge de ese PR lo hacés vos.
+
+Graphify (el mapa de los archivos) no se instala en el paso 2. Si el repo ya tiene código, `@discovery` lo ofrece al final. Si empieza vacío, `@build` lo ofrece cuando ya hay archivos. Si decís que no, no vuelve a preguntar.
+
+Al día siguiente el ciclo es corto: `@feature` o `@spec` para cambiar la spec, `@build` para construir, `@ship` para el PR.
+
+### Proyecto que ya tiene código
+
+Desde un clone de esta plantilla, en `main`. No lo corras desde el proyecto destino.
+
+```bash
+git clone https://github.com/sonofgod1/ai-workflow-template.git
+cd ai-workflow-template
+bash apply-sdd.sh /ruta/al/otro-proyecto
+# ver qué haría, sin escribir:  bash apply-sdd.sh /ruta/al/otro-proyecto --dry-run
+```
+
+Copia comandos, hooks y `.workflow/` sin pisar `verify.conf`, `delivery.conf` ni un norte que el proyecto ya tenga. No hace commit.
+
+Abrí el otro proyecto en el editor:
+
+1. `@discovery` solo si el norte quedó `[pendiente]`.
+2. `@spec distill` llena interfaces, invariantes y el stack desde el código. No reescribe el norte.
+3. `@architect` solo si el stack todavía hay que elegirlo.
+4. `@build` o `@feature` para el trabajo nuevo, y `@ship` para el PR.
+
 ---
 
 ## Trabajar EN la plantilla, no con ella
@@ -44,55 +113,6 @@ En este repo deja fuera los archivos que acá son código fuente.
 - No commitear sin que el usuario lo pida (regla dura 3).
 - `bash .workflow/verify.sh` antes de dar nada por terminado.
 - El norte de *esta* plantilla vive en `SPEC.md` §G.
-
----
-
-## Cómo usar
-
-### Proyecto nuevo
-
-```bash
-gh repo create mi-proyecto --template tu-usuario/ai-workflow-template --private
-cd mi-proyecto
-# Abrí Claude Code o Cursor
-/git-setup          # hooks. Si esta copia trae el SPEC de la plantilla, lo deja en stub
-/discovery          # pregunta el norte, en una oración, y espera tu OK
-/architect          # dos stacks, espera tu elección, ADRs, §C
-/spec               # §I, §V y §T del producto
-/build --next       # ejecuta la siguiente §T; pega verify.sh
-/ship               # PR. /check es opcional: python3 .workflow/check-spec.py T<n>
-```
-
-`/git-setup` corre `bootstrap-proyecto.py`. En una copia imprime `copia` y reemplaza el SPEC de la plantilla (el de este repo, con las tareas ya hechas) por uno con §G `[pendiente`. En el repo `ai-workflow-template` imprime `plantilla` y no toca nada.
-
-Si el propósito ya viene dicho en una frase, `/spec` igual lo confirma antes de escribirlo y, si no hay stack, pregunta si pasás por `/architect`. A partir de ahí el trabajo nuevo entra por `/feature` o `/spec amend`, y se construye con `/build`.
-
-Graphify es **opcional**. No es el paso 0: si el repo ya tiene código se ofrece al final de `/discovery`; si empieza vacío, al cerrar el primer `/build`. Un no queda en `.workflow/graphify-declinado` y no se vuelve a pedir.
-
-### Proyecto que ya tiene código
-
-Desde **este** clone de la plantilla (tiene `/spec`, `FORMAT.md`), no desde GitHub `main`:
-
-```bash
-bash apply-sdd.sh /ruta/al/otro-proyecto
-# ver qué haría:  bash apply-sdd.sh /ruta/al/otro-proyecto --dry-run
-```
-
-Copia comandos, `.workflow/` (sin `verify.conf`, `delivery.conf` ni la marca `es-plantilla`), `FORMAT.md`,
-`CLAUDE.md` slim, reinstala hooks, arma un `SPEC.md` stub con el norte del
-`CLAUDE.md` viejo. **No commitea.** No pisa un §G que ya sea del producto.
-
-```
-# en el otro proyecto:
-/discovery          # solo si §G quedó [pendiente]: pregunta el norte y espera el OK
-/spec distill       # §I, §V y el stack real desde el código. No reescribe §G
-# /architect solo si hay que elegir stack; si ya está en el código, no
-/build --next       # o /feature para trabajo nuevo
-/ship
-```
-
-`--claude` lanza `claude -p` con `.claude/sdd-distill-prompt.txt` si tenés la CLI. Certifica
-`verify.sh`. `/check` es el script y no es puerta.
 
 ---
 
