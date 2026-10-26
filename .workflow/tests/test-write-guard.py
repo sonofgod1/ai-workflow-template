@@ -56,6 +56,9 @@ CASOS = [
     ("cat > SECRETO.md <<'P'\nx\nP", BLOQUEAR, "redirección: no se rompe lo que ya funcionaba"),
     ("sed -i '' 's/a/b/' SECRETO.md", BLOQUEAR, "sed -i tampoco"),
     ("echo x | tee SECRETO.md", BLOQUEAR, "tee tampoco"),
+    ("echo ok && echo x > SECRETO.md", BLOQUEAR, "partir en && sigue funcionando"),
+    ("echo a\necho x > SECRETO.md", BLOQUEAR, "partir en saltos de línea fuera de comillas"),
+    ('echo "a > b" > SECRETO.md', BLOQUEAR, "comillas con > adentro y redirección real afuera"),
 
     # ── Deben pasar ─────────────────────────────────────────────────────────
     ("python3 - <<'P'\nfrom pathlib import Path\nprint(Path('SECRETO.md').read_text())\nP",
@@ -69,6 +72,9 @@ CASOS = [
      PASAR, "un heredoc que menciona el protegido es documentación"),
 
     ("grep -n 'SECRETO.md' -r .", PASAR, "buscar el nombre no lo escribe"),
+    ('gh pr edit 1 --body "Texto\n\n> SECRETO.md queda igual\n\nFin"',
+     PASAR, "una cita markdown dentro de comillas no es redirección (pasó en musicos)"),
+    ('echo "a | tee SECRETO.md | b"', PASAR, "un | dentro de comillas no parte el comando"),
     ("npm test", PASAR, "comando inocente"),
 ]
 

@@ -221,11 +221,40 @@ def cuerpos_de_codigo(text):
     return cuerpos
 
 
+def split_unquoted(cmd):
+    """Parte en `;`, `&`, `|` y saltos de línea, pero solo fuera de comillas.
+
+    Partir con una regex antes de shlex cortaba también dentro de un texto entre
+    comillas: en `gh pr edit --body "...\\n> Nota\\n..."` la línea `> Nota` quedaba
+    como una redirección a un archivo llamado `Nota`, y se bloqueaba."""
+    piezas, actual, comilla, i = [], [], None, 0
+    while i < len(cmd):
+        c = cmd[i]
+        if c == "\\" and comilla != "'" and i + 1 < len(cmd):
+            actual.append(cmd[i:i + 2])
+            i += 2
+            continue
+        if comilla:
+            if c == comilla:
+                comilla = None
+        elif c in "'\"":
+            comilla = c
+        elif c in ";&|\n":
+            piezas.append("".join(actual))
+            actual = []
+            i += 1
+            continue
+        actual.append(c)
+        i += 1
+    piezas.append("".join(actual))
+    return piezas
+
+
 def command_targets(cmd):
     cmd_original = cmd
     cmd = strip_heredocs(cmd)
     found = []
-    for piece in re.split(r"(?:\|\||&&|[;&|\n])+", cmd):
+    for piece in split_unquoted(cmd):
         piece = piece.strip()
         if not piece:
             continue

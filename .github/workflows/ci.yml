@@ -14,6 +14,12 @@ on:
 permissions:
   contents: read
 
+# Un push nuevo a la branch de un PR deja obsoleta la corrida anterior: se cancela.
+# En main/develop no, cada merge conserva su propio resultado.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # ── Qué hay en este repo ────────────────────────────────────────────────────
   detect:
@@ -29,6 +35,13 @@ jobs:
       py_file: ${{ steps.check.outputs.py_file }}
       node_ver: ${{ steps.check.outputs.node_ver }}
       node_file: ${{ steps.check.outputs.node_file }}
+      # Caché de dependencias para el job verificacion. setup-python y setup-node
+      # fallan si cache-dependency-path no encuentra ningún archivo, así que se
+      # activa solo cuando hay manifiestos, y con la lista exacta.
+      pip_cache: ${{ steps.check.outputs.pip_cache }}
+      pip_deps: ${{ steps.check.outputs.pip_deps }}
+      npm_cache: ${{ steps.check.outputs.npm_cache }}
+      npm_deps: ${{ steps.check.outputs.npm_deps }}
     steps:
       - uses: actions/checkout@v4
       - id: check
@@ -52,6 +65,22 @@ jobs:
             echo "node_file=.nvmrc" >> "$GITHUB_OUTPUT"
           else
             echo "node_ver=20" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Monorepos incluidos: backend/requirements.txt, frontend/package-lock.json.
+          lista() {
+            find . -path ./.git -prune -o -path '*/node_modules' -prune -o \
+              -type f \( "$@" \) -print | sed 's|^\./||' | sort
+          }
+          PIP=$(lista -name 'requirements*.txt' -o -name pyproject.toml)
+          NPM=$(lista -name package-lock.json)
+          if [ -n "$PIP" ]; then
+            echo "pip_cache=pip" >> "$GITHUB_OUTPUT"
+            { echo "pip_deps<<EOF"; echo "$PIP"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "$NPM" ]; then
+            echo "npm_cache=npm" >> "$GITHUB_OUTPUT"
+            { echo "npm_deps<<EOF"; echo "$NPM"; echo "EOF"; } >> "$GITHUB_OUTPUT"
           fi
         shell: bash
 
@@ -240,7 +269,11 @@ jobs:
           # --exigir-test: un hallazgo cerrado sin test ni exención registrada no
           # pasa. Es la barrera que evita que el humano quede como único arnés de
           # pruebas del proyecto.
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          #
+          # base_ref cubre el PR hacia main: mirando solo github.ref, un blocker
+          # abierto no frenaba el release y aparecía recién en el push, con main
+          # ya en rojo.
+          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.base_ref }}" = "main" ]; then
             python3 .workflow/findings.py validate --sin-bloqueantes --exigir-test
           else
             python3 .workflow/findings.py validate --exigir-test
@@ -312,8 +345,13 @@ jobs:
   # --strict aquí y no en local: un paso saltado por falta de herramienta es
   # tolerable mientras trabajas, pero en la barrera que no se puede saltar tiene
   # que contar como fallo. Si no, "sin linter instalado" pasa por verde.
+  #
+  # El push que deja el merge de un PR no la repite: el PR ya la corrió sobre el
+  # merge con la base, y era la mitad del tiempo de CI de cada entrega. Un push
+  # directo, o un squash (cuyo mensaje es el título del PR), sí la corre.
   verificacion:
     needs: detect
+    if: github.event_name == 'pull_request' || !startsWith(github.event.head_commit.message, 'Merge pull request')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -330,11 +368,15 @@ jobs:
         with:
           python-version: ${{ needs.detect.outputs.py }}
           python-version-file: ${{ needs.detect.outputs.py_file }}
+          cache: ${{ needs.detect.outputs.pip_cache }}
+          cache-dependency-path: ${{ needs.detect.outputs.pip_deps }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ needs.detect.outputs.node_ver }}
           node-version-file: ${{ needs.detect.outputs.node_file }}
+          cache: ${{ needs.detect.outputs.npm_cache }}
+          cache-dependency-path: ${{ needs.detect.outputs.npm_deps }}
 
       - name: Contrato de verificación
         run: |

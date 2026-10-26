@@ -30,6 +30,11 @@ Si imprime `copia`, o el cuerpo de §G contiene `[pendiente`: pará. "No hay pro
 
 Al terminar: `bash .workflow/phase.sh clear`
 
+Si estás en la base (`main` o `develop`), creá la branch de trabajo **vos**, antes del
+primer archivo: `git checkout -b feature/<slug>` (o `fix/<slug>`) desde la base. No se la
+pidas al usuario: no es commit ni push, y pedirla falló una y otra vez en la práctica
+(los cambios quedaban sobre `develop`).
+
 Si un bloqueo te detiene, no lo rodees.
 
 ---
