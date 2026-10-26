@@ -92,9 +92,20 @@ HAY_STACK=false
 # en subcarpetas daba "sin stack" y el lint nunca se echaba en falta.
 if [ -n "$(find . -name '*.py' -not -path './.git/*' -not -path '*/node_modules/*' -print -quit 2>/dev/null)" ] || [ -f "pyproject.toml" ]; then
   HAY_STACK=true
-  tiene ruff && reporta ok "ruff" "lint y formato de Python" \
-             || reporta falta-util "ruff" "sin él, el lint de Python se salta y verify.sh sale 'parcial'" \
-                "brew install ruff   ·   o: pip install ruff"
+  if tiene ruff; then
+    reporta ok "ruff" "lint de Python"
+    if grep -q '\[tool\.ruff\.format\]' pyproject.toml 2>/dev/null \
+        || { [ -f ruff.toml ] && grep -q '^\[format\]' ruff.toml; } \
+        || grep -q 'ruff format' .workflow/verify.conf 2>/dev/null; then
+      reporta ok "formato py" "ruff format entra en la verificación"
+    else
+      reporta falta-util "formato py" "ruff está; el formato todavía no se verifica" \
+        "@architect propone ruff format. El repo no se reformatea sin un sí aparte"
+    fi
+  else
+    reporta falta-util "ruff" "sin él, el lint de Python se salta y verify.sh sale 'parcial'" \
+      "brew install ruff   ·   o: pip install ruff"
+  fi
 fi
 
 if [ -f "package.json" ]; then
@@ -108,6 +119,16 @@ if [ -f "package.json" ]; then
   if [ -f "tsconfig.json" ]; then
     [ -x "node_modules/.bin/tsc" ] && reporta ok "tsc" "type-check de TypeScript" \
       || reporta falta-util "tsc" "hay tsconfig.json pero no tsc: el type-check se salta" "npm i -D typescript"
+  fi
+  if [ -x "node_modules/.bin/biome" ] || [ -f biome.json ] || [ -f biome.jsonc ] \
+      || grep -q '"@biomejs/biome"' package.json 2>/dev/null; then
+    reporta ok "formato JS" "lo cubre biome"
+  elif [ -x "node_modules/.bin/prettier" ] || grep -q '"prettier"' package.json 2>/dev/null \
+      || grep -q '"format:check"' package.json 2>/dev/null; then
+    reporta ok "formato JS" "prettier ya está en el proyecto"
+  else
+    reporta falta-util "formato JS" "sin formateador, verify.sh no mira el formato" \
+      "Biome si ese es el linter; si no, Prettier. Lo propone @architect y no se instala solo"
   fi
 fi
 

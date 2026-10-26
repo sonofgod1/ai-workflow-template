@@ -149,6 +149,29 @@ jobs:
             echo "⚠️  Sin linter instalado (biome o eslint). Saltando."
           fi
 
+      - name: Formato
+        run: |
+          if [ -x node_modules/.bin/biome ]; then
+            echo "✓ El formato lo cubre biome check."
+          elif grep -q '"format:check"' package.json; then
+            npm run format:check
+          elif [ -x node_modules/.bin/prettier ]; then
+            node_modules/.bin/prettier --check .
+          else
+            declarado=no
+            grep -q '"prettier"' package.json && declarado=yes
+            for f in .prettierrc .prettierrc.json .prettierrc.yaml .prettierrc.yml \
+                     .prettierrc.js .prettierrc.cjs .prettierrc.mjs .prettierrc.toml \
+                     prettier.config.js prettier.config.cjs prettier.config.mjs; do
+              [ -f "$f" ] && declarado=yes
+            done
+            if [ "$declarado" = "yes" ]; then
+              echo "::error::Prettier está declarado y no está instalado."
+              exit 1
+            fi
+            echo "⚠️  Sin formateador JS (biome o prettier). Saltando."
+          fi
+
       - name: Type-check
         run: |
           if [ -f tsconfig.json ] && [ -x node_modules/.bin/tsc ]; then

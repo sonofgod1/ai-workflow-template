@@ -36,6 +36,7 @@ bash .workflow/check-tools.sh
 ```
 
 Mostrá lo que falte. No pares el descubrimiento por una herramienta opcional.
+Si falta el formateador, no lo instales acá: `@architect` lo propone cuando el stack esté elegido.
 
 ---
 

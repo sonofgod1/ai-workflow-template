@@ -759,7 +759,7 @@ Corre en cada PR a `main` y `develop`, y en cada push a esas ramas:
 | `archivos-prohibidos` | Busca `.env`, `*.db`, `*.pem`, `node_modules/` y demás versionados en el repo |
 | `commits-convencionales` | Valida el asunto de **todos** los commits del PR, con el mismo patrón que `commit-msg` |
 | `secretos` | gitleaks sobre el historial completo |
-| `javascript` | `npm ci`, lint (biome o eslint), `tsc --noEmit`, tests — solo si hay `package.json` |
+| `javascript` | `npm ci`, lint (biome o eslint), formato (prettier, si está; biome ya lo cubre `check`), `tsc --noEmit`, tests — solo si hay `package.json` |
 | `python` | ruff y pytest — solo si hay `pyproject.toml` o `setup.py` |
 | `hallazgos` | Valida `docs/findings.json`: ids únicos, hashes de commit reales, y ningún bloqueante abierto en `main` |
 | `verificacion` | Corre `.workflow/verify.sh --strict` si el repo declaró sus pasos — cubre stacks que los jobs de arriba no detectan |

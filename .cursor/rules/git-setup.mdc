@@ -131,8 +131,10 @@ HOOKS DE GIT INSTALADOS
 pre-commit    Antes de cada commit:
               • Bloquea archivos prohibidos (.env, *.db, node_modules, etc.)
               • Lint de JS/TS (biome o eslint si está instalado)
+              • Formato JS/TS con prettier, si está instalado y el linter no es biome
               • Type-check TypeScript si hay tsconfig.json
               • Lint Python con ruff si hay pyproject.toml
+              • Formato Python con `ruff format`, si `verify.conf` lo declara
 
 pre-push      Antes de cada push:
               • Corre tests (npm test / pytest según stack detectado)
