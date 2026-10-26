@@ -447,6 +447,32 @@ def caso_cierre_con_commit_anterior_al_pr():
         assert "Ninguno" not in seccion, seccion
 
 
+def caso_indice_ausente_no_hereda_cierres_viejos():
+    """Sin índice en la base, un cierre viejo no figura como de este PR.
+
+    El archivo nace en la branch. El commit del arreglo está en la base, no en
+    el rango. Tratar «no había archivo» como «nadie estaba resuelto» listaba
+    ese cierre igual."""
+    with tempfile.TemporaryDirectory() as d:
+        montar(d)
+        base = sh(d, "git rev-parse develop").stdout.strip()
+        sh(
+            d,
+            "python3 .workflow/findings.py add --id B9 --severidad blocker "
+            "--titulo 'clave expuesta' --origen docs/reviews/r.md",
+        )
+        sh(
+            d,
+            f"python3 .workflow/findings.py cerrar B9 --commit {base} "
+            "--sin-test --razon 'el arreglo es anterior a este índice'",
+        )
+        sh(d, "git add -A && git commit -q -m 'docs(findings): índice con un cierre viejo'")
+        cuerpo, _ = ship(d, "--cuerpo", "--base", "develop")
+        seccion = cuerpo.split("## Hallazgos cerrados", 1)[1].split("## ", 1)[0]
+        assert "B1" in seccion, seccion
+        assert "B9" not in seccion, seccion
+
+
 def caso_pie_cierra_el_cuerpo():
     """--pie agrega la línea de atribución al final del cuerpo.
 
@@ -483,6 +509,7 @@ CASOS = [
     caso_cuerpo_sin_plan_lo_dice,
     caso_cuerpo_marca_el_cierre_exento,
     caso_cierre_con_commit_anterior_al_pr,
+    caso_indice_ausente_no_hereda_cierres_viejos,
     caso_pie_cierra_el_cuerpo,
     caso_plan_con_nombre_distinto_a_la_branch,
     caso_plan_en_la_base_se_encuentra_por_el_id,

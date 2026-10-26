@@ -169,9 +169,12 @@ if [ -n "$PY_FILES" ]; then
     else
       echo "  ✓ Python OK."
     fi
-    # Solo si el proyecto lo declaró en verify.conf. Correrlo siempre frena el
-    # commit de un repo que usa ruff para lint y todavía no eligió formato.
-    if grep -q 'ruff format' .workflow/verify.conf 2>/dev/null; then
+    # El mismo sí que verify.sh: la config de ruff, o un paso en verify.conf.
+    # Mirar solo verify.conf dejaba pasar el commit cuando el formato estaba
+    # declarado en pyproject.toml o en ruff.toml.
+    if grep -q '\[tool\.ruff\.format\]' pyproject.toml 2>/dev/null \
+        || { [ -f ruff.toml ] && grep -q '^\[format\]' ruff.toml; } \
+        || grep -q 'ruff format' .workflow/verify.conf 2>/dev/null; then
       echo "  Formato Python (ruff format)..."
       printf '%s\n' "$PY_FILES" | tr '\n' '\0' | xargs -0 ruff format --check --force-exclude
       RUFF_FMT=$?

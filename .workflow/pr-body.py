@@ -142,13 +142,33 @@ def seccion_del_plan(plan, titulo):
 
 
 def resueltos_en(ref):
-    """IDs resueltos en el índice tal como estaba en `ref`."""
-    crudo = git("show", f"{ref}:{FINDINGS.as_posix()}")
+    """IDs resueltos en el índice tal como estaba en `ref`.
+
+    None si ese commit no tiene un índice legible. Ausente no es lo mismo que
+    vacío: vacío significa que nadie estaba resuelto, y ausente no da una línea
+    de base. Tratarlo como vacío hacía figurar en este PR todos los que ya
+    estaban resueltos.
+    """
+    spec = f"{ref}:{FINDINGS.as_posix()}"
+    probe = subprocess.run(
+        ["git", "cat-file", "-e", spec],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if probe.returncode != 0:
+        return None
+    crudo = git("show", spec)
     try:
-        data = json.loads(crudo) if crudo else {}
+        data = json.loads(crudo)
     except ValueError:
-        return set()
-    return {h.get("id") for h in data.get("hallazgos", []) if h.get("estado") == "resuelto"}
+        return None
+    if not isinstance(data, dict):
+        return None
+    hallazgos = data.get("hallazgos", [])
+    if not isinstance(hallazgos, list):
+        return None
+    return {h.get("id") for h in hallazgos if isinstance(h, dict) and h.get("estado") == "resuelto"}
 
 
 def hallazgos_cerrados(shas, base=None, cabeza="HEAD"):
