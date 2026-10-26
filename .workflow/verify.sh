@@ -9,7 +9,7 @@
 # hooks pueden leer para saber si lo que hay en el working tree fue verificado.
 #
 # Uso:
-#   bash .workflow/verify.sh              # lint + type-check + tests
+#   bash .workflow/verify.sh              # lint + formato + type-check + tests
 #   bash .workflow/verify.sh --quick      # solo lint + type-check (sin tests)
 #   bash .workflow/verify.sh --strict     # un paso saltado cuenta como fallo (CI)
 #   bash .workflow/verify.sh --reusar     # no repetir si la evidencia ya vale
@@ -113,6 +113,36 @@ if [ -f ".workflow/verify.conf" ]; then
   source .workflow/verify.conf
 fi
 
+# Biome ya mira el formato dentro de `biome check`. Prettier al lado reescribe
+# el mismo archivo con otras reglas, así que si el proyecto eligió Biome no se
+# agrega un paso de Prettier. Sin formateador declarado tampoco se inventa un
+# paso vacío: instalarlo lo propone @architect y espera el sí. Un paso vacío
+# dejaría el verify en `parcial` para siempre en un repo que todavía no eligió.
+js_declara_biome() {
+  [ -x "node_modules/.bin/biome" ] && return 0
+  [ -f biome.json ] && return 0
+  [ -f biome.jsonc ] && return 0
+  grep -q '"@biomejs/biome"' package.json 2>/dev/null
+}
+
+js_declara_prettier() {
+  grep -q '"prettier"' package.json 2>/dev/null && return 0
+  grep -q '"format:check"' package.json 2>/dev/null && return 0
+  local f
+  for f in .prettierrc .prettierrc.json .prettierrc.yaml .prettierrc.yml \
+           .prettierrc.js .prettierrc.cjs .prettierrc.mjs .prettierrc.toml \
+           prettier.config.js prettier.config.cjs prettier.config.mjs; do
+    [ -f "$f" ] && return 0
+  done
+  return 1
+}
+
+py_declara_format() {
+  grep -q '\[tool\.ruff\.format\]' pyproject.toml 2>/dev/null && return 0
+  [ -f ruff.toml ] && grep -q '^\[format\]' ruff.toml && return 0
+  return 1
+}
+
 if [ ${#VERIFY_STEPS[@]} -eq 0 ]; then
   # ── Autodetección. Node y Python pueden coexistir (monorepo fullstack), así
   # que cada stack aporta sus propios pasos en vez de competir por uno solo.
@@ -124,6 +154,16 @@ if [ ${#VERIFY_STEPS[@]} -eq 0 ]; then
       VERIFY_STEPS+=("lint-js:node_modules/.bin/eslint . --max-warnings=0")
     else
       VERIFY_STEPS+=("lint-js:")
+    fi
+
+    if ! js_declara_biome; then
+      if grep -q '"format:check"' package.json 2>/dev/null && [ -d node_modules ]; then
+        VERIFY_STEPS+=("format-js:npm run format:check")
+      elif [ -x "node_modules/.bin/prettier" ]; then
+        VERIFY_STEPS+=("format-js:node_modules/.bin/prettier --check .")
+      elif js_declara_prettier; then
+        VERIFY_STEPS+=("format-js:")
+      fi
     fi
 
     if [ -f "tsconfig.json" ] && [ -x "node_modules/.bin/tsc" ]; then
@@ -142,6 +182,11 @@ if [ ${#VERIFY_STEPS[@]} -eq 0 ]; then
   if [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
     if command -v ruff > /dev/null 2>&1; then
       VERIFY_STEPS+=("lint-py:ruff check .")
+      # Ruff como linter no implica que el proyecto haya elegido `ruff format`.
+      # El chequeo entra cuando la config lo declara. Si no, @architect lo propone.
+      if py_declara_format; then
+        VERIFY_STEPS+=("format-py:ruff format --check .")
+      fi
     else
       VERIFY_STEPS+=("lint-py:")
     fi

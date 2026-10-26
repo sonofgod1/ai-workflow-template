@@ -97,7 +97,21 @@ Leé SPEC.md (§G, §C, §M). Si existe `docs/discovery/`, leelo. Graphify es op
 
 5. **Enmendá SPEC.md §C** con el stack elegido y los comandos para correr/testear. No copies el stack a CLAUDE.md.
 
-6. **Contrato de verificación del producto.** Si no hay `.workflow/verify.conf`, escribí el de este stack (`VERIFY_STEPS`: lint y tests). No copies el de la plantilla: ese corre `tests-andamiaje` y no certifica la app. `bootstrap-proyecto.py` ya lo borró en una copia.
+6. **Contrato de verificación del producto.** Si no hay `.workflow/verify.conf`, escribí el de este stack (`VERIFY_STEPS`: lint, formato y tests). Si ya hay uno, no lo reescribas: mirá si le falta el paso de formato y agregá solo ese. No copies el de la plantilla: ese corre `tests-andamiaje` y no certifica la app. `bootstrap-proyecto.py` ya lo borró en una copia.
+
+   **Formateador.** Mirá el repo antes de proponer instalar nada.
+
+   Ya hay uno si aparece cualquiera de estos: Biome (`biome.json` o `@biomejs/biome`), Prettier (config, dependencia o script `format:check`), Ruff como formateador (`[tool.ruff.format]`, `[format]` en `ruff.toml`, o un paso `ruff format` en `verify.conf`), `gofmt` con `go.mod`, `rustfmt` con `Cargo.toml`.
+
+   Si ya hay uno, el paso de chequeo entra en `verify.conf` y no se instala otro. Con Biome el paso es `biome check` (ya mira el formato). Con Prettier, `format:check` o `prettier --check`. Con Ruff, `ruff format --check`. Con Go, `gofmt -l`. Con Rust, `cargo fmt --check`.
+
+   Si no hay, proponé el del stack y pará hasta el sí. En esta fase no se instalan dependencias.
+   - JS/TS y el linter va a ser Biome → Biome, una sola herramienta para lint y formato.
+   - JS/TS con ESLint, sin Biome → Prettier con versión fija (`npm i -D --save-exact`), `.prettierrc.json` con la configuración por defecto, `.prettierignore` (salida de build, `node_modules`, lockfile) y scripts `format` y `format:check`.
+   - Python → `ruff format`. Black no se suma si el linter ya es Ruff.
+   - Go → `gofmt`. Rust → `rustfmt`.
+
+   Reformatear el árbol entero queda para después, y solo con un sí aparte. En un repo nuevo se ofrece como su propio commit, cuando el formateador ya está instalado. En un repo ya versionado ese commit mezcla líneas que nadie cambió con el cambio de verdad.
 
 7. **Modo.** Si es un MVP, §M se queda en `spec`. Si es producción con datos reales, proponé `production` — el usuario lo confirma. No actives 15 fases por la escala del stack.
 

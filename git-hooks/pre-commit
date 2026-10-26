@@ -114,6 +114,20 @@ if [ -n "$JS_FILES" ] && [ "$HAS_NODE" = "yes" ]; then
   else
     echo "  ⚠️  Sin linter JS/TS instalado (biome o eslint en node_modules). Saltando lint."
   fi
+
+  # Biome ya formateó en el check de arriba. Prettier solo si el proyecto lo
+  # instaló y no convive con Biome.
+  if [ "$JS_LINTER_NAME" != "biome" ] && [ -x "node_modules/.bin/prettier" ]; then
+    echo "  Formato JS/TS (prettier)..."
+    printf '%s\n' "$JS_FILES" | tr '\n' '\0' | xargs -0 node_modules/.bin/prettier --check
+    FMT_CODE=$?
+    if [ $FMT_CODE -ne 0 ]; then
+      echo "  ❌ El formato no coincide. Ejecuta: npm run format"
+      EXIT_CODE=$FMT_CODE
+    else
+      echo "  ✓ Formato JS/TS OK."
+    fi
+  fi
 fi
 
 # ─── 4. TypeScript type-check ─────────────────────────────────────────────────
@@ -154,6 +168,19 @@ if [ -n "$PY_FILES" ]; then
       EXIT_CODE=$RUFF_CODE
     else
       echo "  ✓ Python OK."
+    fi
+    # Solo si el proyecto lo declaró en verify.conf. Correrlo siempre frena el
+    # commit de un repo que usa ruff para lint y todavía no eligió formato.
+    if grep -q 'ruff format' .workflow/verify.conf 2>/dev/null; then
+      echo "  Formato Python (ruff format)..."
+      printf '%s\n' "$PY_FILES" | tr '\n' '\0' | xargs -0 ruff format --check --force-exclude
+      RUFF_FMT=$?
+      if [ $RUFF_FMT -ne 0 ]; then
+        echo "  ❌ ruff format falló. Ejecuta: ruff format"
+        EXIT_CODE=$RUFF_FMT
+      else
+        echo "  ✓ Formato Python OK."
+      fi
     fi
   else
     echo "  ⚠️  ruff no instalado. Saltando lint de Python."
