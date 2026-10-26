@@ -15,6 +15,7 @@
 #   bash .workflow/ship.sh --abrir-pr      # + push + gh pr create
 #   bash .workflow/ship.sh --base develop  # base distinta de main (Git Flow opt-in)
 #   bash .workflow/ship.sh --cuerpo        # imprime el cuerpo del PR y sale
+#   bash .workflow/ship.sh --abrir-pr --pie "texto"  # cierra el cuerpo con esa línea
 
 set -uo pipefail
 
@@ -40,13 +41,17 @@ fi
 BASE=""
 ABRIR="no"
 SOLO_CUERPO="no"
+# La línea de atribución del PR. Va por argumento porque en fase ship el agente no
+# puede escribir un archivo temporal para editar el cuerpo después de abrirlo.
+PIE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --abrir-pr) ABRIR="yes" ;;
     --cuerpo)   SOLO_CUERPO="yes" ;;
     --base)     BASE="${2:-}"; shift ;;
-    -h|--help)  sed -n '2,22p' "$0"; exit 0 ;;
+    --pie)      PIE="${2:-}"; shift ;;
+    -h|--help)  sed -n '2,18p' "$0"; exit 0 ;;
     *) echo "❌ Parámetro desconocido: $1" >&2; exit 1 ;;
   esac
   shift
@@ -104,8 +109,9 @@ if [ ! -f "$CONF" ]; then
 fi
 
 if [ "$SOLO_CUERPO" = "yes" ]; then
-  python3 "$ROOT/.workflow/pr-body.py" --base "$BASE"
-  exit $?
+  python3 "$ROOT/.workflow/pr-body.py" --base "$BASE" || exit $?
+  [ -n "$PIE" ] && printf '\n%s\n' "$PIE"
+  exit 0
 fi
 
 echo "🚢 ship: preparando $BRANCH → $BASE"
@@ -349,6 +355,7 @@ git push -u origin "$BRANCH" || { echo "   ❌ el push falló"; exit 1; }
 
 CUERPO="$(mktemp)"
 python3 "$ROOT/.workflow/pr-body.py" --base "$BASE" --salida "$CUERPO" > /dev/null
+[ -n "$PIE" ] && printf '\n%s\n' "$PIE" >> "$CUERPO"
 TITULO="$(git log -1 --format=%s)"
 
 echo "── gh pr create"

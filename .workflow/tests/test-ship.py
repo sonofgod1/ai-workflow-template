@@ -424,6 +424,43 @@ def caso_cuerpo_marca_el_cierre_exento():
         assert "exento" in cuerpo, cuerpo
 
 
+def caso_cierre_con_commit_anterior_al_pr():
+    """Un hallazgo cerrado en el PR con un arreglo viejo también figura como cerrado.
+
+    Pasó en musicos (B3): el código se arregló meses antes y lo que faltaba era
+    rotar la clave. El PR que lo cerraba decía "Ninguno" porque solo se buscaba
+    el commit del cierre dentro del rango."""
+    with tempfile.TemporaryDirectory() as d:
+        montar(d)
+        sh(d, "git checkout -q develop")
+        sh(d, "python3 .workflow/findings.py add --id B9 --severidad blocker "
+              "--titulo 'clave expuesta' --origen docs/reviews/r.md")
+        sh(d, "git add -A && git commit -q -m 'fix(B9): leer la clave del entorno'")
+        viejo = sh(d, "git rev-parse HEAD").stdout.strip()
+        sh(d, "git checkout -q -b fix/cerrar-b9")
+        sh(d, f"python3 .workflow/findings.py cerrar B9 --commit {viejo} "
+              "--sin-test --razon 'se rotó la clave: operación, no código'")
+        sh(d, "git add -A && git commit -q -m 'docs(findings): cerrar B9'")
+        cuerpo, _ = ship(d, "--cuerpo", "--base", "develop")
+        seccion = cuerpo.split("## Hallazgos cerrados", 1)[1].split("## ", 1)[0]
+        assert "B9" in seccion, seccion
+        assert "Ninguno" not in seccion, seccion
+
+
+def caso_pie_cierra_el_cuerpo():
+    """--pie agrega la línea de atribución al final del cuerpo.
+
+    Sin esto el agente tenía que editar el PR después de abrirlo: en fase ship
+    no puede escribir un archivo temporal, y el texto con comillas y saltos de
+    línea pasaba por el hook de escrituras."""
+    with tempfile.TemporaryDirectory() as d:
+        montar(d)
+        pie = "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+        cuerpo, code = ship(d, "--cuerpo", "--pie", pie)
+        assert code == 0, cuerpo
+        assert cuerpo.rstrip().endswith(pie), cuerpo[-300:]
+
+
 CASOS = [
     caso_branch_de_andamiaje_no_exige_plan,
     caso_branch_con_codigo_sigue_exigiendo_plan,
@@ -445,6 +482,8 @@ CASOS = [
     caso_cuerpo_traduce_los_estados_de_verify,
     caso_cuerpo_sin_plan_lo_dice,
     caso_cuerpo_marca_el_cierre_exento,
+    caso_cierre_con_commit_anterior_al_pr,
+    caso_pie_cierra_el_cuerpo,
     caso_plan_con_nombre_distinto_a_la_branch,
     caso_plan_en_la_base_se_encuentra_por_el_id,
     caso_plan_indeterminado_avisa_y_lista_candidatos,

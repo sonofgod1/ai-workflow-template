@@ -141,15 +141,36 @@ def seccion_del_plan(plan, titulo):
     return m.group(1).strip() if m else None
 
 
-def hallazgos_cerrados(shas):
+def resueltos_en(ref):
+    """IDs resueltos en el índice tal como estaba en `ref`."""
+    crudo = git("show", f"{ref}:{FINDINGS.as_posix()}")
+    try:
+        data = json.loads(crudo) if crudo else {}
+    except ValueError:
+        return set()
+    return {h.get("id") for h in data.get("hallazgos", []) if h.get("estado") == "resuelto"}
+
+
+def hallazgos_cerrados(shas, base=None, cabeza="HEAD"):
+    """Lo que este PR cierra: el commit del cierre está en el rango, o el hallazgo
+    pasó a resuelto dentro del rango aunque su arreglo sea anterior (un cierre
+    operativo, como rotar una clave, no deja un commit nuevo que apuntar)."""
     data = cargar_json(FINDINGS)
     if not data:
         return []
     cortos = {s[:7] for s in shas}
+    antes = None
+    if base:
+        punto = git("merge-base", base, cabeza)
+        antes = resueltos_en(punto) if punto else None
     salida = []
     for h in data.get("hallazgos", []):
+        if h.get("estado") != "resuelto":
+            continue
         c = h.get("commit") or ""
-        if h.get("estado") == "resuelto" and (c in shas or c[:7] in cortos):
+        en_rango = c in shas or c[:7] in cortos
+        recien = antes is not None and h.get("id") not in antes
+        if en_rango or recien:
             salida.append(h)
     return salida
 
@@ -289,7 +310,7 @@ def construir(base, cabeza, branch):
     rango = commits_del_rango(base, cabeza)
     shas = [s for s, _ in rango]
     asuntos = [a for _, a in rango]
-    cerrados = hallazgos_cerrados(shas)
+    cerrados = hallazgos_cerrados(shas, base, cabeza)
     plan, como, candidatos = plan_probable(branch, base, cabeza, cerrados, asuntos)
 
     out = []
@@ -328,7 +349,7 @@ def construir(base, cabeza, branch):
         out.append(f"Plan completo: [`{plan}`]({plan}) — encontrado porque {como}.")
     elif norte_spec and not plan:
         out.append(
-            "Trabajo contra `SPEC.md` (loop spec → build → check). "
+            "Trabajo contra `SPEC.md` (loop spec → build → ship). "
             "No hay plan en `docs/plans/` y no hace falta."
         )
         out.append("")
