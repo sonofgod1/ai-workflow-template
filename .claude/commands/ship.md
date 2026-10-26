@@ -101,7 +101,7 @@ script no puede:
 ## Paso 3 — Abrir el PR
 
 ```bash
-bash .workflow/ship.sh --abrir-pr --base [base]
+bash .workflow/ship.sh --abrir-pr --base [base] --pie "[línea de atribución de la sesión]"
 ```
 
 Pushea la branch y abre el PR con el cuerpo generado. Si el proyecto no creó
@@ -110,8 +110,21 @@ corra el usuario: por defecto rige la regla dura 3, y el modo PR es una decisió
 producto por proyecto, no algo que se herede de la plantilla. Si eso pasa,
 **muéstrale los comandos y para** — no busques otra forma de pushear.
 
-Cuando abras el PR, cierra su cuerpo con la línea de atribución que corresponda a
-la sesión.
+La línea de atribución va con `--pie`, no editando el PR después: en esta fase no
+puedes escribir el archivo temporal que eso necesita.
+
+### Varios PR contra la misma base
+
+`/git-setup` deja la protección con `strict: true`: cada PR tiene que estar al día con
+la base para mergearse. Al mergear uno, los demás quedan atrasados. Dale al usuario la
+secuencia, un PR por línea, en el orden en que quiere que entren:
+
+```bash
+gh pr merge <n1> --merge --delete-branch
+gh pr update-branch <n2> && gh pr checks <n2> --watch && gh pr merge <n2> --merge --delete-branch
+```
+
+Cada línea espera el CI del PR actualizado antes de mergear, y se corta si sale rojo.
 
 ---
 

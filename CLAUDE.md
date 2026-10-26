@@ -23,7 +23,7 @@ Leé `SPEC.md` §M. Si no existe, el default es `spec` cuando hay spec, `explore
 | Modo | Qué hacés |
 |------|-----------|
 | `explore` | Bosquejás. Escribís código. `verify.sh` al terminar. Ofrecés destilar a SPEC.md. |
-| `spec` | Loop: spec → build → check. §T es la cola. Un fallo considera backprop a §V+§B. |
+| `spec` | Loop: spec → build → ship. §T es la cola. Un fallo considera backprop a §V+§B. |
 | `production` | Lo de `spec` más review/security/migrate/ship. Detalle en `docs/workflow.md`. |
 
 **Fuera de un comando podés escribir código** si el usuario lo pidió. No existe el modo consulta que prohíbe construir. Los comandos acotan una fase; no son un ticket system obligatorio.

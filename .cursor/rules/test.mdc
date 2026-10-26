@@ -298,6 +298,24 @@ Verificar siempre:
 - [ ] ¿Qué pasa si el usuario no está autenticado cuando debería estarlo?
 - [ ] ¿Qué pasa si dos usuarios hacen la misma operación al mismo tiempo? (concurrencia)
 
+### 6. Velocidad de la suite — la que corre en cada PR
+
+Una suite lenta se termina saltando. Antes de paralelizar o de instalar algo, mide qué
+paso domina (`pytest --durations=20`, `vitest --reporter=verbose`).
+
+El caso más común con login: el hash de contraseñas. bcrypt/argon2 son lentos **a
+propósito** (~0,2 s por hash y otro tanto por verificación), y casi cada test crea un
+usuario y hace login. Bajar el costo **solo en la suite** no cambia lo que se prueba:
+
+```python
+# conftest.py — nunca en el código de la app
+from app.core.security import pwd_context
+pwd_context.update(bcrypt__rounds=4)  # mínimo de bcrypt; producción sigue con el default
+```
+
+En un proyecto real esto llevó 463 tests de 250 s a 8 s, y el CI de cada PR de 8 a 2
+minutos. Paralelizar (`pytest-xdist`) es una dependencia nueva: se pide aparte.
+
 ---
 
 ## Sugerencia Git al terminar
