@@ -302,18 +302,13 @@ Verificar siempre:
 Una suite lenta se termina saltando. Antes de paralelizar o de instalar algo, mide qué
 paso domina (`pytest --durations=20`, `vitest --reporter=verbose`).
 
-El caso más común con login: el hash de contraseñas. bcrypt/argon2 son lentos **a
-propósito** (~0,2 s por hash y otro tanto por verificación), y casi cada test crea un
-usuario y hace login. Bajar el costo **solo en la suite** no cambia lo que se prueba:
+El caso más común con login: el hash de contraseñas. bcrypt y argon2 son lentos a
+propósito —del orden de una décima de segundo por hash, y otro tanto por verificación—
+y casi cada test crea un usuario y hace login. Bajar el costo solo en la suite no
+cambia lo que se prueba: el ajuste vive en el arranque de los tests (el `conftest` de
+pytest, el setup de vitest) y el código de la app sigue con el costo de producción.
 
-```python
-# conftest.py — nunca en el código de la app
-from app.core.security import pwd_context
-pwd_context.update(bcrypt__rounds=4)  # mínimo de bcrypt; producción sigue con el default
-```
-
-En un proyecto real esto llevó 463 tests de 250 s a 8 s, y el CI de cada PR de 8 a 2
-minutos. Paralelizar (`pytest-xdist`) es una dependencia nueva: se pide aparte.
+Paralelizar es una dependencia nueva (`pytest-xdist` u otro runner): se pide aparte.
 
 ---
 

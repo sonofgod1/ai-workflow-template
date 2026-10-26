@@ -134,7 +134,7 @@ pre-commit    Antes de cada commit:
               • Formato JS/TS con prettier, si está instalado y el linter no es biome
               • Type-check TypeScript si hay tsconfig.json
               • Lint Python con ruff si hay pyproject.toml
-              • Formato Python con `ruff format`, si `verify.conf` lo declara
+              • Formato Python con `ruff format`, si lo declara `[tool.ruff.format]`, `ruff.toml` o `verify.conf`
 
 pre-push      Antes de cada push:
               • Corre tests (npm test / pytest según stack detectado)

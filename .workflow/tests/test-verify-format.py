@@ -18,6 +18,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent.parent
 VERIFY = RAIZ / ".workflow" / "verify.sh"
 CHECK_TOOLS = RAIZ / ".workflow" / "check-tools.sh"
+PRECOMMIT = RAIZ / "git-hooks" / "pre-commit"
 ARCHITECT = RAIZ / ".claude" / "commands" / "architect.md"
 
 
@@ -150,6 +151,67 @@ def caso_check_tools_avisa_si_falta_y_calla_si_esta():
         assert "no se instala solo" not in r.stdout, r.stdout
 
 
+def preparar_commit(repo, pyproject, ruff_toml=None, verify_conf=None):
+    """Repo con un .py staged y un ruff que anota cada invocación."""
+    p = Path(repo)
+    sh(repo, "git init -q . && git config user.email t@t.t && git config user.name t")
+    sh(repo, "git commit -q --allow-empty -m 'chore: base'")
+    p.joinpath("pyproject.toml").write_text(pyproject, encoding="utf-8")
+    if ruff_toml is not None:
+        p.joinpath("ruff.toml").write_text(ruff_toml, encoding="utf-8")
+    if verify_conf is not None:
+        (p / ".workflow").mkdir(parents=True)
+        (p / ".workflow" / "verify.conf").write_text(verify_conf, encoding="utf-8")
+    p.joinpath("app.py").write_text("x = 1\n", encoding="utf-8")
+    sh(repo, "git add app.py")
+    bindir = p / "bin"
+    stub(bindir / "ruff", "#!/bin/sh\nprintf '%s\\n' \"$*\" >> ruff-llamadas.txt\nexit 0\n")
+    env = os.environ.copy()
+    env["PATH"] = f"{bindir}:{env.get('PATH', '')}"
+    r = subprocess.run(
+        ["bash", str(PRECOMMIT)],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    llamadas = ""
+    registro = p / "ruff-llamadas.txt"
+    if registro.exists():
+        llamadas = registro.read_text(encoding="utf-8")
+    return r, llamadas
+
+
+def caso_precommit_sin_format_no_corre():
+    """Ruff como linter no formatea en el commit si nadie lo declaró."""
+    with tempfile.TemporaryDirectory() as d:
+        r, llamadas = preparar_commit(d, "[project]\nname='t'\nversion='0'\n")
+        assert r.returncode == 0, r.stdout + r.stderr
+        assert "check --force-exclude" in llamadas, llamadas
+        assert "format --check" not in llamadas, llamadas
+
+
+def caso_precommit_corre_con_el_mismo_si_que_verify():
+    """pyproject, ruff.toml o verify.conf activan ruff format en el commit."""
+    py_pelado = "[project]\nname='t'\nversion='0'\n"
+    senales = [
+        ("pyproject", py_pelado + "\n[tool.ruff.format]\n", None, None),
+        ("ruff.toml", py_pelado, "[format]\n", None),
+        (
+            "verify.conf",
+            py_pelado,
+            None,
+            'VERIFY_STEPS=("format-py:ruff format --check .")\n',
+        ),
+    ]
+    for nombre, pyproject, ruff_toml, verify_conf in senales:
+        with tempfile.TemporaryDirectory() as d:
+            r, llamadas = preparar_commit(d, pyproject, ruff_toml, verify_conf)
+            assert r.returncode == 0, f"{nombre}: {r.stdout}{r.stderr}"
+            assert "format --check" in llamadas, f"{nombre}: {llamadas}"
+
+
 def caso_architect_propone_y_no_reformatea_solo():
     """La instrucción tiene que sobrevivir: detectar, proponer, esperar el sí."""
     texto = ARCHITECT.read_text(encoding="utf-8")
@@ -167,6 +229,8 @@ CASOS = [
     caso_biome_no_suma_prettier,
     caso_ruff_sin_format_no_agrega_paso,
     caso_ruff_format_declarado_se_chequea,
+    caso_precommit_sin_format_no_corre,
+    caso_precommit_corre_con_el_mismo_si_que_verify,
     caso_check_tools_avisa_si_falta_y_calla_si_esta,
     caso_architect_propone_y_no_reformatea_solo,
 ]
