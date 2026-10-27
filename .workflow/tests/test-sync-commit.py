@@ -341,7 +341,56 @@ def caso_check_plan_paths_se_reparte():
         "build.md que invoca un script que nunca les llega")
 
 
+# generate-cursor-rules.sh de mentira: copia cada comando a su .mdc. Basta para
+# ejercitar el sync sin acoplar el test al formato real de las reglas.
+GENERADOR_FALSO = r"""#!/usr/bin/env bash
+salida=0
+for f in .claude/commands/*.md; do
+  n=$(basename "$f" .md)
+  if [ "${1:-}" = "--check" ]; then
+    cmp -s "$f" ".cursor/rules/$n.mdc" || salida=1
+  else
+    cp "$f" ".cursor/rules/$n.mdc"
+  fi
+done
+exit $salida
+"""
+
+
+def caso_regenera_reglas_de_cursor():
+    """Un comando nuevo del template deja su .mdc desactualizado.
+
+    Si el sync no lo regenera, /ship y CI fallan en «reglas de Cursor al día» con
+    el commit del sync ya hecho (musicos, PR #89). Las reglas son derivados: se
+    regeneran y entran en el mismo commit."""
+    with tempfile.TemporaryDirectory() as d:
+        base = Path(d)
+        remoto = montar_remoto(base)
+        extra = {".claude/commands/test.md": "test v2\n",
+                 "generate-cursor-rules.sh": GENERADOR_FALSO}
+        for ruta, contenido in extra.items():
+            f = remoto / "files" / ruta
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(contenido, encoding="utf-8")
+        tree = json.loads((remoto / "tree.json").read_text(encoding="utf-8"))
+        tree["tree"] += [{"path": r, "type": "blob"} for r in extra]
+        (remoto / "tree.json").write_text(json.dumps(tree), encoding="utf-8")
+
+        proy = montar_proyecto(base)
+        (proy / ".cursor" / "rules").mkdir(parents=True)
+        (proy / ".cursor" / "rules" / "test.mdc").write_text("test v1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "-A"], cwd=proy, check=True)
+        subprocess.run(["git", "commit", "-qm", "chore: regla vieja"], cwd=proy, check=True)
+
+        salida = correr(base, proy, "--commit")
+        regla = (proy / ".cursor" / "rules" / "test.mdc").read_text(encoding="utf-8")
+        assert regla == "test v2\n", f"no regeneró la regla. salida={salida}"
+        assert staged_o_sucio(proy, ".cursor/rules") == "", (
+            f"la regla regenerada no entró al commit del sync. salida={salida}")
+
+
 CASOS = [
+    caso_regenera_reglas_de_cursor,
     caso_commitea_lo_que_escribio,
     caso_no_arrastra_trabajo_del_proyecto,
     caso_el_cuerpo_lista_los_archivos,
