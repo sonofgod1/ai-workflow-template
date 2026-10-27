@@ -487,6 +487,20 @@ def caso_pie_cierra_el_cuerpo():
         assert cuerpo.rstrip().endswith(pie), cuerpo[-300:]
 
 
+def caso_sugerencias_repiten_la_base():
+    """Las líneas «Cuerpo del PR» y «Abrirlo» llevan la --base con que se corrió.
+
+    Sin eso, `ship.sh --cuerpo` toma BASE_POR_DEFECTO de delivery.conf: en un
+    release develop → main el cuerpo salió «Sin commits sobre la base» y
+    «Migraciones: Ninguna», con una migración nueva adentro."""
+    with tempfile.TemporaryDirectory() as d:
+        montar(d)
+        salida, code = ship(d, "--base", "develop")
+        assert code == 0, salida
+        assert "ship.sh --cuerpo --base develop" in salida, salida
+        assert "ship.sh --abrir-pr --base develop" in salida, salida
+
+
 CASOS = [
     caso_branch_de_andamiaje_no_exige_plan,
     caso_branch_con_codigo_sigue_exigiendo_plan,
@@ -511,6 +525,7 @@ CASOS = [
     caso_cierre_con_commit_anterior_al_pr,
     caso_indice_ausente_no_hereda_cierres_viejos,
     caso_pie_cierra_el_cuerpo,
+    caso_sugerencias_repiten_la_base,
     caso_plan_con_nombre_distinto_a_la_branch,
     caso_plan_en_la_base_se_encuentra_por_el_id,
     caso_plan_indeterminado_avisa_y_lista_candidatos,
