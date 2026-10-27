@@ -126,6 +126,20 @@ obra_del_sync_sin_commitear() {
   done < "$MANIFEST"
 }
 
+# Las reglas de Cursor son derivados de .claude/commands/ (generate-cursor-rules.sh).
+# Si el sync trae un comando cambiado y no se regeneran, /ship y CI fallan en «reglas
+# de Cursor al día» con el commit del sync ya hecho — le pasó a musicos (PR #89).
+# Imprime las reglas que cambiaron, para que entren en el mismo commit.
+regenerar_reglas_cursor() {
+  [ -d ".cursor/rules" ] && [ -f "generate-cursor-rules.sh" ] || return 0
+  bash generate-cursor-rules.sh --check > /dev/null 2>&1 && return 0
+  if ! bash generate-cursor-rules.sh > /dev/null 2>&1; then
+    warn "generate-cursor-rules.sh falló: corre 'bash generate-cursor-rules.sh' a mano." >&2
+    return 0
+  fi
+  git status --porcelain -- .cursor/rules | awk '{print $NF}'
+}
+
 # Hooks del repositorio que NO coinciden con la copia instalada en .git/hooks/.
 #
 # El sync escribe git-hooks/, pero git ejecuta .git/hooks/, que /git-setup copió
@@ -410,7 +424,13 @@ else
   # todo y la segunda, la que lleva --commit, no actualiza nada. Con la compuerta
   # vieja el flag no llegaba ni a ejecutarse y el trabajo quedaba huérfano sin un
   # solo aviso — hallazgo B2.
-  PENDIENTES=$(obra_del_sync_sin_commitear)
+  REGLAS=$(regenerar_reglas_cursor)
+  if [ -n "$REGLAS" ]; then
+    echo "   Reglas de Cursor regeneradas (derivadas de .claude/commands/):"
+    echo "$REGLAS" | sed 's/^/       /'
+    echo ""
+  fi
+  PENDIENTES=$(printf '%s\n%s\n' "$(obra_del_sync_sin_commitear)" "$REGLAS" | sed '/^$/d' | awk '!visto[$0]++')
   NUM=$(echo "$PENDIENTES" | sed '/^$/d' | wc -l | tr -d ' ')
 
   if [ $UPDATED -gt 0 ] || [ "$NUM" -gt 0 ]; then
