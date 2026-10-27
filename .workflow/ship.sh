@@ -283,8 +283,8 @@ echo ""
 
 # ── Abrir el PR ───────────────────────────────────────────────────────────────
 if [ "$ABRIR" != "yes" ]; then
-  echo "Cuerpo del PR:   bash .workflow/ship.sh --cuerpo"
-  echo "Abrirlo:         bash .workflow/ship.sh --abrir-pr"
+  echo "Cuerpo del PR:   bash .workflow/ship.sh --cuerpo --base $BASE"
+  echo "Abrirlo:         bash .workflow/ship.sh --abrir-pr --base $BASE"
   exit 0
 fi
 
@@ -302,7 +302,7 @@ if [ "$MODO_ENTREGA" != "pr" ] || [ "$AGENTE_PUEDE_PUSHEAR" != "si" ]; then
     echo "   debe entregar en PR, el archivo está bien donde está y los comandos"
     echo "   manuales son:"
     echo "     git push -u origin $BRANCH"
-    echo "     bash .workflow/ship.sh --cuerpo > /tmp/pr.md"
+    echo "     bash .workflow/ship.sh --cuerpo --base $BASE > /tmp/pr.md"
     echo "     gh pr create --base $BASE --title \"...\" --body-file /tmp/pr.md"
     exit 1
   fi
@@ -318,7 +318,7 @@ if [ "$MODO_ENTREGA" != "pr" ] || [ "$AGENTE_PUEDE_PUSHEAR" != "si" ]; then
     echo ""
     echo "   Mientras tanto, los comandos para hacerlo vos:"
     echo "     git push -u origin $BRANCH"
-    echo "     bash .workflow/ship.sh --cuerpo > /tmp/pr.md"
+    echo "     bash .workflow/ship.sh --cuerpo --base $BASE > /tmp/pr.md"
     echo "     gh pr create --base $BASE --title \"...\" --body-file /tmp/pr.md"
     exit 1
   fi
@@ -339,7 +339,7 @@ if [ "$MODO_ENTREGA" != "pr" ] || [ "$AGENTE_PUEDE_PUSHEAR" != "si" ]; then
   echo ""
   echo "   Mientras tanto, los comandos para hacerlo tú:"
   echo "     git push -u origin $BRANCH"
-  echo "     bash .workflow/ship.sh --cuerpo > /tmp/pr.md"
+  echo "     bash .workflow/ship.sh --cuerpo --base $BASE > /tmp/pr.md"
   echo "     gh pr create --base $BASE --title \"...\" --body-file /tmp/pr.md"
   exit 1
 fi

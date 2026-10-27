@@ -116,6 +116,11 @@ def tiene_justificacion(texto, marca):
     return len(resto) >= 15
 
 
+# Alembic genera `def upgrade() -> None:`; sin esto la firma no matchea, upgrade()
+# no se encuentra y el `drop_table` de downgrade() cuenta como camino de ida.
+ANOTACION = r"\s*(?:->\s*[^:]+?)?\s*"
+
+
 # ── Solo el camino de ida ────────────────────────────────────────────────────
 
 def parte_hacia_adelante(ruta, texto):
@@ -128,7 +133,7 @@ def parte_hacia_adelante(ruta, texto):
     p = str(ruta)
 
     if p.endswith(".py"):
-        m = re.search(r"def\s+upgrade\s*\([^)]*\)\s*:(.*?)(?=\ndef\s|\Z)", texto, re.S)
+        m = re.search(r"def\s+upgrade\s*\([^)]*\)" + ANOTACION + r":(.*?)(?=\ndef\s|\Z)", texto, re.S)
         if m:
             return m.group(1)
         # django: la lista `operations` es el camino de ida
@@ -151,10 +156,12 @@ def revisar_reversibilidad(ruta, texto):
     p = str(ruta)
 
     if p.endswith(".py") and "def upgrade" in texto:  # alembic
-        m = re.search(r"def\s+downgrade\s*\([^)]*\)\s*:(.*?)(?=\ndef\s|\Z)", texto, re.S)
+        m = re.search(r"def\s+downgrade\s*\([^)]*\)" + ANOTACION + r":(.*?)(?=\ndef\s|\Z)", texto, re.S)
         if not m:
             return "no tiene función downgrade()"
-        cuerpo = re.sub(r"#.*|\"\"\".*?\"\"\"|'''.*?'''", "", m.group(1), flags=re.S).strip()
+        # `#[^\n]*` y no `#.*`: con re.S el punto cruza líneas y un comentario al principio
+        # (el `# ### commands auto generated` de Alembic) se llevaba el cuerpo entero.
+        cuerpo = re.sub(r"#[^\n]*|\"\"\".*?\"\"\"|'''.*?'''", "", m.group(1), flags=re.S).strip()
         if not cuerpo or cuerpo in ("pass", "..."):
             return "downgrade() está vacío: la migración no se puede revertir"
         if "NotImplementedError" in cuerpo or cuerpo.split()[0] == "raise":
