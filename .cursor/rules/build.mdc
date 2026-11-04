@@ -73,6 +73,15 @@ Para la(s) tarea(s):
 Si la tarea es chica (< 3 archivos, sin decisión de producto), plan + código en el mismo turno.
 Si hay una decisión de producto no resuelta en la spec, **pará** y no inventes: `@spec amend`.
 
+### Delegar lo mecánico
+
+Si una parte de la tarea es mecánica y autocontenida (el mismo cambio en muchos archivos, un
+renombre, tests que copian un patrón que ya existe, una prueba de navegador con pasos fijos),
+lanzala al subagente `ejecutor` (modelo barato) con: archivos, el cambio exacto, criterio de
+hecho y comando de verificación. El diseño, la coherencia entre archivos, la spec y el fold
+se quedan acá. Lo que devuelve se revisa; `verify.sh` al cierre sigue siendo la evidencia.
+Sin subagentes en tu editor: hacelo vos, igual.
+
 ### Ejecutar
 
 Por cada tarea, en orden:
