@@ -305,8 +305,8 @@ deja de tener sentido.
 
 ### Los subagentes
 
-Solo hacen bien una cosa: **comprimir mucha lectura en pocas conclusiones**. Se usan
-donde eso es el cuello de botella.
+Hacen bien dos cosas: **comprimir mucha lectura en pocas conclusiones** y **ejecutar
+barato lo que ya está decidido**. Se usan donde eso es el cuello de botella.
 
 | Agente | Para qué | Lo lanza |
 |---|---|---|
@@ -314,6 +314,7 @@ donde eso es el cuello de botella.
 | `reviewer-correctness` | Bugs lógicos, casos de borde, concurrencia, errores | `/review` |
 | `reviewer-security` | Auth, inyecciones, secretos, exposición de datos | `/review`, `/security` |
 | `reviewer-contracts` | Conformidad con contratos, coherencia entre componentes | `/review` |
+| `ejecutor` | UNA tarea mecánica ya decidida, con modelo barato (haiku) | `/build` y el hilo principal |
 
 `/plan` lanza varios `researcher` a la vez, uno por pregunta. `/review` lanza los
 tres revisores en paralelo, cada uno con su eje: un revisor secuencial sobre un diff
@@ -325,8 +326,12 @@ norte, las decisiones de producto, el "para y reporta") se queda en el hilo prin
 Meterlo en un subagente haría que el agente resuelva solo lo que debía devolverte, que
 es justo el fallo que este workflow existe para atrapar.
 
-Implementar tampoco se delega: cada subagente arranca en frío y no ve lo que hicieron
-los otros, así que el código coherente entre archivos se les da mal.
+Implementar con criterio tampoco se delega: cada subagente arranca en frío y no ve lo
+que hicieron los otros, así que el código coherente entre archivos se les da mal. Lo
+que **sí** se delega es lo mecánico y autocontenido (el mismo cambio en 20 archivos, un
+renombre, un test que copia uno existente, una prueba con pasos fijos): va a `ejecutor`
+con los archivos, el cambio exacto, el criterio de hecho y el comando de verificación.
+El hilo principal organiza, revisa lo que vuelve y certifica con `verify.sh`.
 
 Los hooks del proyecto **sí** se aplican a las llamadas de herramienta de los
 subagentes — comprobado con una prueba controlada. Delegar no abre un agujero en la
@@ -688,7 +693,7 @@ mi-proyecto/
 │   ├── check-migrations.py            ← Seguridad de migraciones (expand/migrate/contract)
 │   └── audit-deps.sh                  ← Auditoría de dependencias
 ├── .claude/
-│   ├── agents/                        ← Subagentes: researcher y los 3 revisores
+│   ├── agents/                        ← Subagentes: researcher, ejecutor y los 3 revisores
 │   ├── settings.json                  ← Hooks de Claude Code (PreToolUse / PostToolUse / Stop)
 │   ├── protected.txt                  ← Archivos que Claude no puede modificar
 │   ├── commands/                      ← Slash commands (spec/build/check + production)

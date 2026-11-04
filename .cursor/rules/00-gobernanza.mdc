@@ -122,7 +122,16 @@ Soporte, cuando hacen falta:
 
 El reparto de modelos: opus donde hay que decidir (`@spec`, `@architect`), sonnet donde hay que ejecutar lo ya decidido (`@build`, `@ship`). `@check` es un script.
 
-Subagentes (`researcher`, revisores): usalos en paralelo cuando el cuello es leer mucho. En Cursor existen; lanzalos. No serialices "porque el template viejo decía que Cursor no podía".
+Subagentes (`researcher`, revisores, `ejecutor`): usalos en paralelo cuando el cuello es leer mucho. En Cursor existen; lanzalos. No serialices "porque el template viejo decía que Cursor no podía".
+
+**Delegar lo barato.** El hilo principal organiza, decide y verifica; lo mecánico va a un subagente de modelo más barato:
+
+| Tarea | A quién | Modelo |
+|-------|---------|--------|
+| Búsqueda amplia, "¿dónde está X?" | `Explore` o `researcher` | haiku o sonnet |
+| Edición repetitiva, renombre, formato, test que copia un patrón existente, prueba de navegador con pasos fijos | `ejecutor` | haiku (sonnet si pide más cuidado) |
+
+Delegás solo si la tarea es **autocontenida**: archivos nombrados, criterio de hecho y comando de verificación en el prompt. Nunca se delega decidir (spec, diseño, producto, el "para y pregunta") ni código que tiene que ser coherente entre varios archivos: el subagente arranca en frío y no ve lo que hicieron los otros. Lo de dos líneas lo hacés directo; delegar cuesta un arranque en frío. Lo que devuelve un subagente se revisa y se certifica con `verify.sh` antes de reportarlo.
 
 ---
 
